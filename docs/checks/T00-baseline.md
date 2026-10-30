@@ -74,11 +74,11 @@ node tools/test_all.mjs
 
 ## 5. 回退方式
 
-基线已经提交为 Git 仓库（本地，无远程、无上传）：
+基线已经提交为 Git 仓库（本地，无远程、无上传）：**基线提交 `f56cdce`**（87 个文件）。
 
 ```powershell
 Set-Location 'C:\Users\beilu\Documents\blwork\reverse_abyss'
-git log --oneline            # 找到 T00 基线提交
+git log --oneline            # f56cdce 就是 T00 基线提交
 git status                   # 应显示工作树干净
 git checkout -- .            # 丢弃全部未提交改动，回到基线
 git checkout <基线提交号> -- .   # 只把文件恢复到基线内容（不动当前 HEAD）
