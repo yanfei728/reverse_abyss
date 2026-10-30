@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>reverse_abyss · 试玩</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* 试玩页:画布铺满窗口,等比缩放(和 index.html 同一套做法)。
+     操作提示不写在 HTML 里 —— 直接画在画布右上角,和游戏本体一个风格,
+     也不会和窗口边缘的字压在一起。 */
+  #game { width: min(100vw, 177.78vh); height: auto; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="960" height="540" tabindex="0"
+            aria-label="reverse_abyss 关卡编辑器试玩"></canvas>
+  </div>
+
+  <!-- 引擎:与 index.html 里同一份,顺序也一致 -->
+  <script src="js/config.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/text.js"></script>
+  <script src="js/level.js"></script>
+  <script src="js/entities/base.js"></script>
+  <script src="js/entities/player.js"></script>
+  <script src="js/entities/goal.js"></script>
+  <script src="js/entities/spring.js"></script>
+  <script src="js/entities/ghost.js"></script>
+  <script src="js/entities/blink.js"></script>
+  <script src="js/monsters.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/tower.js"></script>
+  <script src="js/levelpack.js"></script>
+  <script src="js/reach.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/smoke.js"></script>
+  <script src="levels/levels.js"></script>
+  <!-- 试玩本体 -->
+  <script src="js/playtest.js"></script>
+</body>
+</html>

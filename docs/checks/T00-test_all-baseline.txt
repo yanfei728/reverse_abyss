@@ -1,0 +1,1073 @@
+﻿
+▌ 关卡数据:levels/*.json 与内嵌 levels.js 是否一致
+  PASS  levels.js 存在并且有内容    12 个关卡
+  PASS  levels.js 里的 floor01 和 floor01.json 一模一样
+  PASS  levels.js 里的 floor02 和 floor02.json 一模一样
+  PASS  levels.js 里的 floor03 和 floor03.json 一模一样
+  PASS  levels.js 里的 floor04 和 floor04.json 一模一样
+  PASS  levels.js 里的 floor05 和 floor05.json 一模一样
+  PASS  levels.js 里的 floor06 和 floor06.json 一模一样
+  PASS  levels.js 里的 floor07 和 floor07.json 一模一样
+  PASS  levels.js 里的 floor08 和 floor08.json 一模一样
+  PASS  levels.js 里的 floor09 和 floor09.json 一模一样
+  PASS  levels.js 里的 floor10 和 floor10.json 一模一样
+  PASS  levels.js 里的 floor11 和 floor11.json 一模一样
+  PASS  levels.js 里的 floor12 和 floor12.json 一模一样
+  PASS  levels.js 里没有已经删掉的关卡
+
+▌ 页面引用的脚本:路径对不对、顺序和引擎清单一致吗
+  PASS  index.html 引用了全部引擎脚本(顺序和 loader.mjs 一致)    23 个 / 期望 23
+  PASS  index.html 最后引的是 main.js
+  PASS  index.html 里 js/config.js 这个文件存在
+  PASS  index.html 里 js/util.js 这个文件存在
+  PASS  index.html 里 js/text.js 这个文件存在
+  PASS  index.html 里 js/level.js 这个文件存在
+  PASS  index.html 里 js/entities/base.js 这个文件存在
+  PASS  index.html 里 js/entities/player.js 这个文件存在
+  PASS  index.html 里 js/entities/goal.js 这个文件存在
+  PASS  index.html 里 js/entities/spring.js 这个文件存在
+  PASS  index.html 里 js/entities/ghost.js 这个文件存在
+  PASS  index.html 里 js/entities/blink.js 这个文件存在
+  PASS  index.html 里 js/monsters.js 这个文件存在
+  PASS  index.html 里 js/camera.js 这个文件存在
+  PASS  index.html 里 js/assets.js 这个文件存在
+  PASS  index.html 里 js/audio.js 这个文件存在
+  PASS  index.html 里 js/input.js 这个文件存在
+  PASS  index.html 里 js/tower.js 这个文件存在
+  PASS  index.html 里 js/levelpack.js 这个文件存在
+  PASS  index.html 里 js/reach.js 这个文件存在
+  PASS  index.html 里 js/ui.js 这个文件存在
+  PASS  index.html 里 js/game.js 这个文件存在
+  PASS  index.html 里 js/smoke.js 这个文件存在
+  PASS  index.html 里 levels/levels.js 这个文件存在
+  PASS  index.html 里 js/main.js 这个文件存在
+  PASS  tests/browser.html 引用的脚本和 index.html 一样    23 个
+  PASS  tests/browser.html 里 js/config.js 这个文件存在
+  PASS  tests/browser.html 里 js/util.js 这个文件存在
+  PASS  tests/browser.html 里 js/text.js 这个文件存在
+  PASS  tests/browser.html 里 js/level.js 这个文件存在
+  PASS  tests/browser.html 里 js/entities/base.js 这个文件存在
+  PASS  tests/browser.html 里 js/entities/player.js 这个文件存在
+  PASS  tests/browser.html 里 js/entities/goal.js 这个文件存在
+  PASS  tests/browser.html 里 js/entities/spring.js 这个文件存在
+  PASS  tests/browser.html 里 js/entities/ghost.js 这个文件存在
+  PASS  tests/browser.html 里 js/entities/blink.js 这个文件存在
+  PASS  tests/browser.html 里 js/monsters.js 这个文件存在
+  PASS  tests/browser.html 里 js/camera.js 这个文件存在
+  PASS  tests/browser.html 里 js/assets.js 这个文件存在
+  PASS  tests/browser.html 里 js/audio.js 这个文件存在
+  PASS  tests/browser.html 里 js/input.js 这个文件存在
+  PASS  tests/browser.html 里 js/tower.js 这个文件存在
+  PASS  tests/browser.html 里 js/levelpack.js 这个文件存在
+  PASS  tests/browser.html 里 js/reach.js 这个文件存在
+  PASS  tests/browser.html 里 js/ui.js 这个文件存在
+  PASS  tests/browser.html 里 js/game.js 这个文件存在
+  PASS  tests/browser.html 里 js/smoke.js 这个文件存在
+  PASS  tests/browser.html 里 levels/levels.js 这个文件存在
+  PASS  tests/browser.html 里 js/main.js 这个文件存在
+  PASS  css/style.css 存在
+  PASS  README.md 存在
+
+▌ 关卡池体检
+  PASS  关卡池非空    12 个模板
+  PASS  floor01 尺寸合理    32×22
+  PASS  floor02 尺寸合理    30×15
+  PASS  floor03 尺寸合理    30×15
+  PASS  floor04 尺寸合理    32×15
+  PASS  floor05 尺寸合理    32×15
+  PASS  floor06 尺寸合理    24×30
+  PASS  floor07 尺寸合理    34×15
+  PASS  floor08 尺寸合理    24×43
+  PASS  floor09 尺寸合理    25×17
+  PASS  floor10 尺寸合理    23×15
+  PASS  floor11 尺寸合理    16×23
+  PASS  floor12 尺寸合理    23×15
+  PASS  floor01 的数据里 id 和池子里的键一致    floor01
+  PASS  floor01 的 difficulty 是 1~4 档的整数    1
+  PASS  floor01 的 verified 是布尔值    true
+  PASS  floor01 的 size 和 asc 对得上    {"cols":22,"rows":32} / 实际 22×32
+  PASS  floor01 的 objects 是数组    []
+  PASS  floor01 的 asc 是一行一项的数组,行数和 size.rows 一致    32 行
+  PASS  floor01 的 asc 里没有注释残留
+  PASS  floor01 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor02 的数据里 id 和池子里的键一致    floor02
+  PASS  floor02 的 difficulty 是 1~4 档的整数    1
+  PASS  floor02 的 verified 是布尔值    true
+  PASS  floor02 的 size 和 asc 对得上    {"cols":15,"rows":30} / 实际 15×30
+  PASS  floor02 的 objects 是数组    []
+  PASS  floor02 的 asc 是一行一项的数组,行数和 size.rows 一致    30 行
+  PASS  floor02 的 asc 里没有注释残留
+  PASS  floor02 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor03 的数据里 id 和池子里的键一致    floor03
+  PASS  floor03 的 difficulty 是 1~4 档的整数    1
+  PASS  floor03 的 verified 是布尔值    true
+  PASS  floor03 的 size 和 asc 对得上    {"cols":15,"rows":30} / 实际 15×30
+  PASS  floor03 的 objects 是数组    []
+  PASS  floor03 的 asc 是一行一项的数组,行数和 size.rows 一致    30 行
+  PASS  floor03 的 asc 里没有注释残留
+  PASS  floor03 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor04 的数据里 id 和池子里的键一致    floor04
+  PASS  floor04 的 difficulty 是 1~4 档的整数    1
+  PASS  floor04 的 verified 是布尔值    true
+  PASS  floor04 的 size 和 asc 对得上    {"cols":15,"rows":32} / 实际 15×32
+  PASS  floor04 的 objects 是数组    []
+  PASS  floor04 的 asc 是一行一项的数组,行数和 size.rows 一致    32 行
+  PASS  floor04 的 asc 里没有注释残留
+  PASS  floor04 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor05 的数据里 id 和池子里的键一致    floor05
+  PASS  floor05 的 difficulty 是 1~4 档的整数    1
+  PASS  floor05 的 verified 是布尔值    true
+  PASS  floor05 的 size 和 asc 对得上    {"cols":15,"rows":32} / 实际 15×32
+  PASS  floor05 的 objects 是数组    []
+  PASS  floor05 的 asc 是一行一项的数组,行数和 size.rows 一致    32 行
+  PASS  floor05 的 asc 里没有注释残留
+  PASS  floor05 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor06 的数据里 id 和池子里的键一致    floor06
+  PASS  floor06 的 difficulty 是 1~4 档的整数    1
+  PASS  floor06 的 verified 是布尔值    true
+  PASS  floor06 的 size 和 asc 对得上    {"cols":30,"rows":24} / 实际 30×24
+  PASS  floor06 的 objects 是数组    []
+  PASS  floor06 的 asc 是一行一项的数组,行数和 size.rows 一致    24 行
+  PASS  floor06 的 asc 里没有注释残留
+  PASS  floor06 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor07 的数据里 id 和池子里的键一致    floor07
+  PASS  floor07 的 difficulty 是 1~4 档的整数    1
+  PASS  floor07 的 verified 是布尔值    true
+  PASS  floor07 的 size 和 asc 对得上    {"cols":15,"rows":34} / 实际 15×34
+  PASS  floor07 的 objects 是数组    []
+  PASS  floor07 的 asc 是一行一项的数组,行数和 size.rows 一致    34 行
+  PASS  floor07 的 asc 里没有注释残留
+  PASS  floor07 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor08 的数据里 id 和池子里的键一致    floor08
+  PASS  floor08 的 difficulty 是 1~4 档的整数    1
+  PASS  floor08 的 verified 是布尔值    true
+  PASS  floor08 的 size 和 asc 对得上    {"cols":43,"rows":24} / 实际 43×24
+  PASS  floor08 的 objects 是数组    []
+  PASS  floor08 的 asc 是一行一项的数组,行数和 size.rows 一致    24 行
+  PASS  floor08 的 asc 里没有注释残留
+  PASS  floor08 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor09 的数据里 id 和池子里的键一致    floor09
+  PASS  floor09 的 difficulty 是 1~4 档的整数    1
+  PASS  floor09 的 verified 是布尔值    true
+  PASS  floor09 的 size 和 asc 对得上    {"cols":17,"rows":25} / 实际 17×25
+  PASS  floor09 的 objects 是数组    []
+  PASS  floor09 的 asc 是一行一项的数组,行数和 size.rows 一致    25 行
+  PASS  floor09 的 asc 里没有注释残留
+  PASS  floor09 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor10 的数据里 id 和池子里的键一致    floor10
+  PASS  floor10 的 difficulty 是 1~4 档的整数    1
+  PASS  floor10 的 verified 是布尔值    true
+  PASS  floor10 的 size 和 asc 对得上    {"cols":15,"rows":23} / 实际 15×23
+  PASS  floor10 的 objects 是数组    []
+  PASS  floor10 的 asc 是一行一项的数组,行数和 size.rows 一致    23 行
+  PASS  floor10 的 asc 里没有注释残留
+  PASS  floor10 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor11 的数据里 id 和池子里的键一致    floor11
+  PASS  floor11 的 difficulty 是 1~4 档的整数    1
+  PASS  floor11 的 verified 是布尔值    true
+  PASS  floor11 的 size 和 asc 对得上    {"cols":23,"rows":16} / 实际 23×16
+  PASS  floor11 的 objects 是数组    []
+  PASS  floor11 的 asc 是一行一项的数组,行数和 size.rows 一致    16 行
+  PASS  floor11 的 asc 里没有注释残留
+  PASS  floor11 的关卡数据里没有名字字段(名字已经去掉了)
+  PASS  floor12 的数据里 id 和池子里的键一致    floor12
+  PASS  floor12 的 difficulty 是 1~4 档的整数    1
+  PASS  floor12 的 verified 是布尔值    true
+  PASS  floor12 的 size 和 asc 对得上    {"cols":15,"rows":23} / 实际 15×23
+  PASS  floor12 的 objects 是数组    []
+  PASS  floor12 的 asc 是一行一项的数组,行数和 size.rows 一致    23 行
+  PASS  floor12 的 asc 里没有注释残留
+  PASS  floor12 的关卡数据里没有名字字段(名字已经去掉了)
+
+▌ 关卡数据:id / 难度 / verified / size / objects / asc 怎么读
+  PASS  难度 3 读出来就是 3    3
+  PASS  verified: false 读出来就是没验过
+  PASS  难度写字符串也能认
+  PASS  难度超范围会夹回 1~4
+  PASS  没写难度就是 1 档,没写 verified 当成验过
+  PASS  size 和 asc 对不上会提醒一句    json 里写的大小是 9×9,asc 读出来是 3×3(以 asc 为准)
+  PASS  大小以 asc 为准(3×3)
+  PASS  size 对得上就没有提醒
+  PASS  objects 会读进 level.objects    [{"type":"fireball","col":1,"row":1,"params":{"speed":120}}]
+  PASS  还没实现的怪物(火球)只留数据,不生成实体也不报错
+  PASS  在实体类上写了 type 再注册,objects 里那一条就会生成实体
+  PASS  导入一个 .json 字符串也能读(还带着难度和 verified)
+  PASS  老格式的地图文本照样读得进来(编辑器这一轮还没改)    老格式 3 行
+
+▌ http 打开时会 fetch levels/<id>.json(磁盘上的内容盖过内嵌那份)
+  PASS  http 下真的去 fetch 了 levels/<id>.json
+  PASS  磁盘上那份盖过了内嵌那份(尺寸/verified 都跟着变)    22×32 verified=true
+  PASS  没有 json 时会退回读老格式的 txt    老 txt 层 3 行
+  PASS  磁盘上什么都没有时,继续用内嵌那份(不报错、不空池子)
+
+▌ 跳跃包络:粗筛不许把真能跳的边拦掉(回归)
+  PASS  envelope 单调(老表:180px 高说能横跨 300px,130px 高却说不行)
+  PASS  造出来的边是"往上 135px、横向 225px"    135px 高,225px 远
+  PASS  保守包络不敢确认这一跳(所以绝不能拿它当门槛)
+  PASS  粗筛 couldReach 放行这一跳
+  PASS  真物理模拟:这一跳跳得上去
+  PASS  整条路线也通(以前这一步会被误报"爬不上去")
+  PASS  gapX 算的是两块落脚面之间的空隙(重叠 = 0)
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+=== reverse_abyss 自检 ===
+塔:种子 RA-1K7BHE3 · 8 层 · 关卡池 12 个模板
+▌ 物理:floor01
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 252.0 → 252.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor02
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 567.0 → 567.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor03
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 567.0 → 567.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor04
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 567.0 → 567.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor05
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 567.0 → 567.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor06
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 297.0 → 297.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor07
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 567.0 → 567.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor08
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  SKIP  落脚容错(这一层没有"左边是空的"墙)
+  SKIP  高台站立稳定(这一层没有别的高台)
+  PASS  半空起跳时镜头不上下抖    cam.y 117.0 → 117.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor09
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  SKIP  落脚容错(这一层没有"左边是空的"墙)
+  SKIP  高台站立稳定(这一层没有别的高台)
+  PASS  半空起跳时镜头不上下抖    cam.y 117.0 → 117.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor10
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 342.0 → 342.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor11
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  PASS  跳得只差一点会自动送上墙
+  PASS  关掉容错就上不去(说明刚才不是撞运气)
+  PASS  高台站立稳定
+  SKIP  镜头不抖(这一层找不到合适的中间平台)
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 物理:floor12
+  PASS  起点站立不下陷
+  PASS  静止时只显示待机帧
+  PASS  跳起再落地
+  PASS  二段跳能再跳一次且跳得更高    一段 143px / 二段 263px
+  PASS  落地前最多只补一次跳
+  PASS  二段跳最多转一圈且落地归位
+  SKIP  落脚容错(这一层没有"左边是空的"墙)
+  PASS  高台站立稳定
+  PASS  半空起跳时镜头不上下抖    cam.y 252.0 → 252.0
+  PASS  碰到出口就算爬上这一层
+  PASS  离出口两格远不算通关
+▌ 弹簧板
+  PASS  弹簧板被地图解析出来
+  PASS  弹簧板把人顶得比一段跳高    弹起 304px
+  PASS  弹簧板会补满二段跳次数
+▌ 云板(单向地块)
+  PASS  云板不在实心表里(RA.SOLID_CHARS 没有 '-')
+  PASS  云板在单向表里(RA.ONEWAY_CHARS)
+  PASS  云板算地块(要画出来)
+  PASS  level.solid 说它不是实心,onewayAt 说是单向
+  PASS  云板算落脚面(surfaces 里能找到它)
+  PASS  groundBelow 认云板当"地面"
+  PASS  引擎解析云板没有任何警告
+  PASS  从下面往上能穿过云板    最高到 feet=307,云板顶=360
+  PASS  从上面掉下来会被云板接住    feet=360.0(云板顶=360)
+  PASS  站在云板上稳稳的(不陷下去也不掉下去)    feet=360.0
+  PASS  横向也能穿过云板(它不是墙)    109 → 192
+  PASS  可达性分析会把云板当落脚点(地面→云板→高台)    2 跳
+▌ 会变的机关(触之即散 / 浮石)
+  PASS  触之即散(x)能被地图解析出来
+  PASS  x 在地形之外也算实心(能挡人)
+  PASS  x 的格子是真的空的(它不是地形)
+  PASS  往 x 走会被它挡住(碰到之前过不去)    player 右边 90.8 / 方块左边 90
+  PASS  碰到之后它开始消失(gone)
+  PASS  消失之后就不再挡人(能走过去)
+  PASS  走过去之后玩家真的到了方块右边    x=172.5
+  PASS  散完就彻底没了(alive = false,同一局不再出现)
+  PASS  从下面顶上去也算碰到(两个 x 至少碎一个)
+  PASS  浮石(y)能被地图解析出来
+  PASS  y 算实心(能挡人、能站)
+  PASS  能踩到 y 上面(消失的那一刻脚就在顶面上)    feet=88.6 顶面=90
+  PASS  踩到的那一下就消失(不用站一会儿)
+  PASS  消失的时候不挡人
+  PASS  它消失之后踩在上面的人会掉下去    feet 88.6 → 225.0
+  PASS  玩家离开那一格之后,过一段时间它会回来
+  PASS  变回来之后又挡人了
+  PASS  格子里有玩家时不会重现(再等一个周期)    hidden=1.58
+  PASS  人走开之后下一个周期就正常回来了
+▌ 主循环与爬升
+  PASS  关卡池非空    12 个模板
+  PASS  开始后进入 play 状态并停在第 1 层
+  PASS  掉出世界会回到本层起点
+  PASS  碰到出口进入关卡切换过渡
+  PASS  过渡刚开始:旧层还亮着、新层还没出现    old=1.00 next=0.00
+  PASS  过渡到一半:旧层淡出得差不多了、新层刚开始进,中间最暗    old=0.00 next=0.02 dim=0.98
+  PASS  过渡结束后站在第 2 层    state=play floor=1
+  PASS  第 2 层的角色是从这一层出生点开始的
+  PASS  能回到开局界面
+▌ 塔的结构
+  PASS  同一个种子生成同一座塔    RA-SMOKE1
+  PASS  换种子结构会变
+  PASS  层数按塔高来
+  PASS  相邻 3 层内不会用同一个模板
+  PASS  关掉镜像后不会再有镜像层
+  PASS  开镜像时会出现镜像层(9 层里至少一个)
+  PASS  每一层都能建出可玩的关卡
+  PASS  层标题带层号
+  PASS  塔高不会超过上限
+▌ 关卡数据(难度 / 验过没有 / 大小 / objects / 怪物表)
+  PASS  每一层都有 id    floor01,floor02,floor03,floor04,floor05,floor06,floor07,floor08,floor09,floor10,floor11,floor12
+  PASS  关卡池里的 id 不重复
+  PASS  floor01 的难度在 1~4 档    难度 1
+  PASS  floor01 有 verified 标记(是不是验过能通)    true
+  PASS  floor01 的 size 和 asc 对得上    {"cols":22,"rows":32} / 实际 22×32
+  PASS  floor01 的 objects 是数组    []
+  PASS  floor02 的难度在 1~4 档    难度 1
+  PASS  floor02 有 verified 标记(是不是验过能通)    true
+  PASS  floor02 的 size 和 asc 对得上    {"cols":15,"rows":30} / 实际 15×30
+  PASS  floor02 的 objects 是数组    []
+  PASS  floor03 的难度在 1~4 档    难度 1
+  PASS  floor03 有 verified 标记(是不是验过能通)    true
+  PASS  floor03 的 size 和 asc 对得上    {"cols":15,"rows":30} / 实际 15×30
+  PASS  floor03 的 objects 是数组    []
+  PASS  floor04 的难度在 1~4 档    难度 1
+  PASS  floor04 有 verified 标记(是不是验过能通)    true
+  PASS  floor04 的 size 和 asc 对得上    {"cols":15,"rows":32} / 实际 15×32
+  PASS  floor04 的 objects 是数组    []
+  PASS  floor05 的难度在 1~4 档    难度 1
+  PASS  floor05 有 verified 标记(是不是验过能通)    true
+  PASS  floor05 的 size 和 asc 对得上    {"cols":15,"rows":32} / 实际 15×32
+  PASS  floor05 的 objects 是数组    []
+  PASS  floor06 的难度在 1~4 档    难度 1
+  PASS  floor06 有 verified 标记(是不是验过能通)    true
+  PASS  floor06 的 size 和 asc 对得上    {"cols":30,"rows":24} / 实际 30×24
+  PASS  floor06 的 objects 是数组    []
+  PASS  floor07 的难度在 1~4 档    难度 1
+  PASS  floor07 有 verified 标记(是不是验过能通)    true
+  PASS  floor07 的 size 和 asc 对得上    {"cols":15,"rows":34} / 实际 15×34
+  PASS  floor07 的 objects 是数组    []
+  PASS  floor08 的难度在 1~4 档    难度 1
+  PASS  floor08 有 verified 标记(是不是验过能通)    true
+  PASS  floor08 的 size 和 asc 对得上    {"cols":43,"rows":24} / 实际 43×24
+  PASS  floor08 的 objects 是数组    []
+  PASS  floor09 的难度在 1~4 档    难度 1
+  PASS  floor09 有 verified 标记(是不是验过能通)    true
+  PASS  floor09 的 size 和 asc 对得上    {"cols":17,"rows":25} / 实际 17×25
+  PASS  floor09 的 objects 是数组    []
+  PASS  floor10 的难度在 1~4 档    难度 1
+  PASS  floor10 有 verified 标记(是不是验过能通)    true
+  PASS  floor10 的 size 和 asc 对得上    {"cols":15,"rows":23} / 实际 15×23
+  PASS  floor10 的 objects 是数组    []
+  PASS  floor11 的难度在 1~4 档    难度 1
+  PASS  floor11 有 verified 标记(是不是验过能通)    true
+  PASS  floor11 的 size 和 asc 对得上    {"cols":23,"rows":16} / 实际 23×16
+  PASS  floor11 的 objects 是数组    []
+  PASS  floor12 的难度在 1~4 档    难度 1
+  PASS  floor12 有 verified 标记(是不是验过能通)    true
+  PASS  floor12 的 size 和 asc 对得上    {"cols":15,"rows":23} / 实际 15×23
+  PASS  floor12 的 objects 是数组    []
+  PASS  怪物表里有 fireball    fireball
+  PASS  fireball 的参数先空着
+  PASS  没登记的怪物返回 null
+▌ 关卡池能不能爬上去
+  PASS  floor01 没有解析警告
+  PASS  floor01 有出生点和出口
+  PASS  floor01 出生点站在地面上
+  PASS  floor01 出口站在地面上
+  PASS  floor01 从起点爬得到出口(逐跳物理模拟)    7 跳 · 最高一次往上 270px
+  PASS  floor02 没有解析警告
+  PASS  floor02 有出生点和出口
+  PASS  floor02 出生点站在地面上
+  PASS  floor02 出口站在地面上
+  PASS  floor02 从起点爬得到出口(逐跳物理模拟)    4 跳 · 最高一次往上 270px
+  PASS  floor03 没有解析警告
+  PASS  floor03 有出生点和出口
+  PASS  floor03 出生点站在地面上
+  PASS  floor03 出口站在地面上
+  PASS  floor03 从起点爬得到出口(逐跳物理模拟)    5 跳 · 最高一次往上 270px
+  PASS  floor04 没有解析警告
+  PASS  floor04 有出生点和出口
+  PASS  floor04 出生点站在地面上
+  PASS  floor04 出口站在地面上
+  PASS  floor04 从起点爬得到出口(逐跳物理模拟)    7 跳 · 最高一次往上 180px
+  PASS  floor05 没有解析警告
+  PASS  floor05 有出生点和出口
+  PASS  floor05 出生点站在地面上
+  PASS  floor05 出口站在地面上
+  PASS  floor05 从起点爬得到出口(逐跳物理模拟)    7 跳 · 最高一次往上 270px
+  PASS  floor06 没有解析警告
+  PASS  floor06 有出生点和出口
+  PASS  floor06 出生点站在地面上
+  PASS  floor06 出口站在地面上
+  PASS  floor06 从起点爬得到出口(逐跳物理模拟)    5 跳 · 最高一次往上 225px
+  PASS  floor07 没有解析警告
+  PASS  floor07 有出生点和出口
+  PASS  floor07 出生点站在地面上
+  PASS  floor07 出口站在地面上
+  PASS  floor07 从起点爬得到出口(逐跳物理模拟)    6 跳 · 最高一次往上 225px
+  PASS  floor08 没有解析警告
+  PASS  floor08 有出生点和出口
+  PASS  floor08 出生点站在地面上
+  PASS  floor08 出口站在地面上
+  PASS  floor08 从起点爬得到出口(逐跳物理模拟)    8 跳 · 最高一次往上 270px
+  PASS  floor09 没有解析警告
+  PASS  floor09 有出生点和出口
+  PASS  floor09 出生点站在地面上
+  PASS  floor09 出口站在地面上
+  FAIL  floor09 从起点爬得到出口(逐跳物理模拟)    从起点出发到不了出口(最高只到第 4 行)
+  PASS  floor10 没有解析警告
+  PASS  floor10 有出生点和出口
+  PASS  floor10 出生点站在地面上
+  PASS  floor10 出口站在地面上
+  PASS  floor10 从起点爬得到出口(逐跳物理模拟)    4 跳 · 最高一次往上 270px
+  PASS  floor11 没有解析警告
+  PASS  floor11 有出生点和出口
+  PASS  floor11 出生点站在地面上
+  PASS  floor11 出口站在地面上
+  FAIL  floor11 从起点爬得到出口(逐跳物理模拟)    从起点出发到不了出口(最高只到第 2 行)
+  PASS  floor12 没有解析警告
+  PASS  floor12 有出生点和出口
+  PASS  floor12 出生点站在地面上
+  PASS  floor12 出口站在地面上
+  PASS  floor12 从起点爬得到出口(逐跳物理模拟)    8 跳 · 最高一次往上 270px
+自检未通过:2 项失败 / 共 300 项(跳过 6 项)
+    ✗ floor09 从起点爬得到出口(逐跳物理模拟)
+    ✗ floor11 从起点爬得到出口(逐跳物理模拟)
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  游戏会拿浏览器里的覆盖换掉同一层
+  PASS  覆盖之后名字也换成新的    起攀(改过)
+  PASS  池子里没有多出一层(还是同一个 id)
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  清掉覆盖之后回到 txt / 内嵌那份
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  读得到 txt 时以 txt 为准(liveText 的层不会被覆盖盖住)
+
+▌ 绘制冒烟:每个状态都画一遍,不许抛异常
+  PASS  开局界面能画(8 层)
+  PASS  开局界面能画(24 层)
+  PASS  设置面板能画(24 层,列表会被压缩)
+  PASS  设置面板能画(最少 3 层)
+  PASS  设置面板里的种子输入框能画
+  PASS  设置面板里的导入提示能画
+  PASS  告别页能画
+  PASS  游玩中能画(按住右+跳)
+  PASS  爬升过渡能画
+  PASS  登顶结算能画
+  PASS  爬到塔顶会进结算状态    state=victory
+  PASS  关卡池为空时不崩、也进不了游戏
+
+▌ 界面布局:控件都在画布里、不互相压住
+  PASS  开局界面只有三个控件:开始 / 退出 / 设置齿轮    start,quit,gear
+  PASS  开局界面的控件都在画布内
+  PASS  开始 / 退出 / 齿轮 互不重叠
+  PASS  齿轮在右下角
+  PASS  开始按钮比退出按钮显眼(更大更靠上)
+  PASS  设置面板里有 种子 / 塔高 / 镜像 / 重构 / 导入 / 编辑器
+  PASS  设置面板在画布内
+  PASS  设置面板里的东西都在面板里
+  PASS  设置面板里的控件互不重叠
+  PASS  设置面板里的行都在右侧那一列
+  PASS  设置面板不会压住开局界面(它是覆盖层)    设置面板 724 宽,盖住中间
+  PASS  结算面板在画布内
+  PASS  结算按钮都在面板里且不重叠
+  PASS  结算按钮不会压住标题文字(面板上半部留空)
+
+▌ 关卡切换:旧层渐出 → 中间压暗 → 新层渐入
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  碰到出口进入 climb 状态
+  PASS  刚开始:旧层还全亮、新层还没出现、还没压暗    old=1.00 next=0.00 dim=0.00
+  PASS  过渡不再靠"把旧层往下推 / 新层从上面降"
+  PASS  旧层和新层都在自己的镜头上(过渡里镜头不跳)
+  PASS  第一帧画的是"旧层"这一个(不透明),新层还没画    [1]
+  PASS  一半:旧层几乎淡没了    old=0.06
+  PASS  一半:新层还没完全亮起来    next=0.00
+  PASS  一半:中间压暗最浓(两层不会叠着看)    dim=0.94
+  PASS  一半:确实两层都在淡(同一帧里画了旧层和新层)    [1,0.96,0.92,0.88,0.84,0.8,0.76,0.73]
+  PASS  快结束时:新层基本全亮、旧层已经没了    old=0.00 next=0.96
+  PASS  过渡结束后站进新楼层、镜头偏移归零
+  PASS  过渡结束后画的是新的那层(透明度回到 1)
+
+▌ 开局界面 + 设置面板交互
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  开局界面默认不显示设置
+  PASS  开局界面不显示种子 / 塔高这些(它们只在设置里)    start,quit,gear
+  PASS  点右下角齿轮打开设置
+  PASS  设置里点「重构塔」会换一座塔    RA-1C4P9DM → RA-1NVC615
+  PASS  设置里点「＋」塔高 +1    8 → 9
+  PASS  设置里点「−」塔高 -1
+  PASS  设置里点「镜像」会开关
+  PASS  设置里按 R 也能重构
+  PASS  设置里按 ↑ 能加塔高
+  PASS  设置里点种子框进入输入状态
+  PASS  输入种子 + 回车会按那个种子重构    RA-ABCDEF
+  PASS  设置覆盖时点「开始」不会误开始游戏    state=title height=8
+  PASS  按 Esc 关闭设置
+  PASS  点「开始攀爬」能进游戏
+  PASS  游玩中按 Esc 回开局界面
+  PASS  设置里点「关卡编辑器」不会崩(会去开 editor.html)
+  PASS  点了编辑器之后有提示文字    已打开关卡编辑器:画完点「保存到游戏」,回到这里刷新 —— 新的一份按 R 重构塔就会刷出来
+  PASS  点「退出游戏」会进告别页    state=bye
+  PASS  告别页画得出来
+  PASS  告别页按 Esc 回开局界面
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  自定义关卡进了关卡池
+  PASS  关卡池里没有重复的 id
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  编辑器刚存的新层立刻进了关卡池(不用刷新页面、不用重构)    12 → 13 个模板
+  PASS  它被标成"只在浏览器里"(等下次 sync 才正式进 levels.js)
+  PASS  那一层用的是编辑器里的文本(名字也是它)    自检新存的层
+  PASS  设置里按 R 重构塔之后,它还在池子里(而且没有多出第二条)    floor01,floor02,floor03,floor04,floor05,floor06,floor07,floor08,floor09,floor10,floor11,floor12,自检新存的层
+  PASS  重构出来的塔里能抽出编辑器新存的层(塔结构表会显示它的名字)    14 层
+  PASS  抽到的层都建得出来(名字 / 地形都在)
+  PASS  改过的老关卡只换内容,池子里不会多出一层    12 → 13
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  同一个名字在两把钥匙里时,关卡池里只留一层(不会抽出两个同名层)    1 次 / floor01,floor02,floor03,floor04,floor05,floor06,floor07,floor08,floor09,floor10,floor11,floor12,两把钥匙的层
+  PASS  池子里的 id 依然是唯一的
+  PASS  名字不同的两层都还在    floor01,floor02,floor03,floor04,floor05,floor06,floor07,floor08,floor09,floor10,floor11,floor12,两把钥匙的层,另一个名字的层
+
+▌ 浏览器入口 main.js:整条启动链路
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  main.js 能跑起来(它会自己 boot)
+  PASS  入口把 Game 建好了并挂在 RA.game 上
+  PASS  入口建好的游戏停在开局界面
+  PASS  从入口建出来的游戏能自己跑 90 帧(带输入)
+  PASS  跑完之后角色在本层世界里(没掉出去)
+
+▌ 调色板:所有地物都是从引擎的字符表推出来的
+  PASS  有"空气"这一项
+  PASS  每一种地块都在调色板里(^_~=-)
+  PASS  单向云板也能从调色板里选(它是地块,虽然不实心)
+  PASS  起点标记在调色板里(P)
+  PASS  所有注册的地物都在调色板里(GSxy)
+  PASS  出口和弹簧板都能在调色板里认出来
+  PASS  「触之即散(x)」自动出现在调色板里,名字用的是它自己的 NAME    触之即散(碰一下就消失)(x)
+  PASS  「浮石(y)」自动出现在调色板里,名字用的是它自己的 NAME    浮石(踩一下就消失,过一会儿回来)(y)
+  PASS  这两个的图标画得出来(自己写的 drawIcon 不抛异常)
+  PASS  临时加一种新地块(沙地 %)之后,调色板自动多出它
+  PASS  临时加一个新实体(金币 c)之后,调色板自动多出它
+  PASS  新实体的名字显示的是它自己的 NAME
+  PASS  模型校验认识新地物(新实体不算"不认识的字符")
+  PASS  默认的 drawIcon 对新实体也能画(不用自己写图标)
+
+▌ 模型:画、擦、缩放、导出、检查
+  PASS  新建出来是空的、尺寸对
+  PASS  set / get 能用
+  PASS  界外的 get 返回空气、set 不生效
+  PASS  往上/往左撑大可以    20×29
+  PASS  撑大以后原来的内容跟着挪(坐标补偿正确)
+  PASS  往右撑大
+  PASS  setSize 能改小(外面的内容被裁掉)
+  PASS  ensure 能把界外的点整个包进来(左上和右下都算)    6×6
+  PASS  模型能建两万行的关卡(高度没有上限)
+  PASS  往上画还能继续长高    现在 20051 行
+  PASS  宽度仍然有上限
+  PASS  fillRect 填一片
+  PASS  两片之间还连着(4,1 是空气)
+  PASS  floodFill 只换连成一片的
+  PASS  findChar 能找到所有同字符的格子
+  PASS  groundBelow 找得到下面的地面
+  PASS  编辑器也认云板当"地面"(起点/出口落到它上面是合理的)
+  PASS  云板不会被编辑器当成"不认识的字符"
+  PASS  导出里用的是新名字(改掉原来那行)
+  PASS  导出里留着原来的注释
+  PASS  导出 → 读回:名字一样
+  PASS  导出 → 读回:尺寸一样(行尾空气被裁掉后宽度可能变小,内容不能变)
+  PASS  导出 → 读回 → 再导出:两次一模一样
+  PASS  老地图的 '.' 会被当成空气读进来
+  PASS  默认没有 // sky 这一行
+  PASS  setMeta 之后读得回来
+  PASS  导出里带着 // sky: 4
+  PASS  导出 → 读回,元信息还在
+  PASS  再改是替换同一行,不会多出一行    2 行
+  PASS  引擎也认这个值
+  PASS  removeMeta 删掉之后引擎回到自动
+  PASS  新建的关卡也能插进 // sky(插在 // name: 后面)
+
+▌ 检查:没画全就不让试玩 / 不让存
+  PASS  空关卡:报"缺起点"和"缺出口"
+  PASS  画了起点:缺出口 + 起点下面没地面,两条错    还没画出出口 G —— 每层必须有一个,碰到它就往上爬一层。; 起点下面没有地面 —— 角色会一直往下掉。
+  PASS  起点 + 出口都画好、起点站在地面上 → 没错误了
+  PASS  出口在起点上面 → 不报"出口在下面"
+  PASS  提示里报了地图尺寸和世界大小
+  PASS  不认识的字符 'Q' → 报错并指出位置
+  PASS  两个起点 → 报错
+  PASS  弹簧板悬空 → 提醒
+  PASS  弹簧板贴着地面 → 不提醒
+  PASS  两个出口 → 提醒"只有第一个算数"
+
+▌ 界面:模拟鼠标真的画一笔
+  PASS  编辑器能起来
+  PASS  按住左键画了一格    得到 ^
+  PASS  拖动时中间不会断(Bresenham 补格)
+  PASS  撤销把这一笔整段收回去了    之前是 ^
+  PASS  重做又回来了
+  PASS  橡皮能擦掉
+  PASS  笔刷调到 3 会画 3×3 一块
+  PASS  矩形工具填出一整块
+  PASS  油漆桶把这一片都换掉
+  PASS  吸管取到了那格的地物,而且工具切回了画笔
+  PASS  画到右边界外面会自动把地图撑大    15 → 19
+  PASS  撑大之后那一格确实画上了
+  PASS  关掉自动扩展就不会再撑大
+  PASS  "新建(带地面)"出来的关卡检查通过(起点和出口都放好了)
+  PASS  导出的 txt 里有 // name: 和 P / G
+  PASS  引擎能读编辑器导出的关卡
+  PASS  引擎读出来的出生点和出口都在地面上
+  PASS  关卡池里记下了这一层(保存到游戏会顺带更新它)    编辑器测试层
+  PASS  关卡池 id 就是关卡名(= 以后的 txt 文件名)    编辑器测试层
+  PASS  存进去的文本能被关卡池读出来
+  PASS  游戏那边会把它并进池子
+  PASS  编辑器里已经没有"只存进游戏 / 可达性检查"这两个动作了
+  PASS  下载会产出一个 Blob,里面就是导出的 txt
+  PASS  复制走的是剪贴板 API(自检里记了下来)
+  PASS  "看 txt" 把内容塞进了文本框
+  PASS  自动起名会跳过已经用掉的
+  PASS  内置关卡的名字也算"用掉了"
+  PASS  名字空着时检查里会报一条 error
+  PASS  起了名字就不报名字的问题
+  PASS  超长的名字会给个提醒
+  PASS  txt 文件名就是关卡名    天梯_A_B.txt
+  PASS  名字里不能做文件名的字符会换掉    a_b_c_d_e_f_g_h.txt
+  PASS  名字被清空时给个兜底文件名    未命名楼层.txt
+  PASS  新建的楼层自动就有名字(新楼层 N)    新楼层 4
+  PASS  再新建一个不会重名    编辑器测试层 → 新楼层 4
+  PASS  自动起的名字已经写进 // name: 注释
+  PASS  新建的关卡注释头只有 // name: 一行(和 levels/ 里的 txt 同格式)    // name: 新楼层 4
+  PASS  名字空着时不给下载    先给这一层起个名字,再下载 txt —— 名字会写进 // name: 注释,也是 txt 文件名
+  PASS  名字空着时不给复制
+  PASS  新建的层没名字时不给「保存到游戏」
+  PASS  被拦住的时候会说是"名字"的问题(不是别的)    先给这一层起个名字,再保存到游戏 —— 名字会写进 // name: 注释,也是 txt 文件名
+  PASS  检查面板也会提醒"还没起名字"
+  PASS  起了名字就写进关卡池    有名字的层
+  PASS  保存到游戏的池子 id 用的就是"关卡名"    有名字的层
+  PASS  有 showDirectoryPicker 时 LevelFolder 认为支持
+  PASS  选了文件夹之后记住了它
+  PASS  提示行会显示目标文件夹    目标文件夹:levels → 「保存到游戏」会写成 有名字的层.txt
+  PASS  真的写出了 txt,文件名 = 关卡名    存盘测试层.txt
+  PASS  保存同时把浏览器里的关卡池也换成新的(双写)    1 条覆盖
+  PASS  关卡池里那份文本和写出去的文件一模一样
+  PASS  txt 第一行就是 // name: 注释
+  PASS  写出去的 txt 关卡池读得出来
+  PASS  改名后再存:写新文件 + 删掉旧文件    改名后的层.txt
+  PASS  改名的同时,关卡池里旧的 id 也被清掉了
+  PASS  提示行记住刚写的文件名
+  PASS  新层和"导入进来的同名层"重名时:保存后那份 custom_ 副本被清掉    custom= / ov=新楼层_1
+  PASS  改名再存:上一份覆盖也被清掉(塔里不会留两个同名层)    换了个名字
+  PASS  池子里的重复层(内嵌 + 内容一样的浏览器副本)在列表里只算一条    floor02,floor03,floor04,floor05,floor06,floor07,floor08,floor09,floor10,floor11,floor12,custom_floor01,换了个名字
+  PASS  勾上"自动写入"就打开了开关
+  PASS  改完一会儿会自动写进文件夹    自动写入的层.txt
+  PASS  取消勾选就关掉自动写入
+  PASS  忘掉之后句柄就没了
+  PASS  提示行变回"还没选文件夹"
+  PASS  句柄被忘掉后再存会重新请求授权,并且照样写进去    自动写入的层.txt,重新选文件夹的层.txt
+  PASS  下拉框里能认出"★ 浏览器里存的"    floor01 · floor01 | floor02 · floor02 | floor03 · floor03 | floor04 · floor04 | 
+  PASS  下拉框给"改过的层"打上 ✎ 标记
+  PASS  下拉框里列了关卡池里的 id(文件名),同名也分得清    floor01 · floor01 | floor02 · floor02 | floor03 · floor03 | floor04 · floor04 | floor05 · floor05 | 
+  PASS  编辑器里已经没有"删掉选中的"这个动作了
+  PASS  打开改过的过关卡:拿到的是浏览器里那份(不是旧的内嵌文本)    起攀(我改过)
+  PASS  它的来源 id 还是 floor01(存回去不会多出一份)
+  PASS  清掉覆盖之后,打开的就是内嵌那层
+  PASS  能打开浏览器里存的层    浏览器里存的层/
+  PASS  没有这个 API 时 supported() 是 false
+  PASS  编辑器这轮不按名字拦撞车了(内置关卡已经是 .json,写 txt 盖不掉它)
+  PASS  照样能保存 = 用这份内容覆盖池子里的 floor02    已存进游戏:levels/floor02.txt —— 回游戏刷新一下:新的一份按 R 重构塔就有机会刷出来,塔里本来就有的那层刷新后就是新地图(想让内嵌副本也更新就跑 node tools/sync_levels.mjs)
+  PASS  写出来的是 floor02.txt,levels/floor02.json 一点没动
+  PASS  池子里 floor02 还是只有一条(内容换成刚存的这份,不多出一层)
+  PASS  换个名字就不拦了
+  PASS  能打开关卡池里已有的楼层    floor01 → floor01 22×32
+  PASS  打开的层记住了来源 id,存盘文件名也沿用它    floor01.txt
+  PASS  改显示名之后存盘:文件名还是原来的 id    自动写入的层.txt,重新选文件夹的层.txt,floor02.txt,floor01.txt
+  PASS  打开的层保存时覆盖的是同一把 id(池子里不会多一层)    floor01
+  PASS  覆盖的内容就是刚写出去的那份
+  PASS  txt 里的 // name: 是新的显示名
+  PASS  老关卡没名字时也允许「保存到游戏」(沿用原来的名字)    已打开「改了个显示名」(22×32)
+  PASS  老关卡照样按原文件名存回去    自动写入的层.txt,重新选文件夹的层.txt,floor02.txt,floor01.txt
+  PASS  老关卡存回去之后,注释里的名字没被清空
+  PASS  新建的层没有来源 id(按关卡名当文件名)    新楼层_8.txt
+  PASS  新建的层没名字就必须先起名(requireNameToSave 会拦住)
+  PASS  存过之后 dirty 清掉了
+  PASS  没改过的时候不问,直接回游戏    asks=0 closes=1 visited=
+  PASS  改一笔之后 dirty = true
+  PASS  有改动会先问一句    asks=1
+  PASS  选「是」= 走了一遍「保存到游戏」(文件写出去了)    floor02.txt,floor01.txt,新楼层_8.txt
+  PASS  存完才离页    closes=1 visited=
+  PASS  存过之后 dirty 归零(不会再问一次)
+  PASS  选「否」也会离页(不保存)    asks=1
+  PASS  选「否」不会写出新文件
+  PASS  没名字时会被拦住(提示去起名),不会离页    先给这一层起个名字,再保存到游戏 —— 名字会写进 // name: 注释,也是 txt 文件名
+  PASS  起了名字再点「回游戏」→ 存成 then 离页    floor02.txt,floor01.txt,回游戏测试层.txt
+  PASS  浏览器让关标签页时,leavePage 关了就不跳转
+  PASS  关不掉标签页时,leavePage 把页面跳到 index.html    index.html
+  PASS  尺寸能直接改
+  PASS  超过上限会被夹住    EDITOR_MAX_COLS=600
+  PASS  检查通过的关卡能开试玩页    play.html?i=0
+  PASS  试玩开在新标签页(_blank)的 play.html    play.html?i=0
+  PASS  编辑器把这一层的快照挂出来了(试玩页会问 opener 要)    新楼层 10
+  PASS  试玩页的编号写在 url 上    play.html?i=0
+  PASS  开过试玩之后编辑器自己还是编辑器(模型 / 画布都没被换掉)
+  PASS  没画起点/出口时不给试玩    先修好:还没画出生点 P —— 每层必须有一个,角色从那儿开始爬。
+  PASS  被拦住时不会往试玩快照里塞东西
+  PASS  弹窗被拦时返回 false,并提示允许弹窗    浏览器拦住了新标签页(允许弹窗后再点一次「▶ 试玩」)
+  PASS  天空下拉框建好了(自动 + 8 张)    9 项
+  PASS  选「天空 5」→ 关卡里写进 // sky: 5
+  PASS  导出里带着 // sky: 5
+  PASS  选回「自动」→ // sky 那行被删掉
+  PASS  // sky 超范围时检查面板会提醒
+  PASS  勾上"网格"→ 内部状态是 true(不是反的)
+  PASS  取消"网格"→ 内部状态是 false
+  PASS  取消之后真的不画网格线了    41 根 → 0 根
+  PASS  再勾回来又开始画网格
+  PASS  取消"显示地物"→ 内部状态是 false
+  PASS  取消之后不画地物图标了    1 个 → 0 个
+  PASS  再勾回来又开始画地物
+  PASS  取消"自动扩展"→ 内部状态是 false
+  PASS  勾回来 → true
+  PASS  勾选框的显示状态一直跟着内部状态
+  PASS  用 G 快捷键切网格时,勾选框也跟着变
+  PASS  高度没有上限:直接填 3000 行    20×3000
+  PASS  3000 行的地图照样能画 / 能校验
+  PASS  宽度还是有上限的    EDITOR_MAX_COLS=600
+  PASS  config 里高度默认不限(EDITOR_MAX_ROWS = 0)
+
+▌ 页面入口:editor.html 加载完自己起来(和浏览器里一样)
+  PASS  editor.html 的入口能自己起来并画出来
+  PASS  起来之后标记了 RA_EDITOR_READY
+  PASS  起来之后画布按 devicePixelRatio 设了尺寸(1800×1200)
+  PASS  起来之后调色板按钮都建好了(和调色板条目数量一致)
+
+▌ 试玩页(play.html):新标签页里把编辑器那一层玩起来
+  PASS  试玩页的脚本装上了(RA.Playtest)
+  PASS  试玩页会问 opener 要这一层    试玩用的层
+  PASS  opener 不在了就从 sessionStorage 里兜回来
+  PASS  试玩页把这一层读成了可玩的关卡
+  PASS  试玩页画得出来(不抛异常)
+  PASS  试玩页里角色真的会走    x 53 → 206
+  PASS  碰到出口就算通关,并弹出结束面板
+  PASS  通关后的结束面板有「重新开始」和「回编辑器」两个按钮
+  PASS  结束面板画得出来
+  PASS  结束面板上写着这一层的名字和"通关"
+  PASS  重新开始之后又回到起点、也没通关    false/false
+  PASS  中途按 Esc 也会进结束面板
+  PASS  没通关时多给一个「继续玩」
+  PASS  点「继续玩」回到关卡里
+  PASS  外面那一页还在的时候算"能回编辑器"
+  PASS  点「回编辑器」会先试着关掉本页    closed=true
+  PASS  关不掉的时候就把编辑器那一页拉到前面(不假装关掉了)    focused=true
+  PASS  没拿到关卡内容时给出提示而不是崩掉
+  PASS  提示画面画得出来
+  PASS  play.html 的入口能自己起来并画出来
+  PASS  起来之后标记了 RA_PLAYTEST_READY
+  PASS  起来之后就把这一层玩起来了(有角色、有镜头)
+
+▌ 端到端:用编辑器搭一层,导出后必须"爬得上去"
+  PASS  编辑器搭出来的这一层没有错误
+  PASS  引擎读出来没有警告
+  PASS  逐跳物理模拟:从起点真的爬得到出口    4 跳
+  PASS  物理自检在这一层上全过(站立/跳跃/二段跳/出口判定)
+  PASS  关卡池里多出这一层    custom_编辑器搭的塔
+  PASS  塔能用含自定义关卡的池子正常抽层
+  PASS  塔里那层的原文本和关卡池一致(还没改的时候)
+  PASS  老关卡改完「保存到游戏」:关卡池里那一层换成了新文本(刷新后塔里那层就变了)    floor01
+  PASS  存进去的文本里真的带着刚改的那一格    已存进游戏:levels/floor01.txt —— 回游戏刷新一下:新的一份按 R 重构塔就有机会刷出来,塔里本来就有的那层刷新后就是新地图(想让内嵌副本也更新就跑 node tools/sync_levels.mjs)
+  PASS  只改了内容,没有多出一层(池子里还是同一个 id)    floor01
+  PASS  新的一份存进游戏之后关卡池里多了一层    floor01,floor02,floor03,floor04,floor05,floor06,floor07,floor08,floor09,floor10,floor11,floor12,custom_编辑器搭的塔,重新选文件夹的层,回游戏测试层,新抽得到的层
+  PASS  多出来的那一层就是编辑器里这份文本
+  PASS  重构出来的塔有概率抽到这一层(40 层里至少抽中一次)
+
+▌ 页面接线:editor.js 要的 id、脚本路径
+  PASS  editor.js 里用到的 id 抓齐了(38 个)
+  PASS  editor.html 里都有这些 id
+  PASS  editor.html 引用的脚本 = 引擎 + js/editor.js    23 个 / 期望 23 个
+  PASS  editor.html 里引用的脚本都存在
+  PASS  editor.html 里已经没有"可达性检查 / 只存进游戏"这两个按钮了
+  PASS  最上面只留了 试玩 / 下载 txt / 保存到游戏 这几条路
+  PASS  play.html 引用的脚本 = 引擎 + js/playtest.js    23 个 / 期望 23 个
+  PASS  play.html 里引用的脚本都存在
+  PASS  play.html 里有一个 <canvas id="game">
+  PASS  css/editor.css 存在
+  PASS  config 里有 EDITOR_MAX_COLS / EDITOR_MAX_ROWS    宽 600 / 高 不限
+
+▌ 贴图文件:在不在、是不是真 PNG、和生成代码一不一致
+  PASS  地块贴图独立放在 assets/tiles/(5 张)    tiles/grass_top tiles/dirt tiles/brick tiles/stone tiles/cloud
+  PASS  天空贴图独立放在 assets/sky/,张数 = config.SKY_COUNT    8 张 / SKY_COUNT=8
+  PASS  开局界面背景独立放在 assets/ui/
+  PASS  实体贴图独立放在 assets/entities/(弹簧板/出口/浮石,3 张)    assets/entities/spring.png assets/entities/goal.png assets/entities/blink.png
+  PASS  代码生成的贴图一共 12 张    12 张
+  PASS  地块不在这里生成(跑 build_assets 不会把贴图包覆盖掉)
+  PASS  assets/entities/spring.png 是真 PNG(45×45)
+  PASS  assets/entities/spring.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/entities/goal.png 是真 PNG(34×96)
+  PASS  assets/entities/goal.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/entities/blink.png 是真 PNG(45×45)
+  PASS  assets/entities/blink.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/sky/sky1.png 是真 PNG(960×540)
+  PASS  assets/sky/sky1.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/sky/sky2.png 是真 PNG(960×540)
+  PASS  assets/sky/sky2.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/sky/sky3.png 是真 PNG(960×540)
+  PASS  assets/sky/sky3.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/sky/sky4.png 是真 PNG(960×540)
+  PASS  assets/sky/sky4.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/sky/sky5.png 是真 PNG(960×540)
+  PASS  assets/sky/sky5.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/sky/sky6.png 是真 PNG(960×540)
+  PASS  assets/sky/sky6.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/sky/sky7.png 是真 PNG(960×540)
+  PASS  assets/sky/sky7.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/sky/sky8.png 是真 PNG(960×540)
+  PASS  assets/sky/sky8.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/ui/title.png 是真 PNG(960×540)
+  PASS  assets/ui/title.png 和 tools/build_assets.mjs 现在会画的一样
+  PASS  assets/tiles/grass_top.png 是真 PNG(16×16)
+  PASS  assets/tiles/grass_top.png 是正方形(一格,画的时候缩放到 45×45)    16×16
+  PASS  assets/tiles/grass_top.png 用的是贴图包里的图(不是代码现画的那张)    文件和 --restore-tiles 生成的一模一样,说明贴图包没换上去
+  PASS  assets/tiles/dirt.png 是真 PNG(16×16)
+  PASS  assets/tiles/dirt.png 是正方形(一格,画的时候缩放到 45×45)    16×16
+  PASS  assets/tiles/dirt.png 用的是贴图包里的图(不是代码现画的那张)    文件和 --restore-tiles 生成的一模一样,说明贴图包没换上去
+  PASS  assets/tiles/brick.png 是真 PNG(16×16)
+  PASS  assets/tiles/brick.png 是正方形(一格,画的时候缩放到 45×45)    16×16
+  PASS  assets/tiles/brick.png 用的是贴图包里的图(不是代码现画的那张)    文件和 --restore-tiles 生成的一模一样,说明贴图包没换上去
+  PASS  assets/tiles/stone.png 是真 PNG(16×16)
+  PASS  assets/tiles/stone.png 是正方形(一格,画的时候缩放到 45×45)    16×16
+  PASS  assets/tiles/stone.png 用的是贴图包里的图(不是代码现画的那张)    文件和 --restore-tiles 生成的一模一样,说明贴图包没换上去
+  PASS  assets/tiles/cloud.png 是真 PNG(16×16)
+  PASS  assets/tiles/cloud.png 是正方形(一格,画的时候缩放到 45×45)    16×16
+  PASS  assets/tiles/cloud.png 用的是贴图包里的图(不是代码现画的那张)    文件和 --restore-tiles 生成的一模一样,说明贴图包没换上去
+  PASS  --restore-tiles 那套老地块还在(45×45,后路留着)
+  PASS  天空贴图是 960×540(和画布一样)
+  PASS  开局界面背景是 960×540
+  PASS  弹簧板和浮石是 45×45(一格,和 config.TS 一样)
+  PASS  出口光柱是 config.GOAL_WIDTH×GOAL_HEIGHT(判定盒那么大)
+  PASS  三张实体贴图长得都不一样
+  PASS  8 张天空互不相同    8 种
+  PASS  天空的名字/配色表长度和贴图张数一致
+
+▌ 引擎的贴图表:素材名和文件对得上
+  PASS  Assets.FILES 里有 tiles/grass_top
+  PASS  Assets.FILES 里有 tiles/dirt
+  PASS  Assets.FILES 里有 tiles/brick
+  PASS  Assets.FILES 里有 tiles/stone
+  PASS  Assets.FILES 里有 sky/1 → assets/sky/sky1.png
+  PASS  Assets.FILES 里有 sky/2 → assets/sky/sky2.png
+  PASS  Assets.FILES 里有 sky/3 → assets/sky/sky3.png
+  PASS  Assets.FILES 里有 sky/4 → assets/sky/sky4.png
+  PASS  Assets.FILES 里有 sky/5 → assets/sky/sky5.png
+  PASS  Assets.FILES 里有 sky/6 → assets/sky/sky6.png
+  PASS  Assets.FILES 里有 sky/7 → assets/sky/sky7.png
+  PASS  Assets.FILES 里有 sky/8 → assets/sky/sky8.png
+  PASS  Assets.FILES 里有 ui/title
+  PASS  Assets.FILES 里有 entities/spring → assets/entities/spring.png    assets/entities/spring.png
+  PASS  Assets.FILES 里有 entities/goal → assets/entities/goal.png    assets/entities/goal.png
+  PASS  Assets.FILES 里有 entities/blink → assets/entities/blink.png    assets/entities/blink.png
+  PASS  每个文件路径都真的存在
+  PASS  level.js 的 TILE_IMAGES 用的素材名都有文件
+  PASS  地块贴图名和字符表一一对应(5 种)
+  PASS  新加的云板也有贴图:tiles/cloud
+  PASS  云板是"单向"的:不算实心,但算地块 / 算地面
+  PASS  实心地块一个都没少(^ _ ~ =)
+
+▌ 加载与兜底:读不到文件也不能崩,继续用现画的
+  PASS  没有 Image 可用时 loadAll 也会回调
+  PASS  每个素材名都能取到图(兜底画出来的)
+  PASS  天空兜底图是 960×540
+  PASS  地块兜底图是 45×45
+  PASS  实体兜底图尺寸也对(弹簧板/浮石 45×45、出口 34×96)
+  PASS  没真的加载到文件时 hasFile 是 false
+node.exe : [assets] 读不到 assets/tiles/grass_top.png,先用现画的兜底
+At line:1 char:277
++ ... v@reverse-abyss.local"; $out = & node tools/test_all.mjs 2>&1; $code  ...
++                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([assets] 读不到 as...top.png,先用现画的兜底:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[assets] 读不到 assets/tiles/dirt.png,先用现画的兜底
+[assets] 读不到 assets/tiles/brick.png,先用现画的兜底
+[assets] 读不到 assets/tiles/stone.png,先用现画的兜底
+[assets] 读不到 assets/tiles/cloud.png,先用现画的兜底
+[assets] 读不到 assets/entities/spring.png,先用现画的兜底
+[assets] 读不到 assets/entities/goal.png,先用现画的兜底
+[assets] 读不到 assets/entities/blink.png,先用现画的兜底
+[assets] 读不到 assets/ui/title.png,先用现画的兜底
+[assets] 读不到 assets/sky/sky1.png,先用现画的兜底
+[assets] 读不到 assets/sky/sky3.png,先用现画的兜底
+[assets] 读不到 assets/sky/sky4.png,先用现画的兜底
+[assets] 读不到 assets/sky/sky5.png,先用现画的兜底
+[assets] 读不到 assets/sky/sky6.png,先用现画的兜底
+[assets] 读不到 assets/sky/sky7.png,先用现画的兜底
+[assets] 读不到 assets/sky/sky8.png,先用现画的兜底
+  PASS  读到的素材进了缓存,hasFile 为 true    loaded=1
+  PASS  读不到的都记在 missing 里,并且继续给兜底图    missing=16/17
+  PASS  图片路径会带上 RA_ASSET_ROOT 前缀(自检页在 tests/ 下也能读到图)    ../assets/tiles/grass_top.png
+
+▌ 天空:默认随层数循环,关卡也能自己指定
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  没写 // sky 时按层循环 sky1→sky8→sky1    1,2,3,7,8,1,2
+  PASS  // sky: 5 → level.sky = 5
+  PASS  // sky: 0 → 当成自动(0)
+  PASS  // sky: 99 超范围 → 当成自动(0)
+  PASS  // sky: abc → 当成自动(0)
+  PASS  没写 → 自动(0)
+  PASS  写了 sky 的关卡,skyOf 一直用它
+  PASS  floor01 的 sky 值在合法范围里    sky=0
+  PASS  floor02 的 sky 值在合法范围里    sky=0
+  PASS  floor03 的 sky 值在合法范围里    sky=0
+  PASS  floor04 的 sky 值在合法范围里    sky=0
+  PASS  floor05 的 sky 值在合法范围里    sky=0
+  PASS  floor06 的 sky 值在合法范围里    sky=0
+  PASS  floor07 的 sky 值在合法范围里    sky=0
+  PASS  floor08 的 sky 值在合法范围里    sky=0
+  PASS  floor09 的 sky 值在合法范围里    sky=0
+  PASS  floor10 的 sky 值在合法范围里    sky=0
+  PASS  floor11 的 sky 值在合法范围里    sky=0
+  PASS  floor12 的 sky 值在合法范围里    sky=0
+
+▌ 背景绘制:画的是对应那张贴图,爬升时两张天空淡入淡出
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  天空 1~8 / 越界值 / 开局与告别背景都能画出来
+  PASS  画第 6 张天空时用的就是 sky/6 那张图
+  PASS  开局界面背景用的是 ui/title 那张图
+[levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
+  PASS  第 1 层用 sky1
+  PASS  碰到出口进入过渡
+  PASS  过渡里 sky1 和 sky2 都出现(天空在淡入淡出)
+  PASS  过渡结束后站到第 2 层,天空跟着换成 sky2
+
+▌ 实体绘制:弹簧板 S / 出口 G / 浮石 y 画的是自己的贴图
+  PASS  地图里的 S / G / y 都建出来了
+  PASS  S 画的是 entities/spring 这张贴图    1 张贴图,用了 entities/spring
+  PASS  G 画的是 entities/goal 这张贴图    1 张贴图,用了 entities/goal
+  PASS  y 画的是 entities/blink 这张贴图    1 张贴图,用了 entities/blink
+  PASS  弹簧板被踩下去时贴图往下挪 7px(还是压下去的样子)    y=52
+  PASS  浮石消失时把同一张贴图缩到 k 倍(收拢动画)    w=45 k=1
+  PASS  出口光柱的透明度假在 0.75~1 之间呼吸(靠 globalAlpha)    0.875 → 1
+
+▌ 地块绘制:16×16 的贴图标成铺满一格,云板只画上面一截
+  PASS  贴图只有 16×16,画的时候铺满一格(45×45)    12 次,尺寸 45×45
+  PASS  放大像素画时关掉平滑(不然糊成一片)    false
+  PASS  云板只画上面那一截(薄平台,不是整块砖)    4 次,高 13.0
+  PASS  云板取的是贴图上面 5 像素高(不整张拉扁)    源高 5
+  PASS  贴图比一格大时也一样铺满一格    12 次
+  PASS  缩小大贴图时保留平滑(免得出现摩尔纹)
+  PASS  兜底贴图本来就是 45×45 时按原尺寸画
+  PASS  编辑器画地块用的是引擎的 RA.drawTile(游戏 / 编辑器同一套缩放)    2 处
+  PASS  编辑器里没有"直接按原尺寸画地块"的旧写法了
+
+======================================================================
+
+======================================================================
+引擎自检    PASS 576  FAIL 4
+编辑器自检  PASS 238  FAIL 0
+贴图自检    PASS 126  FAIL 0
+----------------------------------------------------------------------
+合计        PASS 940  FAIL 4   用时 3.6s
+失败的项:
+  ✗ floor09 从起点爬得到出口(逐跳物理模拟)    从起点出发到不了出口(最高只到第 4 行)
+  ✗ floor11 从起点爬得到出口(逐跳物理模拟)    从起点出发到不了出口(最高只到第 2 行)
+  ✗ ✗ floor09 从起点爬得到出口(逐跳物理模拟)
+  ✗ ✗ floor11 从起点爬得到出口(逐跳物理模拟)

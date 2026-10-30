@@ -1,0 +1,145 @@
+/* editor.css —— 关卡编辑器的界面。画布只画地图,其余都是原生 HTML 控件。 */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0b0d16;
+  color: #cfd8ea;
+  font: 13px/1.55 "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 232px minmax(320px, 1fr) 268px;
+  height: 100%;
+}
+
+aside {
+  background: #10131f;
+  overflow-y: auto;
+  padding: 10px 12px 30px;
+  border-right: 1px solid #1d2333;
+}
+#right { border-right: 0; border-left: 1px solid #1d2333; }
+
+h1 { font-size: 16px; margin: 2px 0 6px; color: #ffcd6e; letter-spacing: .5px; }
+h2 {
+  font-size: 12px; margin: 16px 0 6px; color: #8fa0c0;
+  text-transform: none; border-bottom: 1px solid #1d2333; padding-bottom: 4px;
+}
+h3 { font-size: 14px; margin: 0 0 8px; }
+
+.dim { color: #7787a6; }
+.small { font-size: 11.5px; line-height: 1.6; }
+.grow { flex: 1; }
+code {
+  background: #1a2030; padding: 0 4px; border-radius: 3px;
+  font-family: Consolas, "Courier New", monospace; font-size: 11.5px;
+}
+.unit { color: #7787a6; }
+
+/* ---------- 地物调色板 ---------- */
+.palette {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.pitem {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 2px 3px;
+  background: #171c2b; border: 1px solid #263049; border-radius: 7px;
+  color: #cfd8ea; cursor: pointer; font: inherit;
+}
+.pitem:hover { border-color: #4a5f8f; background: #1d2437; }
+.pitem.on { border-color: #ffcd6e; background: #2a2b22; box-shadow: 0 0 0 1px #ffcd6e inset; }
+.pitem .picon { width: 38px; height: 38px; border-radius: 4px; }
+.pitem span { font-size: 10px; color: #9fb0cc; }
+
+/* ---------- 工具 ---------- */
+.tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.titem {
+  padding: 6px 2px; background: #171c2b; border: 1px solid #263049; border-radius: 7px;
+  color: #cfd8ea; cursor: pointer; font: inherit;
+}
+.titem:hover { border-color: #4a5f8f; }
+.titem.on { background: #2f3f26; border-color: #7ee0a8; color: #eafff2; }
+
+/* ---------- 通用控件 ---------- */
+.row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.lab { color: #8fa0c0; min-width: 26px; }
+button {
+  padding: 5px 9px; background: #1d2437; color: #dfe7f5;
+  border: 1px solid #2c3752; border-radius: 6px; cursor: pointer; font: inherit;
+}
+button:hover { background: #26304a; border-color: #4a5f8f; }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { background: #2b5f45; border-color: #4f9c74; }
+button.primary:hover { background: #357452; }
+input[type=text], input[type=number], select {
+  padding: 5px 7px; background: #0e1220; color: #e6edfa;
+  border: 1px solid #2c3752; border-radius: 6px; font: inherit; min-width: 0;
+}
+input[type=number] { width: 68px; }
+select { flex: 1; }
+input:focus, select:focus { outline: 1px solid #ffcd6e; }
+.chk { display: flex; align-items: center; gap: 6px; margin: 4px 0; color: #b9c6dd; }
+.chk input { accent-color: #7ee0a8; }
+
+/* ---------- 中间:工具栏 + 画布 ---------- */
+main { display: flex; flex-direction: column; min-width: 0; }
+#toolbar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 7px 10px; background: #10131f; border-bottom: 1px solid #1d2333;
+}
+#toolbar #name { width: 150px; }
+#toolbar .back {
+  margin-left: auto; color: #8fa0c0; text-decoration: none; padding: 5px 8px;
+  border: 1px solid #2c3752; border-radius: 6px;
+}
+#toolbar .back:hover { color: #fff; background: #1d2437; }
+.badge { font-size: 11.5px; padding: 3px 7px; border-radius: 20px; }
+.badge.ok { background: #1e3a2c; color: #8fe6b4; }
+.badge.warn { background: #3d3520; color: #ffd98a; }
+.badge.bad { background: #3d2020; color: #ff9c8a; }
+
+#board-wrap { flex: 1; min-height: 0; position: relative; }
+#board {
+  display: block; width: 100%; height: 100%;
+  background: #0d0f18; cursor: crosshair;
+  image-rendering: pixelated;
+}
+#status {
+  padding: 5px 10px; background: #10131f; border-top: 1px solid #1d2333;
+  color: #9fb0cc; font-size: 12px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis;
+}
+#status.ok { color: #8fe6b4; }
+#status.warn { color: #ffd98a; }
+#status.bad { color: #ff9c8a; }
+
+/* ---------- 检查列表 ---------- */
+.check { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.check li { padding: 3px 0 3px 2px; border-bottom: 1px dashed #1a2030; }
+.check li.bad { color: #ff9c8a; }
+.check li.warn { color: #ffd98a; }
+.check li.ok { color: #8fe6b4; }
+.check li.note { color: #8fa0c0; }
+
+/* ---------- 看 txt 的弹窗 ---------- */
+#modal {
+  display: none; position: fixed; inset: 0; background: rgba(4, 6, 12, .72);
+  align-items: center; justify-content: center; z-index: 20;
+}
+#modal.show { display: flex; }
+#modal .box {
+  width: min(760px, 88vw); background: #10131f; border: 1px solid #2c3752;
+  border-radius: 12px; padding: 14px 16px 12px;
+}
+#modal textarea {
+  width: 100%; height: 320px; resize: vertical;
+  background: #0a0d16; color: #dfe7f5; border: 1px solid #2c3752; border-radius: 8px;
+  font: 12px/1.5 Consolas, "Courier New", monospace; padding: 8px;
+}
