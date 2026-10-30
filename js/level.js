@@ -607,6 +607,9 @@
   Level.dataOf = dataOf;
   Level.parseComments = parseComments;
   Level.ascLines = ascLines;
+  // 旧图迁移(js/legacy-import.js)也走这一份 asc 规整规则,免得两处各写一套
+  // "去注释、掐空行、行尾补空" —— 迁移工具读出来的尺寸必须和旧引擎一致。
+  Level.normalizeRows = normalizeRows;
 
   RA.Level = Level;
   RA.levelData = dataOf;             // 关卡数据归一化(levelpack / 关卡工具共用一处)

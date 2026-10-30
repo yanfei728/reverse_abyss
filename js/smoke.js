@@ -740,6 +740,49 @@
         Object.keys(RA.Monsters.defaults('fireball') || {}).length === 0);
       R.check('没登记的怪物返回 null', RA.Monsters.get('还没做的怪物') === null);
     }
+
+    /*
+     * schemaVersion=2 编解码(js/level-data.js)。
+     * 浏览器和 Node 跑的是同一份实现:固定样例的 hash 必须一模一样,
+     * 否则编辑器保存的草稿在 Node 工具里会被判 HASH_MISMATCH。
+     * 这段只验证数据契约,不碰画面。
+     */
+    var LD = RA.LevelData;
+    if (!LD) {
+      R.check('关卡数据编解码模块装上了(js/level-data.js)', false);
+    } else {
+      R.check('SHA-256 固定向量:abc',
+        LD.sha256Hex('abc') ===
+        'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+      var sample = {
+        schemaVersion: 2,
+        id: 'codec_sample',
+        title: '自检样例',
+        kind: 'normal',
+        difficulty: 3,
+        size: { cols: 4, rows: 3 },
+        terrain: { tiles: [[0, 0, 0, 0], [0, 1, 1, 0], [4, 4, 4, 4]] },
+        ports: null,
+        spawn: { col: 1, row: 1 },
+        objects: [],
+        paths: [],
+        visuals: { backgroundId: null, decorations: [] },
+        extensions: {},
+        contentHash: null,
+        certification: null
+      };
+      var coded = LD.encode(sample);
+      R.check('样例关卡可以编码成 schemaVersion=2 JSON', coded.ok);
+      R.check('固定样例的 contentHash 跨环境一致(Node 自检里有同一个值)',
+        LD.hashSync(sample) ===
+        'sha256:aa6888d6e947aaa6e1e2efe0270667a2c0761a171335618bf566205dbfa5273f');
+      var decoded = coded.ok ? LD.decode(coded.value) : null;
+      R.check('编码 → 解码内容等价(除派生 hash)',
+        !!(decoded && decoded.ok) &&
+        LD.canonical(LD.contentOf(decoded.value)) === LD.canonical(LD.contentOf(sample)));
+      R.check('旧图迁移函数可用(js/legacy-import.js)',
+        !!RA.LegacyImport && RA.LegacyImport.migrate('+P+G', { id: 'tiny' }).ok);
+    }
     return R;
   }
 

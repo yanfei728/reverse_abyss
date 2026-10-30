@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 2,
+  "id": "floor11",
+  "title": "floor11",
+  "kind": "normal",
+  "difficulty": 1,
+  "size": {
+    "cols": 23,
+    "rows": 16
+  },
+  "terrain": {
+    "tiles": [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3]
+    ]
+  },
+  "ports": null,
+  "spawn": {
+    "col": 9,
+    "row": 14
+  },
+  "objects": [
+    {
+      "id": "obj_1",
+      "type": "blink_platform",
+      "col": 11,
+      "row": 1,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_2",
+      "type": "blink_platform",
+      "col": 12,
+      "row": 1,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_3",
+      "type": "blink_platform",
+      "col": 13,
+      "row": 1,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_4",
+      "type": "blink_platform",
+      "col": 14,
+      "row": 1,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_5",
+      "type": "blink_platform",
+      "col": 15,
+      "row": 1,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_6",
+      "type": "blink_platform",
+      "col": 16,
+      "row": 1,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_7",
+      "type": "blink_platform",
+      "col": 17,
+      "row": 1,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_8",
+      "type": "crumble_door",
+      "col": 19,
+      "row": 7,
+      "params": {
+        "fadeSeconds": 0.12
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_9",
+      "type": "crumble_door",
+      "col": 19,
+      "row": 8,
+      "params": {
+        "fadeSeconds": 0.12
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_10",
+      "type": "crumble_door",
+      "col": 19,
+      "row": 9,
+      "params": {
+        "fadeSeconds": 0.12
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_11",
+      "type": "blink_platform",
+      "col": 11,
+      "row": 15,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_12",
+      "type": "blink_platform",
+      "col": 12,
+      "row": 15,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_13",
+      "type": "blink_platform",
+      "col": 13,
+      "row": 15,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_14",
+      "type": "blink_platform",
+      "col": 16,
+      "row": 15,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_15",
+      "type": "blink_platform",
+      "col": 17,
+      "row": 15,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "obj_16",
+      "type": "blink_platform",
+      "col": 18,
+      "row": 15,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    }
+  ],
+  "paths": [],
+  "visuals": {
+    "backgroundId": null,
+    "decorations": []
+  },
+  "extensions": {
+    "legacy": {
+      "sourceFormat": "asc-v1",
+      "sky": 0,
+      "verified": true,
+      "exit": {
+        "col": 22,
+        "row": 0
+      },
+      "entry": {
+        "col": 9,
+        "row": 14
+      },
+      "proposedPorts": {
+        "profile": "vertical-v1",
+        "entry": {
+          "col": 9
+        },
+        "exit": {
+          "col": 22
+        }
+      },
+      "declaredSize": {
+        "cols": 23,
+        "rows": 16
+      },
+      "unknownChars": [],
+      "legacyEntities": []
+    }
+  },
+  "contentHash": "sha256:26ebc121cdbd5d7a9bc624c1512f823bb2f2d610f32f54430ed1fdb0bf8c0a68",
+  "certification": null
+}

@@ -71,3 +71,92 @@ v0.1 不包含完整超时追捕、传送门、其他角色、其余敌人、遗
 以玩法链路验收，不按代码量或测试数量判定完成。区分自动检查、浏览器人工验证、安卓真机验证；未执行须明确标记。人工认证不以自动寻路替代。
 
 每次仅交付一张任务卡及必要依赖，先完成 [T00～T02](docs/tasks/01-foundation.md)，再进入运行时与连续世界。任务索引见 [docs/tasks/README.md](docs/tasks/README.md)。负责规划的 agent 整理需求、契约与任务卡；编码由用户安排的实现 agent 完成，交付后按卡验收并更新状态。
+
+## 工程进度记录（实现）
+
+### 2026-10-30 · T00 基线 + T01 关卡数据契约
+
+本节是**实际交付记录**，不是计划。需求仍以本文上半部分与设计文件为准；本次只做 T00 与 T01 及必要依赖，未提前改运行时、编辑器与玩法。按用户本次要求，`README.md`、`STATUS.md`、`AGENTS.md` 与任务卡均未修改，因此 `STATUS.md` 里“T00～T10 全部待开始”的旧描述**尚未同步**；本轮的准确状态以本节与 [docs/checks/](docs/checks/) 为准。
+
+#### 材料核对结论
+
+足够完成 T00 与 T01：接口契约（数据/错误码/迁移映射）、12 张旧图、旧引擎解析实现、对象参数默认值来源（`config.js` 现有常量）都在仓库里，且基线自检可复现。
+
+不足以一次做完后续卡、本次也**没有编造**的项：
+
+- 接口几何（4 格开口、上下 3 格安全带）仍是提案，未见人工拼接验证，T04 才能冻结；
+- `rulesVersion` / `rulesFingerprint` 的实际取值要等标准试玩（T06/T07）后固定，本次 `publish` 校验只接受调用方显式传入的规则；
+- 装饰资源白名单、Boss 数值、安卓工具链与真机参数没有可核实来源，本次不设或只做格式校验；
+- 旧 `verified` 不能当认证，迁移只保留为历史字段。
+
+#### T00 — 可回退基线
+
+- 新建本地 Git 仓库（无远程、无上传），基线提交 **`f56cdce`**（87 个文件，含原 `log.txt`、`levels/`、`assets/`、编辑器数据）。
+- 环境与原始自检输出记录在 [docs/checks/T00-baseline.md](docs/checks/T00-baseline.md)、[T00-test_all-baseline.txt](docs/checks/T00-test_all-baseline.txt)（1067 行原始输出）、[T00-file-manifest.txt](docs/checks/T00-file-manifest.txt)。
+- 实测基线：Node.js `v24.21.0`、Windows 11 `10.0.26200`、Git `2.53.0`；`node tools/test_all.mjs` 为 **940 PASS / 4 FAIL，退出码 1**，失败仍是 `floor09`、`floor11` 的旧逐跳可达性诊断（各被两个入口报告一次）。
+- 未测：浏览器人工移动/跳跃/出口/编辑器、安卓、帧率——本次没有可操作浏览器，全部保留“未测”。
+
+#### T01 — 新 LevelData、校验、无损迁移
+
+新增（不改旧游戏入口）：
+
+| 文件 | 作用 |
+|---|---|
+| `js/level-data.js` | `schemaVersion=2` 的 `decode / validate / encode / hash / canonical / summarize`；纯 JS SHA-256；错误码与分层校验（draft / play / publish） |
+| `js/entity-registry.js` | 首版六个对象（spring、crumble_door、blink_platform、fireball_static、spike、gear）的参数描述、场景权限、旧字符映射与实现状态；**注册不等于行为已实现** |
+| `js/legacy-import.js` | 旧 asc/TXT/旧 JSON → v2 草稿的共享迁移函数（只读输入） |
+| `tools/migrate_levels.mjs` | 迁移 12 张旧图到 `levels/v2/`，逐文件 sha256 前后比对、回读校验、生成迁移报告 |
+| `tools/test_leveldata.mjs` | T01 契约自检（138 项），已接入 `tools/test_all.mjs` 总账 |
+
+改动：`js/config.js` 增加 `DATA_LIMITS`、`PORT`、`OBJECT_PARAMS`；`js/level.js` 只多导出 `Level.normalizeRows`（迁移复用同一份 asc 规整规则）；`js/smoke.js` 增加跨环境 hash 固定样例；`tools/loader.mjs`、`index.html`、`play.html`、`editor.html`、`tests/browser.html` 同步脚本清单（顺序与依赖一致）。
+
+数据契约要点（实现与文档一致的地方，详细字段见 [data-and-interfaces.md](docs/design/data-and-interfaces.md)）：
+
+- 地形只有一份真值 `terrain.tiles`（整数 0~5），不再有 asc 双写；`size` 必须与网格精确一致，不一致直接报错、不自动裁剪。
+- `contentHash = sha256(规范化 JSON)`：对象键递归排序、数组保序、UTF-8；不含 `contentHash` / `certification`；改一格、一个参数、显示名、背景、extensions 都会改变（B08）。自报 hash 不匹配时 `decode` 返回 `HASH_MISMATCH`。
+- 分层校验：结构性错误（尺寸、类型、断引用）任何时候都是 error；草稿可暂缺的（没有接口/出生点、对象在界外、路径不足两个点、未知对象/参数）在 `draft` 下是 warning，`play/publish` 下是 error；`publish` 另要求 `standard-v1` 认证、内容 hash 与 `rulesVersion/rulesFingerprint` 全部匹配。
+- 容量上限集中在 `config.js` 的 `DATA_LIMITS`（导入 2 MiB、600 列、4096 行、25 万格、400 对象、200 路径、128 点/路径等）。这是 T01 的保守初始值，依据是浏览器/Node 单次解析安全量；**需要 T10 按安卓真机实测调整**，不能据此宣称已完成安卓兼容。
+- 接口按 `vertical-v1` 提案校验结构：4 格开口、col 在界内，发布时再要求左右各留 1 格；真正的接缝几何、保护带与端口可视化留给 T04。
+
+迁移结果（[报告](docs/checks/T01-legacy-migration.md)、[机器可读记录](docs/checks/T01-legacy-migration.json)、输出 [levels/v2/](levels/v2/)）：
+
+- **12 / 12 张成功**；每张都有明确警告（`ports` 留空需修复、旧 `verified` 不继承认证）。
+- 逐格与旧引擎解析结果对比（实心/单向/尺寸）、`S/x/y` 对象数量与位置、`P` 出生点、`G` 出口位置、难度、`sky` 全部保真；旧 `.` 空气与未知字符都有警告并保留位置。
+- **原文件未被修改**：12 张旧图 + 模板的 SHA-256 与本轮 T00 基线记录完全一致；`levels/v2/` 是独立目录，`levels/levels.js` 未重新生成，旧游戏入口不受影响。
+- 迁移出的草稿 `ports=null`、`certification=null`，所以它们现在**不能试玩/发布**——这是 T01 的预期结果，不是缺陷。
+
+#### 实际命令与结果
+
+| 命令 | 结果 |
+|---|---|
+| `node tools/migrate_levels.mjs` | 12/12 迁移成功，退出码 `0`；报告见 `docs/checks/T01-legacy-migration.md` |
+| `node tools/test_leveldata.mjs` | **138 PASS / 0 FAIL**，退出码 `0` |
+| `node tools/test_all.mjs` | **1089 PASS / 4 FAIL**，退出码 `1`；引擎 587/4、编辑器 238/0、贴图 126/0、数据 138/0 |
+
+与基线相比：新增 149 项全部通过（含 6 条“页面脚本清单存在且顺序一致”检查、5 条浏览器/Node 共用的 hash 样例检查、138 条数据契约检查），**4 个既有失败原样保留**，没有删除断言、没有把失败改成跳过。`docs/checks/T01-test_all.txt` 是本次完整原始输出。
+
+#### 人工验证
+
+- 未在浏览器打开新草稿逐项阅读字段（没有可操作浏览器）；可读性只做了自动检查（地形每行一行、字段顺序固定、标准 JSON）。
+- 未做人工通关、未生成认证；`ports=null` 的迁移草稿本来就不允许试玩。
+- 未修改 `floor09` / `floor11`，也没有声称它们“人工可通”。
+
+#### 已知限制与遗留
+
+1. 编辑器仍是旧 TXT 模型（`js/editor.js` 未改）：草稿保存、打开、撤销重做、试玩、发布链路要等 T02；现在只能通过工具导出/迁移 v2 文件。
+2. 旧图迁移后 `ports=null`；T04 的端口工具（自动生成/保护区可视化/修复提示）完成前，它们只能作草稿。
+3. `fireball_static`、`spike`、`gear` 只有数据描述，没有运行时行为（T05）；`blink_platform` 的预警延迟与安全恢复也还没做。
+4. 装饰 `assetId` 目前只校验格式，不查资源表；背景只认内置 `sky1~sky8`。
+5. 容量上限未做安卓实测；`decode` 的 2 MiB 限制只按“一次读入”估算。
+6. `STATUS.md` / `README.md` 未同步（按用户本次要求）。`STATUS.md` 的“下一步 T00”已过期，勿据此重复建基线。
+
+#### 下一步（T02）
+
+按 [T02](docs/tasks/01-foundation.md) 做编辑器 JSON 无损往返与草稿仓库，建议顺序：
+
+1. `EditorModel` 以完整 LevelData 为真值（`cells` 只保留“字符 ↔ 地块编号”的画笔适配层，不做第二份可编辑地形）；撤销/重做快照整份 LevelData。
+2. 打开/新建/导入/导出全部走 `LevelData`：TXT 只作为迁移入口调用 `LegacyImport`；旧 `toText()` 导出停用；P/G 画笔映射到 `spawn` / `ports.exit`，完整接口编辑留给 T04。
+3. 新增 `js/content-repository.js`：IndexedDB 草稿 + revision 冲突（`expectedRevision`）+ 发布事务与 `listEligible`，全部返回 `Result`；存储不可用时明确显示“未持久保存”，失败/取消不改发布池。
+4. 新格式试玩在 T03 接通前明确禁用（不得转 TXT 调旧试玩丢字段）；下载只报“已发起”，不声称写进 `levels/`。
+5. 旧编辑器测试（TXT 导出、保存到游戏改池）要替换为新契约测试并说明原因；保留画图、撤销、缩放、平移等现有交互的手工回归项。
+

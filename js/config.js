@@ -78,6 +78,74 @@
     CLIMB_FADE_SPLIT: 0.5,    // 切到一半的进度:之前是"旧层渐出",之后是"新层渐入"
     CLIMB_DIM: 0.92,          // 切换中间那层暗场最浓时的透明度(0 = 不压暗)
 
+    // ===================== 关卡数据 schemaVersion=2 =====================
+    /*
+     * 导入字节数 / 尺寸 / 数量上限。T01 的保守初始值:保证浏览器和 Node 都能
+     * 当场解析,不会因为一张畸形文件把内存吃光。可变尺寸 ≠ 无限分配内存;
+     * 安卓真机导入(T10)要按实测调整,不能偷偷把地图改成固定大小。
+     * 依据:2MB 文本 ≈ 单次 FileReader/JSON.parse 的安全量;600 列与编辑器宽度
+     * 上限一致;250000 格 ≈ 600×416,超过这个量级的小样需要先在真机测内存。
+     */
+    DATA_LIMITS: {
+      MAX_IMPORT_BYTES: 2 * 1024 * 1024,   // 一份关卡 JSON 文件的字节上限
+      MAX_COLS: 600,                        // 单层宽度上限(与编辑器一致)
+      MAX_ROWS: 4096,                       // 单层高度上限(旧编辑器高度不限,新契约要上限)
+      MAX_TILES: 250000,                    // 单层地块总数上限
+      MAX_OBJECTS: 400,                     // 一层的参数对象上限
+      MAX_PATHS: 200,                       // 一层的路径上限
+      MAX_PATH_POINTS: 128,                 // 一条路径的点数上限
+      MAX_DECORATIONS: 200,                 // 一层的装饰上限
+      MAX_ID_LEN: 64,                       // 关卡 id / 对象 id / 路径 id 的字符上限
+      MAX_TITLE_LEN: 120,                   // 显示名上限
+      MAX_STRING_LEN: 256,                  // 单个字符串字段(类型名、资源 id)上限
+      MAX_EXTENSIONS_BYTES: 32 * 1024        // extensions 序列化后的字节上限
+    },
+
+    // 楼层接口 v1(提案值,见 docs/design/world-and-gameplay.md):
+    // 开口 4 格、上下各 3 格安全带、开口与左右外墙至少隔 1 格。
+    // T01 只校验结构;真正的接缝几何、梯板生成与编辑器可视化在 T04 冻结。
+    PORT: {
+      PROFILE: 'vertical-v1',
+      OPENING_COLS: 4,
+      SAFE_ROWS: 3,
+      SIDE_MARGIN_COLS: 1
+    },
+
+    /*
+     * 首版参数对象的数值(默认值 / 允许范围)。中文名、单位、类型说明在
+     * js/entity-registry.js —— 编辑器、校验器和运行时共用同一份描述,
+     * 不允许三处各写一套默认值。这些是首版提案值,不是用户确认的平衡数值;
+     * 正式认证会绑定实际采用的数值指纹(rulesFingerprint,见 T06)。
+     * spring 的 -1180 与 SPRING_VEL 保持一致(显式覆盖时才写进 params)。
+     */
+    OBJECT_PARAMS: {
+      spring: {
+        bounceVel: { def: -1180, min: -4000, max: 0 }
+      },
+      crumble_door: {
+        fadeSeconds: { def: 0.12, min: 0, max: 2 }          // 与 GHOST_FADE 一致
+      },
+      blink_platform: {
+        warningSeconds: { def: 0.5, min: 0, max: 5 },
+        goneSeconds: { def: 1.6, min: 0.1, max: 10 }        // 与 BLINK_GONE 一致
+      },
+      fireball_static: {
+        radiusTiles: { def: 0.5, min: 0.1, max: 4 },
+        damage: { def: 20, min: 0, max: 100 }
+      },
+      spike: {
+        warningSeconds: { def: 0.5, min: 0, max: 5 },
+        activeSeconds: { def: 0.8, min: 0.1, max: 5 },
+        cooldownSeconds: { def: 1.0, min: 0, max: 10 },
+        damage: { def: 20, min: 0, max: 100 }
+      },
+      gear: {
+        speedTilesPerSecond: { def: 2, min: 0.1, max: 20 },
+        radiusTiles: { def: 0.5, min: 0.1, max: 4 },
+        damage: { def: 20, min: 0, max: 100 }
+      }
+    },
+
     // ===================== 界面配色 =====================
     INK: [232, 240, 252],
     INK_DIM: [168, 182, 206],
