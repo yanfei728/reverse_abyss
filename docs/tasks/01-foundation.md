@@ -2,6 +2,8 @@
 
 共同输入：[PROJECT](../../PROJECT.md)、[数据接口](../design/data-and-interfaces.md)、[设计决定](../design/decisions.md)。所有卡遵守根目录 AGENTS.md。
 
+2026-10-31 验收更新：T00 已通过，以下 T00 的建仓描述保留作历史要求，不重复执行。T01 待完成 [T01-R](05-review-followup.md) 后复验；T02 的实施拆分与当前优先级以该补充卡为准。
+
 ## T00 — 建立可回退基线
 
 目标：后续改数据/运行时前，保留当前能运行的原型和真实失败记录。

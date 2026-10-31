@@ -174,7 +174,7 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 
 | 模块 | 建议位置 | 契约与职责 |
 |---|---|---|
-| LevelCodec | js/level-data.js | `decode(input,{allowDraft}) -> Result<LevelData>`；`validate(data,{purpose,rules,registry}) -> Issue[]`；`hash(data) -> Promise<string>`；`encode(data) -> Promise<Result<string>>` |
+| LevelCodec | js/level-data.js（RA.LevelData / RA.LevelCodec） | `decode(input,{allowDraft}) -> Result<LevelData>`；`validate(data,{purpose,rules,registry}) -> Issue[]`；`hash(data) -> Promise<string>`；`encode(data) -> Result<string>` |
 | LegacyImporter | tools/migrate_levels.mjs + 共享迁移函数 | `migrateLegacy(input) -> Result<{draft,warnings}>`；不覆盖旧文件，不继承 verified |
 | ContentRepository | js/content-repository.js | `saveDraft({draftId,data,expectedRevision})`；`loadDraft(draftId)`；`publish({draftId,expectedRevision,receipt})`；`getPublished(levelId,hash)`；`listEligible({difficulty,rules})`；`importLevel(json)`，均返回 Promise<Result> |
 | EntityRegistry | js/entities/base.js 或独立 registry | `get(type)` 返回参数描述、场景权限、create；`create(record,{world,floor,config})` 创建实例；不含编辑器 DOM |
@@ -185,6 +185,19 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 | PlatformAdapter | js/platform/（安卓卡再建） | 导入文件、导出文件、生命周期转为平台无关消息；不实现战斗 |
 
 `purpose` 为 draft/play/publish：draft 只要求可解析、数据类型安全、容量合理，不要求关卡完整；play 要完整接口、资源/对象可运行；publish 再要求普通池/认证约束。decode 对未来 schemaVersion 返回 UNSUPPORTED_SCHEMA，并保留用户原文件，不能降级删除字段再保存。
+
+2026-10-31 接口澄清：encode 无 I/O，采纳 T01 现有同步 Result 签名；Repository 仍为异步事务。encode 与 decode 都必须拒绝不支持的 schema，最终导出必须在自身导入容量内；未知 JSON 内容不得因字段投影而无提示丢失。认证与当前 rules 的版本/指纹先分别验证为非空合法字符串，再比较，不能让两个缺失字段被视为匹配。T01 当前实现尚未满足这些边界，修复见 T01-R。
+
+2026-10-31 T01-R 实施结果（已修，待复验）：
+
+- **未知内容保留**：顶层、objects、paths、路径点、size / terrain / visuals、装饰里的未知字段原样保留并参与 `contentHash`；规范化只补契约字段的默认值，不删除未知内容。hash、encode、decode 共用同一个内容投影，`encode` 还会把写出的文本回读一遍，保证“保存的草稿能按同一契约重开”。
+- **schema 双端拒绝**：`encode` 与 `decode` 都只接受 `schemaVersion=2`，其他值返回 `UNSUPPORTED_SCHEMA`，不允许隐式降级或升级。
+- **导出容量**：`encode` 按最终文本的真实 UTF-8 字节数检查 `DATA_LIMITS.MAX_IMPORT_BYTES`，超限返回 `LIMIT_EXCEEDED`，不产生“保存成功但打不开”的文件。
+- **断路径引用**：`draft` 用途下是 warning（保留引用，标为待修复，允许保存备份）；`play` / `publish` 是 error。
+- **认证门槛**：认证里的 `rulesVersion` / `rulesFingerprint` 与传入的当前规则分别验证为非空字符串后再比较；缺失、空串、类型不符都返回 `RULES_MISMATCH`。`completedAt` 必须是带时区的 ISO8601（允许 1～3 位小数秒）。
+- **迁移路径安全**：`migrate_levels.mjs` 先规划后写入；写入前检查输入/输出/报告的真实路径（含 Windows 大小写与符号链接别名）、输出 id 归一化碰撞、输出落在源文件上、报告落在源/输出上；内容不同的既有输出默认报冲突，`--force` 才覆盖；失败时不写任何文件。报告必须放在输入目录之外，避免下次被当作源文件。
+
+上述行为由 `tools/test_leveldata.mjs` 与 `tools/test_t01r.mjs` 覆盖；修复前的复现记录保留在 `docs/checks/review-2026-10-31-probes.json`，修复后的对照在 `docs/checks/T01R-fix-report.md`。
 
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T09:32:01.211Z",
+  "generatedAt": "2026-10-31T15:31:52.439Z",
   "command": "node tools/migrate_levels.mjs",
   "source": "levels",
   "output": "levels/v2",
@@ -11,10 +11,10 @@
   "files": [
     {
       "file": "floor01.json",
-      "id": "floor01",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor01.json",
+      "status": "unchanged",
       "size": {
         "cols": 22,
         "rows": 32
@@ -32,10 +32,10 @@
     },
     {
       "file": "floor02.json",
-      "id": "floor02",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor02.json",
+      "status": "unchanged",
       "size": {
         "cols": 15,
         "rows": 30
@@ -53,10 +53,10 @@
     },
     {
       "file": "floor03.json",
-      "id": "floor03",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor03.json",
+      "status": "unchanged",
       "size": {
         "cols": 15,
         "rows": 30
@@ -74,10 +74,10 @@
     },
     {
       "file": "floor04.json",
-      "id": "floor04",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor04.json",
+      "status": "unchanged",
       "size": {
         "cols": 15,
         "rows": 32
@@ -95,10 +95,10 @@
     },
     {
       "file": "floor05.json",
-      "id": "floor05",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor05.json",
+      "status": "unchanged",
       "size": {
         "cols": 15,
         "rows": 32
@@ -116,10 +116,10 @@
     },
     {
       "file": "floor06.json",
-      "id": "floor06",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor06.json",
+      "status": "unchanged",
       "size": {
         "cols": 30,
         "rows": 24
@@ -137,10 +137,10 @@
     },
     {
       "file": "floor07.json",
-      "id": "floor07",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor07.json",
+      "status": "unchanged",
       "size": {
         "cols": 15,
         "rows": 34
@@ -158,10 +158,10 @@
     },
     {
       "file": "floor08.json",
-      "id": "floor08",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor08.json",
+      "status": "unchanged",
       "size": {
         "cols": 43,
         "rows": 24
@@ -179,10 +179,10 @@
     },
     {
       "file": "floor09.json",
-      "id": "floor09",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor09.json",
+      "status": "unchanged",
       "size": {
         "cols": 17,
         "rows": 25
@@ -200,10 +200,10 @@
     },
     {
       "file": "floor10.json",
-      "id": "floor10",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor10.json",
+      "status": "unchanged",
       "size": {
         "cols": 15,
         "rows": 23
@@ -221,10 +221,10 @@
     },
     {
       "file": "floor11.json",
-      "id": "floor11",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor11.json",
+      "status": "unchanged",
       "size": {
         "cols": 23,
         "rows": 16
@@ -242,10 +242,10 @@
     },
     {
       "file": "floor12.json",
-      "id": "floor12",
       "ok": true,
       "error": "",
       "out": "levels/v2/floor12.json",
+      "status": "unchanged",
       "size": {
         "cols": 15,
         "rows": 23

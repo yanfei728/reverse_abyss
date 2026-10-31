@@ -64,6 +64,11 @@
   var SCHEMA_VERSION = 2;
   var KINDS = ['normal', 'lobby', 'rest', 'boss'];
   var MODES = ['loop', 'pingpong'];
+  // 契约字段。内容 hash / encode / decode 共用这一份顺序,不再各自投影一遍。
+  var CONTENT_KEYS = ['schemaVersion', 'id', 'title', 'kind', 'difficulty', 'size', 'terrain',
+    'ports', 'spawn', 'objects', 'paths', 'visuals', 'extensions'];
+  // 顶层已知字段(含两个派生字段);其余顶层字段按"未知内容"原样保留。
+  var KNOWN_TOP = CONTENT_KEYS.concat(['contentHash', 'certification']);
   var ID_RE = /^[A-Za-z0-9_-]+$/;
   var ASSET_RE = /^[A-Za-z0-9_][A-Za-z0-9_./-]*$/;
 
@@ -357,24 +362,63 @@
   }
 
   // ===================== 内容与 hash =====================
-  /** 参与 hash 的字段:除 contentHash / certification 外的完整 LevelData */
-  function contentOf(data) {
+  /**
+   * 把任意内存数据投影成"要写进文件的那一份内容":契约字段按固定顺序,
+   * 缺省的已知字段补默认值;size / terrain / visuals 里的未知子字段、以及
+   * 顶层未知字段全部原样保留。
+   *
+   * hash、encode、decode 都走这一个函数 —— 这是 R1 的修复要点:
+   * 只要三者用同一份内容规则,编码器写出的文件就一定能按同一契约重开,
+   * 未知内容也不会在字段投影时被无提示删除。contentHash / certification
+   * 是派生字段,永远不进入内容 hash。
+   */
+  function project(data) {
     if (!isPlainObject(data)) throw dataError('INVALID_FIELD', '', 'LevelData 必须是一个对象');
-    return {
-      schemaVersion: data.schemaVersion,
-      id: data.id,
-      title: data.title,
-      kind: data.kind,
+    var out = {
+      schemaVersion: data.schemaVersion === undefined ? SCHEMA_VERSION : data.schemaVersion,
+      id: data.id === undefined ? '' : data.id,
+      title: data.title === undefined ? '' : data.title,
+      kind: data.kind === undefined ? 'normal' : data.kind,
       difficulty: data.difficulty === undefined ? null : data.difficulty,
-      size: data.size,
-      terrain: data.terrain,
+      size: objOr(data.size, ['cols', 'rows'], { cols: 0, rows: 0 }),
+      terrain: objOr(data.terrain, ['tiles'], { tiles: [] }),
       ports: data.ports === undefined ? null : data.ports,
       spawn: data.spawn === undefined ? null : data.spawn,
       objects: data.objects || [],
       paths: data.paths || [],
-      visuals: data.visuals,
+      visuals: objOr(data.visuals, ['backgroundId', 'decorations'],
+        { backgroundId: null, decorations: [] }),
       extensions: data.extensions || {}
     };
+    Object.keys(data).sort().forEach(function (k) {
+      if (CONTENT_KEYS.indexOf(k) >= 0 || k === 'contentHash' || k === 'certification') return;
+      out[k] = data[k];
+    });
+    return out;
+  }
+
+  /** 已知键按给定顺序排好、补默认值;未知子字段照抄(排序,输出稳定) */
+  function withExtras(src, order, defaults) {
+    var s = isPlainObject(src) ? src : {};
+    var out = {};
+    order.forEach(function (k) {
+      out[k] = s[k] === undefined ? defaults[k] : s[k];
+    });
+    Object.keys(s).sort().forEach(function (k) {
+      if (order.indexOf(k) < 0) out[k] = s[k];
+    });
+    return out;
+  }
+
+  /** 缺失(null/undefined)按默认值;不是对象就原样返回,交给 validate 报错(不静默替换) */
+  function objOr(src, order, defaults) {
+    if (src === undefined || src === null) return withExtras({}, order, defaults);
+    if (!isPlainObject(src)) return src;
+    return withExtras(src, order, defaults);
+  }
+
+  function contentOf(data) {
+    return project(data);
   }
 
   function hashSync(data) {
@@ -457,7 +501,8 @@
       throw e;
     }
     var data = built.data;
-    warnings = warnings.concat(built.warnings || []);
+    // normalize 直接把说明推进同一个数组;这里不要 concat,否则每条警告会出现两次
+    warnings = built.warnings || warnings;
 
     if (data.contentHash !== null && opts.verifyHash !== false) {
       var actual;
@@ -493,16 +538,8 @@
     return String(h || '').slice(0, 18) + '…';
   }
 
-  /** 把外部对象规整成固定字段;结构问题抛 dataError,值问题留给 validate */
+  /** 把外部对象规整成契约字段;结构问题抛 dataError,值问题留给 validate */
   function normalize(raw, warnings) {
-    var knownTop = ['schemaVersion', 'id', 'title', 'kind', 'difficulty', 'size', 'terrain',
-      'ports', 'spawn', 'objects', 'paths', 'visuals', 'extensions', 'contentHash', 'certification'];
-    Object.keys(raw).forEach(function (k) {
-      if (knownTop.indexOf(k) < 0) {
-        warnings.push('未知的顶层字段 "' + k + '" 没有进入 LevelData(要保留就放进 extensions)');
-      }
-    });
-
     var terrainRaw = raw.terrain;
     if (!isPlainObject(terrainRaw) || !Array.isArray(terrainRaw.tiles)) {
       throw dataError('INVALID_FIELD', '/terrain',
@@ -550,8 +587,7 @@
       if (!isPlainObject(raw.size)) {
         throw dataError('INVALID_FIELD', '/size', 'size 必须是 {cols, rows}');
       }
-      if (raw.size.cols !== undefined) size.cols = raw.size.cols;
-      if (raw.size.rows !== undefined) size.rows = raw.size.rows;
+      size = withExtras(raw.size, ['cols', 'rows'], { cols: colCount, rows: rowCount });
       if (size.cols !== colCount || size.rows !== rowCount) {
         warnings.push('size 写的是 ' + size.cols + '×' + size.rows + ',但地形实际是 ' +
           colCount + '×' + rowCount + '(校验会报错,不会自动裁剪)');
@@ -560,30 +596,39 @@
       warnings.push('没有 size,按地形实际尺寸补成 ' + colCount + '×' + rowCount);
     }
 
-    var data = {
-      schemaVersion: SCHEMA_VERSION,
-      id: typeof raw.id === 'string' ? raw.id.trim() : '',
-      title: raw.title === undefined || raw.title === null ? '' :
-        (typeof raw.title === 'string' ? raw.title : String(raw.title)),
-      kind: typeof raw.kind === 'string' ? raw.kind : 'normal',
-      difficulty: raw.difficulty === undefined ? null : raw.difficulty,
-      size: size,
-      terrain: { tiles: tiles },
-      ports: null,
-      spawn: null,
-      objects: [],
-      paths: [],
-      visuals: { backgroundId: null, decorations: [] },
-      extensions: {},
-      contentHash: null,
-      certification: null
-    };
+    /*
+     * 从原始对象整体复制,再覆盖已知字段。未知内容(对象上的 behavior、
+     * 路径上的备注、顶层扩展字段)一律保留:如果 decode 删掉、encode 又写回,
+     * 就会出现"保存成功但重开 hash 不匹配"的读写不对称(R1)。
+     */
+    var base = jsonClone(raw, '');
+    delete base.contentHash;
+    delete base.certification;
 
-    if (data.kind !== raw.kind && raw.kind !== undefined) {
+    base.schemaVersion = SCHEMA_VERSION;
+    base.id = typeof raw.id === 'string' ? raw.id.trim() : '';
+    base.title = raw.title === undefined || raw.title === null ? '' :
+      (typeof raw.title === 'string' ? raw.title : String(raw.title));
+    base.kind = typeof raw.kind === 'string' ? raw.kind : 'normal';
+    base.difficulty = raw.difficulty === undefined ? null : raw.difficulty;
+    base.size = size;
+    base.terrain = withExtras(raw.terrain, ['tiles'], { tiles: tiles });
+    base.ports = null;
+    base.spawn = null;
+    base.objects = [];
+    base.paths = [];
+    base.visuals = { backgroundId: null, decorations: [] };
+    base.extensions = {};
+
+    if (base.kind !== raw.kind && raw.kind !== undefined) {
       warnings.push('kind 不是字符串,已按 normal 读入');
     }
     if (raw.title !== undefined && raw.title !== null && typeof raw.title !== 'string') {
       warnings.push('title 不是字符串,已按文本读入(保存后就是字符串)');
+    }
+    var extras = Object.keys(raw).filter(function (k) { return KNOWN_TOP.indexOf(k) < 0; });
+    if (extras.length) {
+      warnings.push('未知的顶层字段 ' + extras.join('、') + ' 已原样保留(会进入 hash 与导出)');
     }
 
     // ---- ports / spawn ----
@@ -591,13 +636,13 @@
       if (!isPlainObject(raw.ports)) {
         throw dataError('INVALID_FIELD', '/ports', 'ports 必须是对象或 null');
       }
-      data.ports = jsonClone(raw.ports, '/ports');
+      base.ports = jsonClone(raw.ports, '/ports');
     }
     if (raw.spawn !== undefined && raw.spawn !== null) {
       if (!isPlainObject(raw.spawn)) {
         throw dataError('INVALID_FIELD', '/spawn', 'spawn 必须是 {col,row} 或 null');
       }
-      data.spawn = jsonClone(raw.spawn, '/spawn');
+      base.spawn = jsonClone(raw.spawn, '/spawn');
     }
 
     // ---- objects ----
@@ -629,16 +674,17 @@
         var pathId = null;
         if (typeof o.pathId === 'string' && o.pathId.trim()) pathId = o.pathId.trim();
         else if (o.pathId !== undefined && o.pathId !== null) {
-          warnings.push('对象 "' + id + '" 的 pathId 不是字符串,已按"没有路径"读入');
+          warnings.push('对象 "' + id + '" 的 pathId 是空值或非字符串,已按"没有路径"读入');
         }
-        data.objects.push({
-          id: id,
-          type: typeof o.type === 'string' ? o.type.trim() : '',
-          col: o.col,
-          row: o.row,
-          params: o.params === undefined || o.params === null ? {} : jsonClone(o.params, at + '/params'),
-          pathId: pathId
-        });
+        // 整条对象复制,未知字段(如作者自定义的 behavior)跟着走,不能只挑 6 个已知键
+        var rec = jsonClone(o, at);
+        rec.id = id;
+        rec.type = typeof o.type === 'string' ? o.type.trim() : '';
+        rec.col = o.col;
+        rec.row = o.row;
+        if (rec.params === undefined || rec.params === null) rec.params = {};
+        rec.pathId = pathId;
+        base.objects.push(rec);
       });
     }
 
@@ -663,17 +709,20 @@
           if (!isPlainObject(pt)) {
             throw dataError('INVALID_FIELD', pat, '路径点必须是 {col,row}');
           }
-          points.push({ col: pt.col, row: pt.row });
+          var pc = jsonClone(pt, pat);
+          pc.col = pt.col;
+          pc.row = pt.row;
+          points.push(pc);
         });
         if (points.length > L.POINTS) {
           throw dataError('LIMIT_EXCEEDED', at + '/points',
             '一条路径有 ' + points.length + ' 个点,超过上限 ' + L.POINTS);
         }
-        data.paths.push({
-          id: typeof p.id === 'string' ? p.id.trim() : '',
-          mode: typeof p.mode === 'string' ? p.mode : '',
-          points: points
-        });
+        var prec = jsonClone(p, at);
+        prec.id = typeof p.id === 'string' ? p.id.trim() : '';
+        prec.mode = typeof p.mode === 'string' ? p.mode : '';
+        prec.points = points;
+        base.paths.push(prec);
       });
     }
 
@@ -686,7 +735,8 @@
         typeof raw.visuals.backgroundId !== 'string') {
         throw dataError('INVALID_FIELD', '/visuals/backgroundId', 'backgroundId 必须是字符串或 null');
       }
-      data.visuals.backgroundId = typeof raw.visuals.backgroundId === 'string'
+      var vis = jsonClone(raw.visuals, '/visuals');
+      vis.backgroundId = typeof raw.visuals.backgroundId === 'string'
         ? raw.visuals.backgroundId.trim() : null;
       if (raw.visuals.decorations !== undefined && raw.visuals.decorations !== null) {
         if (!Array.isArray(raw.visuals.decorations)) {
@@ -696,8 +746,11 @@
           throw dataError('LIMIT_EXCEEDED', '/visuals/decorations',
             '装饰数 ' + raw.visuals.decorations.length + ' 超过上限 ' + L.DECORATIONS);
         }
-        data.visuals.decorations = jsonClone(raw.visuals.decorations, '/visuals/decorations');
+        vis.decorations = jsonClone(raw.visuals.decorations, '/visuals/decorations');
+      } else {
+        vis.decorations = [];
       }
+      base.visuals = vis;
     }
 
     // ---- extensions ----
@@ -705,10 +758,14 @@
       if (!isPlainObject(raw.extensions)) {
         throw dataError('INVALID_FIELD', '/extensions', 'extensions 必须是 JSON 对象');
       }
-      data.extensions = jsonClone(raw.extensions, '/extensions');
+      base.extensions = jsonClone(raw.extensions, '/extensions');
     }
 
-    // ---- contentHash / certification ----
+    var data = project(base);
+    data.contentHash = null;
+    data.certification = null;
+
+    // ---- contentHash / certification(派生字段,不进内容 hash)----
     if (raw.contentHash !== undefined && raw.contentHash !== null) {
       if (typeof raw.contentHash !== 'string') {
         warnings.push('contentHash 不是字符串,已当作"没有 hash"');
@@ -1088,8 +1145,10 @@
       if (typeof o.pathId !== 'string' || !o.pathId.trim()) {
         bad('INVALID_FIELD', at + '/pathId', 'pathId 必须是路径 id 或 null');
       } else if (!pathById[o.pathId]) {
-        bad('BROKEN_REFERENCE', at + '/pathId',
-          '引用了不存在的路径 "' + o.pathId + '"');
+        // 旧数据或手写草稿可能引用还没画好的路径:草稿保留为"待修复",试玩/发布拒绝。
+        // 不能像以前那样直接删掉引用 —— 那会丢掉作者信息(R4)。
+        need(false, 'BROKEN_REFERENCE', at + '/pathId',
+          '引用了不存在的路径 "' + o.pathId + '"(草稿可暂存,试玩/发布前要补上或删除)');
       } else {
         var path = pathById[o.pathId].path;
         var first = path && path.points && path.points[0];
@@ -1196,15 +1255,27 @@
     if (sources.indexOf(cert.source) < 0) {
       certBad('INVALID_FIELD', '/certification/source', '认证来源必须是 ' + sources.join(' / '));
     }
-    if (typeof cert.completedAt !== 'string' || !cert.completedAt.trim()) {
-      certBad('INVALID_FIELD', '/certification/completedAt', '认证必须记录完成时间');
+    if (!validIsoTime(cert.completedAt)) {
+      certBad('INVALID_FIELD', '/certification/completedAt',
+        '认证完成时间必须是带时区的 ISO8601(例如 2026-10-31T08:00:00Z)');
+    }
+    // 认证里的规则字段先独立验证,不能拿"两边都缺"当成匹配(R3)
+    if (!isNonEmptyString(cert.rulesVersion) || cert.rulesVersion.length > L.STR) {
+      certBad('RULES_MISMATCH', '/certification/rulesVersion',
+        '认证必须记录非空的规则版本(rulesVersion)');
+    }
+    if (!isNonEmptyString(cert.rulesFingerprint) || cert.rulesFingerprint.length > L.STR) {
+      certBad('RULES_MISMATCH', '/certification/rulesFingerprint',
+        '认证必须记录非空的规则指纹(rulesFingerprint)');
     }
     var rules = opts.rules || null;
     if (purpose === 'publish') {
-      if (!rules) {
+      if (!isPlainObject(rules) || !isNonEmptyString(rules.rulesVersion) ||
+        !isNonEmptyString(rules.rulesFingerprint)) {
         bad('RULES_MISMATCH', '/certification',
-          '发布校验必须带上当前 rulesVersion / rulesFingerprint,不能只信认证字段');
-      } else {
+          '发布校验必须带上当前非空的 rulesVersion / rulesFingerprint,不能只信认证字段');
+      } else if (isNonEmptyString(cert.rulesVersion) &&
+        isNonEmptyString(cert.rulesFingerprint)) {
         if (cert.rulesVersion !== rules.rulesVersion) {
           bad('RULES_MISMATCH', '/certification/rulesVersion',
             '认证的规则版本 "' + cert.rulesVersion + '" 和当前 "' + rules.rulesVersion + '" 不一致');
@@ -1218,14 +1289,30 @@
     void add;
   }
 
+  /**
+   * ISO8601 时间:必须带时区(Z 或 ±hh:mm),避免把本地时间当成 UTC。
+   * 允许 1~3 位小数秒;只用 Date.parse 判合法性,不参与玩法计时。
+   */
+  function validIsoTime(s) {
+    if (typeof s !== 'string') return false;
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/.test(s)) return false;
+    var t = Date.parse(s);
+    return typeof t === 'number' && isFinite(t);
+  }
+
   // ===================== 编码 =====================
   /**
-   * 输出"即将写进文件的那一份"字段(不含派生 hash / 认证),再对它做草稿级校验。
-   * 先构造再校验而不是直接校验入参:入参里的 contentHash / certification 是派生值,
-   * 编辑后本来就会过期;encode 的职责是重算 hash,不该因为"旧 hash 过期"而拒绝保存。
-   * 输出字段顺序固定(方便人读),但 contentHash 建立在规范化文本上,和字段顺序无关。
-   * 认证已失效(绑定的 hash 与当前内容不同)时,输出里移除认证并给出 warning,
-   * 避免产生"看起来有认证"的文件。
+   * 写出"即将进文件的那一份":project(data) → 草稿级校验 → 重算 contentHash。
+   *
+   * 为什么先投影再校验:入参里的 contentHash / certification 是派生值,编辑后
+   * 本来就会过期;encode 的职责是重算 hash,不该因为"旧 hash 过期"而拒绝保存。
+   *
+   * 四条硬约束(对应验收 R1/R5):
+   *   ① 与 decode 同一份内容规则:未知字段保留、hash 一致,所以写出的文件必须能
+   *      被 decode 读回(下面做了真正的回读自检,不再只靠约定);
+   *   ② 与 decode 一样拒绝非 2 的 schemaVersion,禁止把未来数据强制降级成 v2;
+   *   ③ 输出按真实 UTF-8 字节数检查总上限,不能生成自己都打不开的文件;
+   *   ④ 认证已失效(绑定的 hash 与当前内容不同)时移除认证并警告,不产生"看起来有认证"的文件。
    */
   function encode(data) {
     if (!isPlainObject(data)) {
@@ -1233,31 +1320,18 @@
         issue('INVALID_FIELD', '', '不是对象')
       ]);
     }
+    if (data.schemaVersion !== SCHEMA_VERSION) {
+      var shown = data.schemaVersion === undefined ? '(没有这个字段)' : JSON.stringify(data.schemaVersion);
+      return fail('UNSUPPORTED_SCHEMA',
+        '不能导出 schemaVersion=' + shown + ' 的数据:只支持 ' + SCHEMA_VERSION +
+        ';更新版本的数据必须原样保留,不能被隐藏降级', [
+          issue('UNSUPPORTED_SCHEMA', '/schemaVersion', '读写两端都只接受 schemaVersion=2')
+        ]);
+    }
     var warnings = [];
     var out;
     try {
-      out = {
-        schemaVersion: SCHEMA_VERSION,
-        id: data.id,
-        title: data.title,
-        kind: data.kind,
-        difficulty: data.difficulty === undefined ? null : data.difficulty,
-        size: isPlainObject(data.size) ? { cols: data.size.cols, rows: data.size.rows } : data.size,
-        terrain: isPlainObject(data.terrain) ? { tiles: data.terrain.tiles } : data.terrain,
-        ports: data.ports === undefined ? null : data.ports,
-        spawn: data.spawn === undefined ? null : data.spawn,
-        objects: data.objects || [],
-        paths: data.paths || [],
-        visuals: {
-          backgroundId: data.visuals && data.visuals.backgroundId !== undefined
-            ? data.visuals.backgroundId : null,
-          decorations: data.visuals && data.visuals.decorations || []
-        },
-        extensions: data.extensions || {},
-        contentHash: null,
-        certification: null
-      };
-      out = jsonClone(out, '');
+      out = jsonClone(project(data), '');
     } catch (e2) {
       return fail('INVALID_FIELD', '数据里有不能序列化的值:' + (e2 && e2.message), [
         issue('INVALID_FIELD', e2.dataPath || '', e2.message)
@@ -1276,6 +1350,7 @@
     }
     var h = hashSync(out);
     out.contentHash = h;
+    out.certification = null;
     if (data.certification) {
       if (data.certification.contentHash === h) {
         out.certification = jsonClone(data.certification, '/certification');
@@ -1284,6 +1359,25 @@
       }
     }
     var text = pretty(out) + '\n';
+
+    // R5:导出的文件必须落在本模块自己的导入字节上限内
+    var bytes = byteLength(text);
+    if (bytes > L.BYTES) {
+      return fail('LIMIT_EXCEEDED',
+        '导出的关卡有 ' + bytes + ' 字节,超过导入上限 ' + L.BYTES +
+        ' 字节;不能生成保存成功却打不开的文件(请缩减参数/扩展数据)', [
+          issue('LIMIT_EXCEEDED', '', '导出文件 ' + bytes + ' 字节 > 上限 ' + L.BYTES)
+        ]);
+    }
+
+    // R1:回读自检 —— 编码器写出的文件必须能按同一契约读回,且 hash 一致
+    var back = decode(text, { verifyHash: true });
+    if (!back.ok) {
+      return fail('INVALID_FIELD',
+        '内部不变量失败:导出的关卡读不回来(' + back.error.code + ':' + back.error.message +
+        ');已拒绝写出,不会留下半成品', back.error.issues || []);
+    }
+
     return ok(text, { warnings: warnings, contentHash: h });
   }
 
@@ -1353,6 +1447,8 @@
     sameContent: sameContent,
     canonical: canonical,
     pretty: pretty,
+    project: project,
+    cloneJson: jsonClone,
     contentOf: contentOf,
     summarize: summarize,
     sha256Hex: sha256Hex,

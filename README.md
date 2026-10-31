@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**当前仓库是旧平台跳跃原型，不是已经完成的短塔版。** 2026-10-30 已完成目标与后续开发文档整理；本次未修改游戏代码。下文“运行与操作”描述当前实际程序，后续目标见 [PROJECT.md](PROJECT.md)，进度见 [STATUS.md](STATUS.md)。
+**当前可玩内容仍是旧平台跳跃原型。** 已建立 Git 基线并新增 v2 关卡数据模块与迁移工具；2026-10-31 验收发现的数据边界问题（R1～R5）已修复并补回归，等待复验；编辑器尚未接入新格式。下文“运行与操作”描述当前实际程序，后续目标见 [PROJECT.md](PROJECT.md)，进度见 [STATUS.md](STATUS.md)。
 
 ## 获取与安装
 
@@ -78,6 +78,8 @@ node tools/test_all.mjs
 node tools/test_engine.mjs
 node tools/test_editor.mjs
 node tools/test_assets.mjs
+node tools/test_leveldata.mjs
+node tools/test_t01r.mjs
 node tools/check_levels.mjs
 ```
 
@@ -93,6 +95,10 @@ node tools/check_levels.mjs
 | 合计 | 940 | 4 |
 
 退出码为 `1`。失败是 `floor09`、`floor11` 各被两个入口报告，不能当作四个独立故障，也不能据此宣布两张地图人工不可通。Node 检查使用 DOM/Canvas 替身；贴图检查通过不等于已完成真实画面验收。
+
+2026-10-31 复验当前代码（T01-R 修复后）：**1188 PASS / 4 FAIL，退出码 1**（引擎 587/4、编辑器 238/0、贴图 126/0、数据 139/0、修复自检 98/0）。上表的 940/4 是最初原型基线。新增检查通过、R1～R5 已修复，但 T01 仍在等待复验；证据见 [T01-R 修复报告](docs/checks/T01R-fix-report.md)。`levels/v2/` 是未认证迁移草稿，不能直接试玩/发布；旧编辑器仍不能完整编辑这些数据。
+
+迁移工具 `tools/migrate_levels.mjs` 现在是“先规划后写入”：`--in` 与 `--out` 相同（含大小写/别名）、输出 id 碰撞、报告落到源文件上都会在写入前失败；内容不同的既有输出默认不覆盖，需显式 `--force`。报告必须放在输入目录之外，例如默认的 `docs/checks/`。本次没有重写已交付的 `levels/v2/`（12 张全部幂等跳过）。
 
 人工检查当前原型的方法：
 
@@ -110,7 +116,7 @@ node tools/check_levels.mjs
 - `verified` 未构成可靠发布门槛；当前随机抽选不排除未验证关卡。
 - `monsters.js` 只是参数表雏形，火球尚未成为实际可用的敌人。
 - 当前种子依赖关卡池顺序与内容，不承诺修改池后仍重现旧塔。
-- 当前目录没有 Git 仓库；后续代码改动前先建立可回退基线。
+- 已有本地 Git 基线 `f56cdce`；当前验收的实现 HEAD 为 `570c122`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
 
 ## 文档与目录
 
@@ -128,4 +134,8 @@ node tools/check_levels.mjs
 | `assets/` | 当前贴图 |
 | `tools/`、`tests/` | 数据工具、命令行与浏览器检查 |
 
-最初设想保留在 [reveres_abyss介绍.txt](reveres_abyss介绍.txt)。旧 README 已完整保存到 [历史归档](docs/archive/README-legacy-2026-10-30.md)，仅用于理解旧实现，不作为新开发要求。
+最初设想来自此前讨论的 `reveres_abyss介绍.txt`；该原始文件当前不在 Git 基线或工作目录中，现行目标已整理到 PROJECT 和设计文档。旧 README 已完整保存到 [历史归档](docs/archive/README-legacy-2026-10-30.md)，仅用于理解旧实现，不作为新开发要求。
+
+## 独立附属工具
+
+另有用户单独要求的 [七圣召唤牌组译码室](gi-tcg-tool/README.md)，双击 `gi-tcg-tool/index.html` 可离线使用。该工具与平台跳跃游戏无集成，不修改原神安装目录；卡牌数据采用公开 v7.1.0 表，来源与限制见其说明。

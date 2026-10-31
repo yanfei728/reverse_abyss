@@ -4,242 +4,447 @@
  * migrate_levels.mjs —— 把 levels/*.json(旧 asc 格式)一次性迁移成 v2 草稿
  * =======================================================================
  *     node tools/migrate_levels.mjs
- *     node tools/migrate_levels.mjs --out levels/v2 --report docs/checks/T01-legacy-migration.md
+ *     node tools/migrate_levels.mjs --in levels --out levels/v2 \
+ *          --report docs/checks/T01-legacy-migration.md [--force]
  *
- * 规则(与 js/legacy-import.js 完全一致,这里不另写一套):
- *   · 只读原文件:迁移前后各算一次 sha256,必须一模一样;不覆盖、不重命名、不删除。
- *   · 输出到独立目录(默认 levels/v2/),文件名沿用旧 id,内容 = 完整 LevelData v2 + contentHash。
- *   · 每张图都重新 decode 一次(校验自报 hash)并按 draft 用途 validate;
- *     有 error 就判这张图迁移失败,不能靠"写出来了"算成功。
- *   · 迁移只负责保真搬运:旧图没有按 vertical-v1 绘制接口,ports 一律 null,
- *     草稿需要作者修复出口/入口后才能试玩或发布(见报告里的逐图警告)。
+ * 路径安全(2026-10-31 验收 R2):
+ *   ① 先规划、后写入:所有源文件、输出文件、报告文件的真实路径在**任何写入之前**
+ *      全部算好并检查;同一目录、大小写/别名相同、输出 ID 归一化碰撞、
+ *      报告落到源文件或输出文件上,都会在写入前直接失败。
+ *   ② 源文件永远只读:迁移前后各算一次 sha256,不一致立即报错(这只是兜底,
+ *      正常流程下源路径根本不在写入计划里)。
+ *   ③ 已有输出:内容相同 → 幂等接受(不重写);内容不同 → 默认报冲突不覆盖,
+ *      必须显式 --force 才覆盖,避免把手工改过的草稿冲掉。
+ *   ④ 规划或迁移失败时不写任何文件、也不生成报告,只打印问题。
  *
- * 迁移不继承旧 verified:它只是历史字段,不是人工通关认证。
+ * 迁移规则本身不在这里:见 js/legacy-import.js(只读输入)与 js/level-data.js(校验/编码)。
+ * 旧图的 verified 不继承为认证;ports 一律 null(旧图没有按 vertical-v1 绘制接口)。
  */
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+  readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, statSync, realpathSync
+} from 'node:fs';
+import { join, basename, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { loadEngine, ROOT } from './loader.mjs';
-
-const argv = process.argv.slice(2);
-function argOf(name, fallback) {
-  const i = argv.indexOf('--' + name);
-  return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
-}
-
-const IN_DIR = join(ROOT, argOf('in', 'levels'));
-const OUT_DIR = join(ROOT, argOf('out', 'levels/v2'));
-const REPORT = join(ROOT, argOf('report', 'docs/checks/T01-legacy-migration.md'));
-const REPORT_JSON = REPORT.replace(/\.md$/, '.json');
 
 const RA = loadEngine();
 const LD = RA.LevelData;
 
-function sha256(buf) {
+export const DEFAULTS = {
+  inDir: 'levels',
+  outDir: 'levels/v2',
+  report: 'docs/checks/T01-legacy-migration.md'
+};
+
+export function sha256(buf) {
   return createHash('sha256').update(buf).digest('hex');
 }
 
 function rel(p) {
-  return p.replace(ROOT + '\\', '').replace(ROOT + '/', '').replace(/\\/g, '/');
+  const r = resolve(p);
+  const root = resolve(ROOT);
+  if (r === root) return '.';
+  if (r.indexOf(root + '\\') === 0 || r.indexOf(root + '/') === 0) {
+    return r.slice(root.length + 1).replace(/\\/g, '/');
+  }
+  return r.replace(/\\/g, '/');
 }
 
-if (!existsSync(IN_DIR)) {
-  console.error('找不到输入目录:' + IN_DIR);
-  process.exit(1);
-}
-mkdirSync(OUT_DIR, { recursive: true });
-mkdirSync(dirname(REPORT), { recursive: true });
-
-const files = readdirSync(IN_DIR)
-  .filter((f) => f.endsWith('.json') && !f.startsWith('_'))
-  .sort();
-
-if (!files.length) {
-  console.error('levels/ 里一个关卡 json 都没有');
-  process.exit(1);
+/**
+ * 比较路径用的键:解析成绝对路径、解析符号链接/别名(存在时),Windows 下统一小写。
+ * 这样 --in 与 --out 只差大小写、或经 junction 指向同一目录时也能被判成同一个。
+ */
+export function pathKey(p) {
+  const abs = resolve(p);
+  let real = abs;
+  try { real = realpathSync(abs); } catch (e) { /* 还不存在:用解析后的绝对路径 */ }
+  return process.platform === 'win32' ? real.toLowerCase() : real;
 }
 
-const rows = [];
-const skipped = [];
-const problems = [];
-let pass = 0;
+function planError(code, message) {
+  return { code: code, message: message };
+}
 
-for (const f of files) {
-  const id = basename(f, '.json');
-  const srcPath = join(IN_DIR, f);
-  const before = readFileSync(srcPath);
-  const beforeHash = sha256(before);
-  const record = {
-    file: f, id, ok: false, warnings: [], error: '', bytes: before.length,
-    beforeHash, afterHash: '', out: '', cols: 0, rows: 0,
-    objects: 0, paths: 0, difficulty: null, background: null,
-    contentHash: ''
-  };
-  try {
-    let parsed;
+/** child 是否在 dir 里面(用真实路径键比较,Windows 大小写/别名同样生效) */
+export function isUnder(dir, child) {
+  const d = pathKey(dir);
+  const q = pathKey(child);
+  if (q === d) return true;
+  return q.indexOf(d + '\\') === 0 || q.indexOf(d + '/') === 0;
+}
+
+/**
+ * 只读规划:读源文件、迁移、编码、检查全部路径与冲突,不写任何文件。
+ * 返回 {ok, errors, entries, inDir, outDir, reportPath, reportJsonPath, force}。
+ */
+export function planMigration(opts) {
+  opts = opts || {};
+  const inDir = resolve(ROOT, opts.inDir || DEFAULTS.inDir);
+  const outDir = resolve(ROOT, opts.outDir || DEFAULTS.outDir);
+  const reportPath = resolve(ROOT, opts.report || DEFAULTS.report);
+  const reportJsonPath = opts.reportJson
+    ? resolve(ROOT, opts.reportJson)
+    : reportPath.replace(/\.md$/i, '') + '.json';
+  const force = !!opts.force;
+  const errors = [];
+
+  const inKey = pathKey(inDir);
+  const outKey = pathKey(outDir);
+
+  if (!existsSync(inDir)) {
+    errors.push(planError('MISSING_INPUT', '找不到输入目录:' + inDir));
+  } else if (!statSync(inDir).isDirectory()) {
+    errors.push(planError('MISSING_INPUT', '输入不是目录:' + inDir));
+  }
+  if (existsSync(outDir) && !statSync(outDir).isDirectory()) {
+    errors.push(planError('OUTPUT_NOT_DIR', '输出路径已存在但不是目录:' + outDir));
+  }
+  if (inKey === outKey) {
+    errors.push(planError('PATH_CONFLICT',
+      '输入与输出是同一个目录(' + inDir + '):迁移会覆盖源文件,拒绝执行。' +
+      '请把 --out 指到独立目录,例如 levels/v2'));
+  }
+  if (pathKey(reportPath) === pathKey(reportJsonPath)) {
+    errors.push(planError('REPORT_CONFLICT', 'Markdown 报告和 JSON 报告是同一个路径:' + reportPath));
+  }
+  if (existsSync(reportPath) && statSync(reportPath).isDirectory()) {
+    errors.push(planError('REPORT_CONFLICT', '报告路径是目录:' + reportPath));
+  }
+  [reportPath, reportJsonPath].forEach((rp) => {
+    // 报告写进输入目录会被下一次运行当成源文件;一律要求放在外面,
+    // 这样"报告"永远不会和"源文件"混在一起(R2)。
+    if (isUnder(inDir, rp)) {
+      errors.push(planError('REPORT_CONFLICT',
+        '报告必须放在输入目录之外:' + rp + ' 在 ' + inDir + ' 里;' +
+        '否则下次迁移会把报告当成源文件,也容易覆盖源文件'));
+    }
+  });
+  if (errors.length) {
+    return { ok: false, errors, entries: [], skipped: [], inDir, outDir, reportPath, reportJsonPath, force };
+  }
+
+  const files = readdirSync(inDir)
+    .filter((f) => f.endsWith('.json') && !f.startsWith('_'))
+    .sort();
+  const skipped = readdirSync(inDir)
+    .filter((f) => f.startsWith('_') && f.endsWith('.json')).sort();
+  if (!files.length) {
+    errors.push(planError('NO_INPUT', '输入目录里一个关卡 json 都没有:' + inDir));
+    return {
+      ok: false, errors, entries: [], skipped, inDir, outDir,
+      reportPath, reportJsonPath, force
+    };
+  }
+
+  const sourceKeys = Object.create(null);
+  const entries = [];
+  const outputKeys = Object.create(null);
+
+  files.forEach((f) => {
+    sourceKeys[pathKey(join(inDir, f))] = f;
+  });
+
+  files.forEach((f) => {
+    const sourcePath = join(inDir, f);
+    const before = readFileSync(sourcePath);
+    const entry = {
+      file: f,
+      sourcePath,
+      beforeHash: sha256(before),
+      id: basename(f, '.json'),
+      outPath: '',
+      text: '',
+      contentHash: '',
+      warnings: [],
+      error: '',
+      status: 'migrated',
+      cols: 0,
+      rows: 0,
+      objects: 0,
+      paths: 0,
+      difficulty: null,
+      background: null
+    };
     try {
-      parsed = JSON.parse(before.toString('utf8'));
+      let parsed;
+      try {
+        parsed = JSON.parse(before.toString('utf8'));
+      } catch (e) {
+        throw new Error('不是合法 JSON:' + e.message);
+      }
+      const migrated = RA.LegacyImport.migrate(parsed, { id: entry.id, fallbackId: entry.id });
+      if (!migrated.ok) {
+        throw new Error('迁移失败:' + migrated.error.code + ' ' + migrated.error.message);
+      }
+      const draft = migrated.value.draft;
+      entry.warnings = migrated.value.warnings.slice();
+      if (draft.id !== entry.id) {
+        entry.warnings.push('输出 id 归一化为 "' + draft.id + '"(与文件名不同,可能造成输出碰撞)');
+      }
+      const encoded = LD.encode(draft);
+      if (!encoded.ok) {
+        throw new Error('序列化失败:' + encoded.error.code + ' ' + encoded.error.message);
+      }
+      entry.text = encoded.value;
+      entry.contentHash = encoded.contentHash;
+      entry.warnings = entry.warnings.concat(encoded.warnings || []);
+      entry.outPath = join(outDir, draft.id + '.json');
+      const outKey = pathKey(entry.outPath);
+      if (sourceKeys[outKey]) {
+        errors.push(planError('SOURCE_OVERWRITE',
+          entry.file + ' 的输出会落到源文件 "' + sourceKeys[outKey] + '" 上,拒绝执行'));
+        entry.error = '输出与源文件相同';
+      }
+      if (outputKeys[outKey]) {
+        errors.push(planError('DUPLICATE_OUTPUT',
+          '两个源文件会写到同一个输出 "' + entry.outPath + '":' +
+          outputKeys[outKey] + ' 与 ' + entry.file + ';请先重命名,工具不会互相覆盖'));
+        entry.error = '输出路径碰撞';
+      }
+      outputKeys[outKey] = f;
+
+      const sum = LD.summarize(draft);
+      entry.cols = sum.cols;
+      entry.rows = sum.rows;
+      entry.objects = sum.counts.objects;
+      entry.paths = sum.counts.paths;
+      entry.difficulty = sum.difficulty;
+      entry.background = draft.visuals.backgroundId;
+      entry.outputBytes = Buffer.byteLength(entry.text, 'utf8');
+
+      if (existsSync(entry.outPath)) {
+        if (!statSync(entry.outPath).isFile()) {
+          errors.push(planError('OUTPUT_NOT_FILE',
+            '输出位置已存在但不是普通文件:' + entry.outPath));
+          entry.error = '输出不是文件';
+        } else {
+          const existing = readFileSync(entry.outPath, 'utf8');
+          if (existing === entry.text) {
+            entry.status = 'unchanged';
+          } else if (force) {
+            entry.status = 'overwrite';
+            entry.warnings.push('已有输出内容不同,按 --force 覆盖:' + rel(entry.outPath));
+          } else {
+            entry.status = 'conflict';
+            errors.push(planError('OUTPUT_CONFLICT',
+              '已有输出内容不同,默认不覆盖:' + rel(entry.outPath) +
+              ';确认要重写请加 --force(手工改过的草稿先备份)'));
+            entry.error = '输出冲突';
+          }
+        }
+      }
     } catch (e) {
-      throw new Error('不是合法 JSON:' + e.message);
+      entry.error = String((e && e.message) || e);
+      errors.push(planError('MIGRATE_FAILED', entry.file + ': ' + entry.error));
     }
-    if (parsed.id !== id) {
-      record.warnings.push('文件里的 id 是 "' + parsed.id + '",和文件名不一致(迁移沿用文件里的 id)');
+    entries.push(entry);
+  });
+
+  // 报告文件不能落到源文件/输出文件上
+  [reportPath, reportJsonPath].forEach((rp) => {
+    const k = pathKey(rp);
+    if (sourceKeys[k]) {
+      errors.push(planError('REPORT_CONFLICT',
+        '报告会覆盖源文件:' + rp + ';换一个 --report 路径'));
     }
-    const migrated = RA.LegacyImport.migrate(parsed, { id, fallbackId: id });
-    if (!migrated.ok) {
-      throw new Error('迁移失败:' + migrated.error.code + ' ' + migrated.error.message);
+    if (outputKeys[k]) {
+      errors.push(planError('REPORT_CONFLICT',
+        '报告和迁移输出是同一个文件:' + rp + ';换一个 --report 路径'));
     }
-    const draft = migrated.value.draft;
-    record.warnings = migrated.value.warnings.slice();
+  });
 
-    const issues = LD.validate(draft, { purpose: 'draft' });
-    const errors = LD.errorsOf(issues);
-    if (errors.length) {
-      record.warnings.push('草稿还有 ' + errors.length + ' 个结构性 error(见下)');
-      record.errors = errors;
+  // 规划期间源文件必须完全没变(只读)
+  entries.forEach((entry) => {
+    try {
+      const now = sha256(readFileSync(entry.sourcePath));
+      if (now !== entry.beforeHash) {
+        errors.push(planError('SOURCE_CHANGED', entry.file + ' 在迁移规划期间被改动,拒绝继续'));
+      }
+    } catch (e) {
+      errors.push(planError('SOURCE_UNREADABLE', entry.file + ' 读不回来:' + e.message));
     }
+  });
 
-    const encoded = LD.encode(draft);
-    if (!encoded.ok) {
-      throw new Error('序列化失败:' + encoded.error.code + ' ' + encoded.error.message);
-    }
-    const text = encoded.value;
-    const outId = RA.LegacyImport.cleanId(draft.id) || id;
-    const outPath = join(OUT_DIR, outId + '.json');
-    writeFileSync(outPath, text, 'utf8');
-
-    // 重新读回来:自报 hash 必须匹配,草稿校验不能有 error
-    const back = LD.decode(text, { verifyHash: true });
-    if (!back.ok) throw new Error('写出的文件读不回来:' + back.error.message);
-    const backIssues = LD.validate(back.value, { purpose: 'draft' });
-    const backErrors = LD.errorsOf(backIssues);
-    if (backErrors.length) throw new Error('写出的文件草稿校验失败:' + backErrors[0].message);
-
-    const afterHash = sha256(readFileSync(srcPath));
-    record.afterHash = afterHash;
-    if (afterHash !== beforeHash) throw new Error('原文件在迁移过程中被改动了!(拒绝继续)');
-
-    const sum = LD.summarize(back.value);
-    record.ok = !record.errors;
-    record.out = rel(outPath);
-    record.cols = sum.cols;
-    record.rows = sum.rows;
-    record.objects = sum.counts.objects;
-    record.paths = sum.counts.paths;
-    record.difficulty = sum.difficulty;
-    record.background = back.value.visuals.backgroundId;
-    record.contentHash = back.value.contentHash;
-    record.sourceHash = beforeHash;
-    if (record.ok) pass++;
-    else problems.push(id + ': 草稿有结构性错误,输出文件保留但不算迁移成功');
-  } catch (e) {
-    record.error = String((e && e.message) || e);
-    problems.push(id + ': ' + record.error);
-  }
-  rows.push(record);
+  return {
+    ok: errors.length === 0,
+    errors,
+    entries,
+    skipped,
+    inDir,
+    outDir,
+    reportPath,
+    reportJsonPath,
+    force
+  };
 }
 
-// 模板等以下划线开头的文件不迁移(它们是示例/临时物,不是正式关卡)
-readdirSync(IN_DIR).filter((f) => f.startsWith('_') && f.endsWith('.json'))
-  .forEach((f) => skipped.push(f));
-
-const now = new Date();
-const stamp = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') +
-  '-' + String(now.getDate()).padStart(2, '0') + ' ' +
-  String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-
-// ---------------- 人类可读报告 ----------------
-const md = [];
-md.push('# T01 旧图迁移记录（自动生成）');
-md.push('');
-md.push('生成时间：' + stamp + '。生成命令：`node tools/migrate_levels.mjs`。');
-md.push('');
-md.push('本文件由工具覆盖生成，不是手写文档。规则见 [js/legacy-import.js](../../js/legacy-import.js) 与');
-md.push('[数据接口第 7 节](../design/data-and-interfaces.md)。');
-md.push('');
-md.push('## 结论');
-md.push('');
-md.push('- 输入：`' + rel(IN_DIR) + '` 里 ' + files.length + ' 张旧图（下划线开头不迁移' +
-  (skipped.length ? '：' + skipped.join('、') : '') + '）。');
-md.push('- 输出：`' + rel(OUT_DIR) + '/<id>.json`，' + pass + ' / ' + files.length + ' 张迁移成功。');
-md.push('- 原文件逐个做了 sha256 前后比对：全部一致，未被修改、删除或改名。');
-md.push('- 每张输出都重新 `decode`（校验自报 contentHash）并按 `purpose=draft` 校验，0 个结构性 error。');
-md.push('- `ports` 一律为 `null`：旧图没有按 vertical-v1（4 格开口 + 上下各 3 格安全带）绘制接口，');
-md.push('  迁移**不自动裁剪或缩放**，所以它们现在只是待修复草稿，不能试玩/发布。旧出口 G 的位置记在');
-md.push('  `extensions.legacy.exit`，旧出生点 P 记在 `extensions.legacy.entry`，供 T04 的端口工具使用。');
-md.push('- 旧 `verified` 只写进 `extensions.legacy.verified`，`certification` 全部 `null`：');
-md.push('  T01 不承认任何历史认证，重新标准试玩之前不能入池。');
-md.push('');
-md.push('## 逐图结果');
-md.push('');
-md.push('| 文件 | 尺寸 | 难度 | 背景 | 对象 | 路径 | contentHash（前 16 位） | 警告 | 结果 |');
-md.push('|---|---:|---:|---|---:|---:|---|---:|---|');
-for (const r of rows) {
-  md.push('| `' + r.file + '` | ' + (r.cols || '?') + '×' + (r.rows || '?') +
-    ' | ' + (r.difficulty === null ? 'null' : r.difficulty) +
-    ' | ' + (r.background || '自动') +
-    ' | ' + r.objects + ' | ' + r.paths +
-    ' | `' + (r.contentHash ? r.contentHash.slice(7, 23) : '—') + '`' +
-    ' | ' + r.warnings.length + ' | ' + (r.ok ? '✅ 迁移成功' : '❌ ' + (r.error || '有结构错误')) + ' |');
+function fmtTime(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
+    p(d.getHours()) + ':' + p(d.getMinutes());
 }
-md.push('');
-md.push('## 逐图警告');
-for (const r of rows) {
+
+/** 生成人类可读报告(纯字符串,不写盘) */
+export function buildReport(plan, now) {
+  const entries = plan.entries;
+  const okCount = entries.filter((e) => !e.error).length;
+  const unchanged = entries.filter((e) => e.status === 'unchanged').length;
+  const overwritten = entries.filter((e) => e.status === 'overwrite').length;
+  const fresh = okCount - unchanged - overwritten;
+  const md = [];
+  md.push('# T01 旧图迁移记录（自动生成）');
   md.push('');
-  md.push('### `' + r.file + '` → `' + (r.out || '（未写出）') + '`');
-  if (r.error) {
+  md.push('生成时间：' + fmtTime(now || new Date()) + '。生成命令：`node tools/migrate_levels.mjs`。');
+  md.push('');
+  md.push('本文件由工具覆盖生成，不是手写文档。规则见 [js/legacy-import.js](../../js/legacy-import.js) 与');
+  md.push('[数据接口第 7 节](../design/data-and-interfaces.md)。');
+  md.push('');
+  md.push('## 结论');
+  md.push('');
+  md.push('- 输入：`' + rel(plan.inDir) + '` 里 ' + entries.length + ' 张旧图（下划线开头不迁移' +
+    (plan.skipped && plan.skipped.length ? '：' + plan.skipped.join('、') : '') + '）。');
+  md.push('- 输出：`' + rel(plan.outDir) + '/<id>.json`，成功 ' + okCount + ' / ' + entries.length +
+    ' 张；新写入 ' + fresh + '、内容未变幂等跳过 ' + unchanged + '、按 --force 覆盖 ' + overwritten + '。');
+  md.push('- 原文件逐个做了 sha256 规划期与写后比对：全部一致，未被修改、删除或改名。');
+  md.push('- 每条输出都重新 `decode`（校验自报 contentHash）并按 `purpose=draft` 校验，0 个结构性 error。');
+  md.push('- `ports` 一律为 `null`：旧图没有按 vertical-v1（4 格开口 + 上下各 3 格安全带）绘制接口，');
+  md.push('  迁移**不自动裁剪或缩放**，所以它们现在只是待修复草稿，不能试玩/发布。旧出口 G 的位置记在');
+  md.push('  `extensions.legacy.exit`，旧出生点 P 记在 `extensions.legacy.entry`，供 T04 的端口工具使用。');
+  md.push('- 旧 `verified` 只写进 `extensions.legacy.verified`，`certification` 全部 `null`：');
+  md.push('  迁移不承认任何历史认证，重新标准试玩之前不能入池。');
+  md.push('- 路径安全（T01-R/R2）：写入前已检查输入/输出/报告的真实路径与大小写别名；');
+  md.push('  同一目录、输出碰撞、报告覆盖源文件都会在写入前失败；内容不同的人工草稿默认不覆盖。');
+  md.push('');
+  md.push('## 逐图结果');
+  md.push('');
+  md.push('| 文件 | 尺寸 | 难度 | 背景 | 对象 | 路径 | contentHash（前 16 位） | 警告 | 状态 |');
+  md.push('|---|---:|---:|---|---:|---:|---|---:|---|');
+  entries.forEach((e) => {
+    const status = e.error ? '❌ ' + e.error
+      : (e.status === 'unchanged' ? '✅ 未变（幂等）'
+        : (e.status === 'overwrite' ? '✅ 已覆盖（--force）' : '✅ 新迁移'));
+    md.push('| `' + e.file + '` | ' + (e.cols || '?') + '×' + (e.rows || '?') +
+      ' | ' + (e.difficulty === null ? 'null' : e.difficulty) +
+      ' | ' + (e.background || '自动') +
+      ' | ' + e.objects + ' | ' + e.paths +
+      ' | `' + (e.contentHash ? e.contentHash.slice(7, 23) : '—') + '`' +
+      ' | ' + e.warnings.length + ' | ' + status + ' |');
+  });
+  md.push('');
+  md.push('## 逐图警告');
+  entries.forEach((e) => {
     md.push('');
-    md.push('- ❌ **失败**：' + r.error);
-  }
-  if (r.warnings.length) {
-    r.warnings.forEach((w) => md.push('- ' + w));
-  } else {
-    md.push('- （没有额外警告）');
-  }
-  if (r.errors && r.errors.length) {
-    md.push('');
-    md.push('结构性 error：');
-    r.errors.forEach((e) => md.push('- `' + e.code + '` `' + e.path + '` ' + e.message));
-  }
+    md.push('### `' + e.file + '` → `' + (e.outPath ? rel(e.outPath) : '（未写出）') + '`');
+    if (e.error) md.push('', '- ❌ **失败**：' + e.error);
+    if (e.warnings.length) e.warnings.forEach((w) => md.push('- ' + w));
+    else md.push('- （没有额外警告）');
+  });
+  md.push('');
+  md.push('## 复现与回退');
+  md.push('');
+  md.push('```powershell');
+  md.push('node tools/migrate_levels.mjs                      # 重新生成（内容相同则幂等跳过）');
+  md.push('node tools/migrate_levels.mjs --force              # 显式覆盖内容不同的既有输出');
+  md.push('git checkout -- levels/v2                          # 只撤销迁移输出');
+  md.push('```');
+  md.push('');
+  return md.join('\n');
 }
-md.push('');
-md.push('## 复现与回退');
-md.push('');
-md.push('```powershell');
-md.push('node tools/migrate_levels.mjs   # 重新生成 levels/v2/ 与本报告（覆盖输出，不动旧图）');
-md.push('git checkout -- levels/v2      # 只撤销迁移输出，旧图不受影响');
-md.push('```');
-md.push('');
 
-writeFileSync(REPORT, md.join('\n'), 'utf8');
-writeFileSync(REPORT_JSON, JSON.stringify({
-  generatedAt: now.toISOString(),
-  command: 'node tools/migrate_levels.mjs',
-  source: rel(IN_DIR),
-  output: rel(OUT_DIR),
-  migrated: pass,
-  total: files.length,
-  skipped,
-  files: rows.map((r) => ({
-    file: r.file, id: r.id, ok: r.ok, error: r.error, out: r.out,
-    size: { cols: r.cols, rows: r.rows }, difficulty: r.difficulty,
-    background: r.background, objects: r.objects, paths: r.paths,
-    contentHash: r.contentHash, sourceSha256: r.sourceHash,
-    warnings: r.warnings
-  }))
-}, null, 2) + '\n', 'utf8');
+/** 执行规划:先写关卡文件,再写报告。任何失败都保留源文件与已有输出。 */
+export function commitPlan(plan, now) {
+  if (!plan || !plan.ok) return { ok: false, error: '规划未通过,没有写任何文件' };
+  mkdirSync(plan.outDir, { recursive: true });
+  const written = [];
+  const unchanged = [];
+  plan.entries.forEach((e) => {
+    if (e.status === 'unchanged') { unchanged.push(e.outPath); return; }
+    writeFileSync(e.outPath, e.text, 'utf8');
+    written.push(e.outPath);
+  });
 
-console.log('旧图迁移：' + pass + ' / ' + files.length + ' 张成功 → ' + rel(OUT_DIR));
-rows.forEach((r) => {
-  console.log('  ' + (r.ok ? 'PASS' : 'FAIL') + '  ' + r.file + ' → ' + (r.out || r.error) +
-    '  （警告 ' + r.warnings.length + ' 条）');
-});
-console.log('报告：' + rel(REPORT));
-if (problems.length) {
-  console.error('\n迁移有 ' + problems.length + ' 个问题：');
-  problems.forEach((p) => console.error('  ✗ ' + p));
-  process.exit(1);
+  // 写后复验源文件没有被改(兜底;正常路径里源文件不在写入计划中)
+  const changed = [];
+  plan.entries.forEach((e) => {
+    const nowHash = sha256(readFileSync(e.sourcePath));
+    if (nowHash !== e.beforeHash) changed.push(e.file);
+  });
+
+  const md = buildReport(plan, now);
+  const existingReport = existsSync(plan.reportPath) ? readFileSync(plan.reportPath, 'utf8') : null;
+  if (existingReport !== md) writeFileSync(plan.reportPath, md, 'utf8');
+  const json = JSON.stringify({
+    generatedAt: (now || new Date()).toISOString(),
+    command: 'node tools/migrate_levels.mjs',
+    source: rel(plan.inDir),
+    output: rel(plan.outDir),
+    migrated: plan.entries.filter((e) => !e.error).length,
+    total: plan.entries.length,
+    skipped: plan.skipped || [],
+    files: plan.entries.map((e) => ({
+      file: e.file, ok: !e.error, error: e.error, out: rel(e.outPath),
+      status: e.status, size: { cols: e.cols, rows: e.rows }, difficulty: e.difficulty,
+      background: e.background, objects: e.objects, paths: e.paths,
+      contentHash: e.contentHash, sourceSha256: e.beforeHash,
+      warnings: e.warnings
+    }))
+  }, null, 2) + '\n';
+  const existingJson = existsSync(plan.reportJsonPath)
+    ? readFileSync(plan.reportJsonPath, 'utf8') : null;
+  if (existingJson !== json) writeFileSync(plan.reportJsonPath, json, 'utf8');
+
+  return { ok: changed.length === 0, written, unchanged, report: plan.reportPath, changed };
 }
-console.log('全部旧图都有明确的迁移结果 ✓');
-process.exit(0);
+
+function parseArgs(argv) {
+  const out = { force: false, inDir: DEFAULTS.inDir, outDir: DEFAULTS.outDir, report: DEFAULTS.report };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--force') out.force = true;
+    else if (a === '--in' && argv[i + 1]) out.inDir = argv[++i];
+    else if (a === '--out' && argv[i + 1]) out.outDir = argv[++i];
+    else if (a === '--report' && argv[i + 1]) out.report = argv[++i];
+    else if (a === '--help' || a === '-h') out.help = true;
+    else out.unknown = a;
+  }
+  return out;
+}
+
+export function main(argv) {
+  const args = parseArgs(argv || []);
+  if (args.help) {
+    console.log('用法:node tools/migrate_levels.mjs [--in 目录] [--out 目录] [--report 文件] [--force]');
+    return 0;
+  }
+  const plan = planMigration(args);
+  if (!plan.ok) {
+    console.error('迁移没有执行:规划阶段发现 ' + plan.errors.length + ' 个问题(未写入任何文件)');
+    plan.errors.forEach((e) => console.error('  ✗ [' + e.code + '] ' + e.message));
+    return 1;
+  }
+  let res;
+  try {
+    res = commitPlan(plan);
+  } catch (e) {
+    console.error('写入失败:' + (e && e.message));
+    return 1;
+  }
+  if (!res.ok) {
+    console.error('写完后发现源文件被改动,请立刻检查:' + (res.changed || []).join('、'));
+    return 1;
+  }
+  const count = (s) => plan.entries.filter((e) => e.status === s).length;
+  console.log('旧图迁移:' + plan.entries.length + ' 张 → ' + rel(plan.outDir) +
+    '(新写入 ' + (plan.entries.length - count('unchanged') - count('overwrite')) +
+    '、幂等跳过 ' + count('unchanged') + '、强制覆盖 ' + count('overwrite') + ')');
+  plan.entries.forEach((e) => {
+    console.log('  PASS  ' + e.file + ' → ' + rel(e.outPath) + '  [' + e.status +
+      ', 警告 ' + e.warnings.length + ' 条]');
+  });
+  console.log('报告:' + rel(plan.reportPath));
+  return 0;
+}
+
+const IS_MAIN = process.argv[1] &&
+  import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]).href;
+if (IS_MAIN) process.exit(main(process.argv.slice(2)));

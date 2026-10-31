@@ -31,6 +31,9 @@
   // 旧数据里出现过的对象类型名 → 首版注册名(旧图目前没有对象,留着兼容手写的旧文件)
   var LEGACY_TYPE = Object.create(null);
   LEGACY_TYPE.fireball = 'fireball_static';
+  // 旧图里已经被读成已知字段的顶层键;其余键原样保存到 extensions.legacy.meta
+  var LEGACY_KNOWN_TOP = ['asc', 'id', 'title', 'name', 'difficulty', 'verified',
+    'size', 'sky', 'objects', 'kind', 'schemaVersion'];
 
   function cleanId(raw) {
     return String(raw == null ? '' : raw).trim().replace(/[^A-Za-z0-9_-]+/g, '_')
@@ -71,9 +74,13 @@
     if (sane.changed) warnings.push('旧 id 不能直接当新 id,已规范成 "' + id + '"');
 
     var title = String(meta.name || data.title || id).replace(/\s+/g, ' ').trim() || id;
+    var originalTitle = title;
+    var titleTruncated = false;
     if (title.length > LD.LIMITS.TITLE) {
       title = title.slice(0, LD.LIMITS.TITLE);
-      warnings.push('显示名超过 ' + LD.LIMITS.TITLE + ' 个字符,已截断(原值请从原文件保留)');
+      titleTruncated = true;
+      warnings.push('显示名超过 ' + LD.LIMITS.TITLE +
+        ' 个字符,已截断;原值保存在 extensions.legacy.originalTitle');
     }
 
     var lines = RA.Level.normalizeRows(data.asc, false);
@@ -101,11 +108,14 @@
     function pushObject(rec) {
       var used = Object.create(null);
       objects.forEach(function (o) { used[o.id] = true; });
+      var originalId = rec.id;
       var base = cleanId(rec.id) || ('obj_' + (objects.length + 1));
       var oid = base;
       var n = 2;
       while (used[oid]) { oid = base + '_' + n; n++; }
       rec.id = oid;
+      // 旧 id 被规范化 / 去重时，把原值留在对象上，作者仍能找回
+      if (oid !== originalId) rec.legacyId = originalId;
       objects.push(rec);
     }
 
@@ -176,6 +186,13 @@
         return;
       }
       var type = LEGACY_TYPE[oldType] || oldType;
+      var rec;
+      try {
+        rec = LD.cloneJson(o, '/objects/' + i);
+      } catch (e) {
+        warnings.push('objects[' + i + '] 含不能写进 JSON 的值,已跳过:' + (e && e.message));
+        return;
+      }
       if (type !== oldType) {
         warnings.push('objects[' + i + '] 的旧类型 "' + oldType + '" 映射为 "' + type + '"');
       }
@@ -187,18 +204,28 @@
       } else if (o.params !== undefined) {
         warnings.push('objects[' + i + '] 的 params 不是对象,已按空对象处理');
       }
-      if (o.pathId !== undefined && o.pathId !== null) {
-        warnings.push('objects[' + i + '] 引用了旧数据里不存在的路径 "' + o.pathId + '",已移除引用');
+      rec.id = o.id || ('obj_' + (i + 1));
+      rec.type = type;
+      rec.col = o.col;
+      rec.row = o.row;
+      rec.params = params;
+      // 旧数据没有路径表:引用不能删，保留成"待修复引用"（草稿可存，试玩/发布拒绝）
+      if (o.pathId === undefined || o.pathId === null ||
+        (typeof o.pathId === 'string' && !o.pathId.trim())) {
+        rec.pathId = null;
+      } else if (typeof o.pathId === 'string') {
+        rec.pathId = o.pathId.trim();
+        warnings.push('objects[' + i + '] 引用了旧数据里还不存在的路径 "' + rec.pathId +
+          '",已保留为待修复引用(草稿可存,试玩/发布前要补上)');
+      } else {
+        rec.pathId = null;
+        rec.legacyPathId = rec.legacyPathId === undefined ? o.pathId : rec.legacyPathId;
+        warnings.push('objects[' + i + '] 的 pathId 不是字符串,已保存到 legacyPathId 并标为待修复');
       }
-      pushObject({
-        id: o.id || ('obj_' + (i + 1)),
-        type: type,
-        col: o.col,
-        row: o.row,
-        params: params,
-        pathId: null
-      });
+      if (type !== oldType) rec.legacyType = oldType;
+      pushObject(rec);
       if (RA.EntityRegistry && !RA.EntityRegistry.has(type)) {
+        warnings.push('objects[' + i + '] 的类型 "' + type + '" 首版还不支持,已保留(草稿可存,试玩/发布会拒绝)');
         unknownObjects.push({ type: type, col: o.col, row: o.row });
       }
     });
@@ -235,7 +262,7 @@
 
     if (legacyDots) warnings.push('有 ' + legacyDots + " 处老的 '.' 空气标记,已按空气迁移");
     if (unknownChars.length) {
-      warnings.push('有 ' + unknownChars.length + ' 个不认识的字符,已按空气迁移(位置记在 extensions.legacy.unknownChars)');
+      warnings.push('有 ' + unknownChars.length + ' 个不认识的字符,已按空气迁移(完整位置记在 extensions.legacy.unknownChars)');
     }
     if (unknownObjects.length) {
       warnings.push('有 ' + unknownObjects.length + ' 个首版未支持的对象/实体,已保留为待处理对象(草稿可存,试玩/发布会报错)');
@@ -250,23 +277,44 @@
       warnings.push('旧图没有出生点 P;spawn 留空需要作者补上');
     }
 
-    var extensions = {
-      legacy: {
-        sourceFormat: 'asc-v1',
-        sky: isNaN(sky) ? 0 : sky,
-        verified: !!data.verified,          // 只是旧字段,不是认证
-        exit: exitPos,
-        entry: spawn,
-        proposedPorts: (spawn && exitPos) ? {
-          profile: 'vertical-v1',
-          entry: { col: spawn.col },
-          exit: { col: exitPos.col }
-        } : null,
-        declaredSize: declared ? { cols: declared.cols, rows: declared.rows } : null,
-        unknownChars: unknownChars.slice(0, 64),
-        legacyEntities: unknownObjects.slice(0, 64)
-      }
+    // 旧图里没有对应新字段的顶层键 / 注释行:原样保存,不静默丢弃(R4)
+    var legacyMeta = {};
+    try {
+      Object.keys(data).forEach(function (k) {
+        if (LEGACY_KNOWN_TOP.indexOf(k) >= 0) return;
+        legacyMeta[k] = LD.cloneJson(data[k], '/legacy/' + k);
+      });
+    } catch (e) {
+      return LD.fail('INVALID_FIELD',
+        '旧图顶层字段里有不能写进 JSON 的值:' + (e && e.message), []);
+    }
+    if (Object.keys(legacyMeta).length) {
+      warnings.push('旧图有 ' + Object.keys(legacyMeta).length +
+        ' 个未识别的顶层字段,已原样保存到 extensions.legacy.meta');
+    }
+
+    var legacy = {
+      sourceFormat: 'asc-v1',
+      sky: isNaN(sky) ? 0 : sky,
+      verified: !!data.verified,          // 只是旧字段,不是认证
+      exit: exitPos,
+      entry: spawn,
+      proposedPorts: (spawn && exitPos) ? {
+        profile: 'vertical-v1',
+        entry: { col: spawn.col },
+        exit: { col: exitPos.col }
+      } : null,
+      declaredSize: declared ? { cols: declared.cols, rows: declared.rows } : null,
+      // 不截断:超出容量时由下面的校验让迁移明确失败，而不是"保留前 64 个"假装成功
+      unknownChars: unknownChars,
+      legacyEntities: unknownObjects
     };
+    if (Object.keys(meta).length) legacy.comments = LD.cloneJson(meta, '/legacy/comments');
+    if (Object.keys(legacyMeta).length) legacy.meta = legacyMeta;
+    if (sane.changed && data.id !== undefined) legacy.originalId = String(data.id);
+    if (titleTruncated) legacy.originalTitle = originalTitle;
+
+    var extensions = { legacy: legacy };
     if (data.verified !== undefined) {
       warnings.push('旧 verified=' + JSON.stringify(data.verified) +
         ' 不继承为认证;需要重新标准试玩后才谈发布');
@@ -289,6 +337,19 @@
       contentHash: null,
       certification: null
     };
+
+    /*
+     * 迁移只在"这份草稿真的能按同一契约保存"时才算成功。
+     * 例如未知字符多到把 extensions 撑过上限:明确报 LIMIT_EXCEEDED 并让调用方保留原件，
+     * 不能截掉一部分记录后继续宣称无损(R4)。
+     */
+    var check = LD.validate(draft, { purpose: 'draft' });
+    var gateErrors = LD.errorsOf(check);
+    if (gateErrors.length) {
+      return LD.fail(gateErrors[0].code,
+        '迁移后仍有无法保存的问题(' + gateErrors[0].path + '):' + gateErrors[0].message,
+        gateErrors);
+    }
 
     return LD.ok({ draft: draft, warnings: warnings });
   }

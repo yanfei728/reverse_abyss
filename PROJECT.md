@@ -1,6 +1,6 @@
 # reverse_abyss 项目约定
 
-文档日期：2026-10-30。此文档描述目标，不能当作已实现清单；当前事实见 [STATUS.md](STATUS.md)。需求以用户最新明确决定为准。分析报告与历史 README 是参考资料，其中建议不会自动成为用户要求。
+目标文档日期：2026-10-30；最新验收：2026-10-31。目标不能当作已实现清单；当前事实见 [STATUS.md](STATUS.md)。需求以用户最新明确决定为准。分析报告与历史 README 是参考资料，其中建议不会自动成为用户要求。下方 10-30 的实现报告作为历史记录保留，最新结论以下方 10-31 验收记录为准。
 
 ## 目标与核心体验
 
@@ -161,4 +161,54 @@ v0.1 不包含完整超时追捕、传送门、其他角色、其余敌人、遗
 3. 新增 `js/content-repository.js`：IndexedDB 草稿 + revision 冲突（`expectedRevision`）+ 发布事务与 `listEligible`，全部返回 `Result`；存储不可用时明确显示“未持久保存”，失败/取消不改发布池。
 4. 新格式试玩在 T03 接通前明确禁用（不得转 TXT 调旧试玩丢字段）；下载只报“已发起”，不声称写进 `levels/`。
 5. 旧编辑器测试（TXT 导出、保存到游戏改池）要替换为新契约测试并说明原因；保留画图、撤销、缩放、平移等现有交互的手工回归项。
+
+### 2026-10-31 · T00 / T01 验收与下一步
+
+验收对象为 HEAD `570c122`（T01 实现 `6a7e712`）。**T00 通过；T01 主体完成但验收未通过，先修 T01-R，暂不进入 T02。** 本轮已同步 STATUS/README/AGENTS，上一节“按当时要求未同步”的说明只代表上轮交付状态。
+
+修复前复验 `node tools/test_all.mjs`：1089 PASS / 4 FAIL，退出码 1，与实现报告一致；4 项仍是原有的 floor09/floor11 自动可达性。Git 对照原始关卡、模板、levels.js、assets 与旧编辑器/游戏/试玩代码无差异。浏览器人工与安卓仍未测。
+
+补充场景复现出 5 组必须修复的问题：
+
+| ID | 优先级 | 事实 |
+|---|---|---|
+| R1 | P1 | 未知对象额外字段 decode 时无提示消失；encode 后重开 hash 失败；encode 可把未来 schema 强制降级 |
+| R2 | P1 | 迁移 --in/--out 同目录时先覆盖输入再报错；仅用临时副本验证，正式原图未损坏 |
+| R3 | P2 | 当前规则与认证缺少版本/指纹时，空对象比较可使 publish 校验通过 |
+| R4 | P1 | 超过 64 个未知字符位置被截断；旧未知对象的额外字段/路径引用未完整保存 |
+| R5 | P2 | encode 输出可超出自身导入字节上限，保存成功的文件随后打不开 |
+
+详见 [验收报告](docs/checks/review-2026-10-31.md) 与 [复现结果](docs/checks/review-2026-10-31-probes.json)。新增报告/脚本与文档已写入工作区，未改实现代码，未提交 Git；没有以放宽要求把问题标成完成。
+
+下一轮只执行 [T01-R](docs/tasks/05-review-followup.md)：修复上述问题并补回归，复验后再做 T02A（完整模型及 JSON 文件往返）、T02B（草稿仓库与保存状态）。发布事务/认证仍留 T06，接口几何留 T04。数据 encode 接口采纳现有同步 Result 签名并已同步设计，不要求无 I/O 方法为形式改成 Promise。
+
+产品范围不变：短塔 → 安卓 → 后续完整内容；生命/技能/Boss/连续世界仍不能因数据模块新增就视为完成。
+
+### 2026-10-31 · T01-R 修复（R1～R5，待复验）
+
+按 [T01-R 任务卡](docs/tasks/05-review-followup.md) 只修数据边界，没有做 T02、没有改编辑器/玩法/关卡/资源，也没有再次初始化 Git。详细证据见 [修复报告](docs/checks/T01R-fix-report.md)。
+
+| 问题 | 修复要点 | 复现脚本对照（修复前 → 修复后） |
+|---|---|---|
+| R1 内容投影不一致 | `project()` 成为 hash/encode/normalize 的唯一内容规则；未知顶层/对象/路径/子字段保留并进入 hash；`encode` 与 `decode` 同样拒绝非 2 的 schema；`encode` 写后回读自检 | `decodedBehavior` 丢失 → 保留；`reopenOk` false(HASH_MISMATCH) → true；v3 导出成功 → `UNSUPPORTED_SCHEMA` |
+| R2 迁移先覆盖后报错 | 拆成“只读规划 + 执行”；写入前检查同目录/大小写别名/输出 id 碰撞/报告与源冲突；内容不同的已有输出默认报冲突，`--force` 才覆盖；失败不写任何文件 | `sourceChanged` true → false；退出码仍为 1（规划阶段拒绝） |
+| R3 空规则可绕过 | 认证与当前 rules 的版本/指纹先分别验证非空字符串再比较；`completedAt` 校验 ISO8601 带时区 | `errorCount` 0 → 3（RULES_MISMATCH） |
+| R4 迁移截断/丢字段 | 未知格与旧实体不再截断（超容量明确 `LIMIT_EXCEEDED`）；旧对象额外字段、`pathId`/`legacyPathId`、`legacyType`、`legacyId`、旧注释与未识别顶层字段全部保留；迁移后草稿必须可保存 | 未知格 64 → 80；`outputObject.behavior` 丢失 → 保留，`pathId` 保留 |
+| R5 导出超出导入上限 | `encode` 按 UTF-8 实际字节数检查最终文本总量，超限 `LIMIT_EXCEEDED`，不返回文本 | 2,100,797 字节导出成功 → 被拒绝 |
+
+实测（当前工作区）：
+
+| 命令 | 结果 | 退出码 |
+|---|---|---|
+| `node tools/test_leveldata.mjs` | 139 PASS / 0 FAIL | `0` |
+| `node tools/test_t01r.mjs`（新增 R1～R5 回归） | 98 PASS / 0 FAIL | `0` |
+| `node tools/test_all.mjs` | 1188 PASS / 4 FAIL（引擎 587/4、编辑器 238/0、贴图 126/0、数据 139/0、修复自检 98/0） | `1` |
+| `node tools/migrate_levels.mjs` | 12/12 幂等跳过，`levels/v2/` 未重写 | `0` |
+| 隔离目录重迁 12 图 | 12/12 成功，输出与 `levels/v2/` 逐字节相同；原图 SHA-256 与 T00 基线一致 | `0` |
+
+新增/改动：`js/level-data.js`、`js/legacy-import.js`、`tools/migrate_levels.mjs`（规划/写入与路径安全）、`tools/test_t01r.mjs`（98 项）、`tools/test_leveldata.mjs`（断路径契约改为草稿可存/试玩拒绝）、`tools/test_all.mjs`；工具生成的 [迁移报告](docs/checks/T01-legacy-migration.md) 按新格式重生成（关卡输出未变）。
+
+边界与未做：T02/编辑器/草稿仓库未动；浏览器人工与安卓未测；原有 4 条 floor09/floor11 失败未修；新增“报告必须放在输入目录之外”的规则；`originalObjectInExtensions` 仍为 false，因为采用“未知字段留在对象本身”的保留策略（可再编辑、进入 hash），不再重复塞进 extensions。当前状态是“已修复，待复验”；复验通过后才把 T01 标完成并进入 T02A。
+
+产品顺序不变：PC 短塔 → 安卓 → 后续完整内容。
 

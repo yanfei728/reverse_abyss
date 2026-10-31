@@ -387,8 +387,12 @@ head('数据错误:格式 / schema / 尺寸 / 引用 / 参数 / 上限');
 
   const brokenRef = clone(fx);
   brokenRef.objects[1].pathId = 'p_missing';
-  check('路径引用断开:草稿也报 BROKEN_REFERENCE(不能保存成看似完整)',
-    hasIssue(LD.validate(brokenRef, { purpose: 'draft' }), 'BROKEN_REFERENCE', '/objects/1/pathId'));
+  const brokenDraft = LD.validate(brokenRef, { purpose: 'draft' });
+  check('路径引用断开:草稿保留为待修复(警告),不阻止保存',
+    errorIssues(brokenDraft).length === 0 &&
+    hasIssue(brokenDraft, 'BROKEN_REFERENCE', '/objects/1/pathId') && LD.encode(brokenRef).ok);
+  check('路径引用断开:试玩报错',
+    hasIssue(LD.validate(brokenRef, { purpose: 'play' }), 'BROKEN_REFERENCE', '/objects/1/pathId'));
 
   const shortPath = clone(fx);
   shortPath.paths[0].points = [{ col: 12, row: 6 }];

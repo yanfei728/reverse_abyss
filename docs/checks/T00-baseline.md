@@ -78,11 +78,12 @@ node tools/test_all.mjs
 
 ```powershell
 Set-Location 'C:\Users\beilu\Documents\blwork\reverse_abyss'
-git log --oneline            # f56cdce 就是 T00 基线提交
-git status                   # 应显示工作树干净
-git checkout -- .            # 丢弃全部未提交改动，回到基线
-git checkout <基线提交号> -- .   # 只把文件恢复到基线内容（不动当前 HEAD）
+git log --oneline            # 查看 f56cdce 和后续提交
+git status                   # 先核对当前未提交内容，不要求强行清理
+git show --stat f56cdce      # 只读检查基线
 ```
+
+2026-10-31 验收修订：需要运行基线时，先保存当前工作，再将 f56cdce 导出或检出到独立目录进行对照。不要直接覆盖当前目录。原说明中的 `git checkout -- .` 只会恢复当前 HEAD 中的已跟踪文件，并不会自动回到基线，而且会丢弃未提交修改，已删除该误导示例。
 
 仓库只包含本目录下的项目文件；`.gitignore` 只排除 `Thumbs.db`、`desktop.ini`、`*.tmp`、`*.crdownload`，本地 `log.txt`、`levels/`、`assets/`、编辑器数据都照常入库。不要用 `git clean -xfd` 清理用户自制内容。
 
