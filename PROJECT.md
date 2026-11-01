@@ -212,3 +212,32 @@ v0.1 不包含完整超时追捕、传送门、其他角色、其余敌人、遗
 
 产品顺序不变：PC 短塔 → 安卓 → 后续完整内容。
 
+### 2026-10-31 · T01-R 独立复验通过，进入 T02A
+
+验收 HEAD `a604660`，修复提交 `c7c5490`。**T01-R 的 R1～R5 复验通过，T01 数据层里程碑通过；下一步只执行 T02A。** 前文“待复验”是上一轮实现交付时的历史状态。
+
+重新执行完整自检：1188 PASS / 4 FAIL，退出码 1；4 条仍为原有 floor09/floor11。重跑上轮 7 个复现场景均得到修正行为；隔离重迁 12 张图与 levels/v2/ 逐字节相同，源文件及原型玩法代码未变。证据见 [复验报告](docs/checks/review-T01R-2026-10-31.md)。没有执行浏览器体验、安卓或性能检查，也没有把数据层完成写成游戏可玩版完成。
+
+新增非阻塞限制 N01：自定义报告父目录不存在时，工具可能先生成新输出再报 ENOENT，源文件不变。已修正命令说明与零写入边界；独立维护项为报告目录准备/预检，不影响下一张卡直接使用共享数据模块。
+
+T02A 已细化为 [单独任务卡](docs/tasks/06-t02a-editor-model.md)：一份完整 LevelData 真值、现有画图适配、对象/路线/未知字段保真、统一坐标调整、有预算的撤销重做、JSON 文件往返、真实浏览器检查。暂不做 IndexedDB、发布或正式试玩。T02A 验收后再接 T02B 草稿仓库与保存状态；T03/T04 共用会话和连续世界随后推进，短塔后优先安卓的顺序不变。
+
+本轮只新增验收证据和修改文档，保留开始时 README/STATUS 的未提交改动与无关文件，未提交 Git。当前没有需要用户新增决定的产品问题。
+
+### 2026-10-31 · T02A 交付（编辑器完整 LevelData 模型与 JSON 往返）
+
+按 [T02A 任务卡](docs/tasks/06-t02a-editor-model.md) 只做编辑器模型与文件往返；没有做 T02B、正式试玩、发布认证，也没有改玩法/原图/迁移输出。详细证据见 [T02A 交付记录](docs/checks/T02A-2026-10-31.md)。
+
+- **唯一真值**：`EditorModel.data` 是完整 LevelData；旧的 `cells` 字符矩阵删除，字符只在 `getChar/applyChar` 边界转换。对象、出生点、难度、背景、路径、装饰、extensions 与未知字段都在同一份数据里。
+- **导入导出**：v2 JSON 走 `LevelCodec.decode/encode`（失败/未来 schema 不替换当前图）；旧 TXT/旧 JSON 只走 `LegacyImport`；导出只发起浏览器下载，不清 dirty、不写 `levels/`。旧 TXT 导出、「保存到游戏」改池、文件夹授权、自动写入、旧试玩入口整条移除。
+- **编辑操作**：地块/出生点/S·x·y 机关可画，矩形/油漆桶/吸管/笔刷保留；`placeObject` 生成唯一 id 与注册默认参数；缩小先 `resizeImpact` 列影响、取消零变更、确认后可撤销；向左/上扩展把地形、对象、路线点、出生点、装饰、接口 col 一起平移，不改写 `extensions.legacy` 历史坐标。
+- **撤销/重做**：快照整份 LevelData，最多 100 步 / 32 MiB（真实 JSON UTF-8 字节估算）；一笔拖动只记一次；undo/redo 不恢复旧认证，任何内容编辑立即清除 `contentHash` 与 `certification`。
+- **校验与显示**：检查面板直接调用 `LevelData.validate(draft)` 并显示 code/path；`ports=null`、旧 G、未知对象都有说明；未知对象紫色 `?`、已注册无字母对象蓝灰占位，位置上可见、文件里保留。
+- **接口修复**：`LevelData.decode` 的 size/terrain 不再与调用方共享数组（编辑模型不会改写传入数据），有回归断言。
+- **验收**：`node tools/test_editor.mjs` 139 PASS / 0 FAIL；`node tools/test_all.mjs` 1089 PASS / 4 FAIL（原有 floor09/floor11），退出码 1；`node tools/browser_t02a.mjs` 用本机 Chrome 156 headless + DevTools 协议做真实鼠标画图、撤销/重做、滚轮缩放、右键平移、真实下载并重开，18 PASS / 0 FAIL，截图与导出 JSON 在 docs/checks/。
+- **演示与未做**：[levels/demo/t02a-demo.json](levels/demo/t02a-demo.json) 是未认证草稿（难度 3、两个参数对象、pingpong 路线、背景、装饰、未知对象与未知字段），`ports=null`，不能试玩/发布。T02B 草稿仓库、端口/参数/路径工具、正式试玩与认证分别留后续卡；刷新丢草稿、文件选择对话框未自动点击（改用同一处理函数，并留手动步骤），安卓/手感未测。
+
+编辑器测试从 238 项变为 139 项是目标契约替换（旧 TXT/改池/旧试玩断言不再适用），画图、撤销、缩放等回归保留，没有为增加 PASS 数保留重复断言。
+
+产品顺序不变：PC 短塔 → 安卓 → 后续完整内容。
+

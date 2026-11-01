@@ -611,8 +611,12 @@
       (typeof raw.title === 'string' ? raw.title : String(raw.title));
     base.kind = typeof raw.kind === 'string' ? raw.kind : 'normal';
     base.difficulty = raw.difficulty === undefined ? null : raw.difficulty;
-    base.size = size;
-    base.terrain = withExtras(raw.terrain, ['tiles'], { tiles: tiles });
+    // 用已经克隆过的 base 子对象补扩展字段,避免把调用方传入的数组/对象共享给模型
+    base.size = withExtras(base.size, ['cols', 'rows'], size);
+    base.size.cols = size.cols;
+    base.size.rows = size.rows;
+    base.terrain = withExtras(base.terrain, ['tiles'], { tiles: tiles });
+    base.terrain.tiles = tiles;
     base.ports = null;
     base.spawn = null;
     base.objects = [];

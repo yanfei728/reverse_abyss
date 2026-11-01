@@ -1,0 +1,19 @@
+{
+  "isolatedMigration": {
+    "planOk": true,
+    "commitOk": true,
+    "count": 12,
+    "outputsByteEqual": true,
+    "sourcesUnchanged": true
+  },
+  "missingReportParent": {
+    "planOk": true,
+    "commitOk": false,
+    "error": {
+      "code": "ENOENT",
+      "message": "ENOENT: no such file or directory, open 'C:\\Users\\beilu\\AppData\\Local\\Packages\\sandbox.{fa8b3155-a7ed-4afd-b4d9-ec89a3d1c126}\\AC\\Temp\\reverse-abyss-report-path-Nre2ti\\reports\\report.md'"
+    },
+    "sourceUnchanged": true,
+    "outputCreated": true
+  }
+}

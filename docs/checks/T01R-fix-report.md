@@ -15,6 +15,8 @@ R1～R5 全部修复并补了针对性回归测试；`node tools/test_t01r.mjs` 
 
 本轮状态是“已修复，待复验”，不是验收通过；T01 完成仍需规划/验收 agent 复验后确认。
 
+后续验收补注（2026-10-31）：R1～R5 已独立复验通过，详见 [复验结论](review-T01R-2026-10-31.md)。本报告上文的状态保留为交付时记录。另发现 N01：报告父目录缺失时可能先生成新输出再写报告失败；下文“失败零写入”只适用于规划失败，不能扩展到所有执行阶段 I/O 失败。源文件未受损；使用示例已补充创建报告目录。
+
 ## 2. 实际命令与退出码
 
 | 命令 | 结果 |
@@ -69,7 +71,7 @@ R1～R5 全部修复并补了针对性回归测试；`node tools/test_t01r.mjs` 
   输出落在源文件上（`SOURCE_OVERWRITE`）、报告落到源文件或输出上（`REPORT_CONFLICT`）、
   报告放进输入目录（会被下次当成源文件）、输入目录不存在、输入为空。
 - 已有输出：内容相同 → 幂等 `unchanged`（不重写）；内容不同 → 默认 `OUTPUT_CONFLICT` 不覆盖，
-  必须显式 `--force`。失败时**一个文件都不写**，也不生成报告。
+  必须显式 `--force`。规划失败时**一个文件都不写**，也不生成报告；执行阶段限制见上方验收补注。
 - 写后仍复验源文件 sha256 作为兜底；CLI 退出码：成功/幂等 `0`，任何规划失败 `1`。
 
 **回归证据**：`test_t01r.mjs` R2 段共 30 项（含测试结束核对正式 `levels/` 与 `levels/v2/` 未被改动），
@@ -177,5 +179,6 @@ node tools/migrate_levels.mjs --in levels --out <tmp>\out --report <tmp>\rep\rep
 node tools/test_leveldata.mjs
 node tools/test_t01r.mjs
 node tools/test_all.mjs
+New-Item -ItemType Directory -Force -Path "$env:TEMP\ra-rep" | Out-Null
 node tools/migrate_levels.mjs --in levels --out $env:TEMP\ra-out --report $env:TEMP\ra-rep\report.md
 ```

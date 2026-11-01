@@ -186,18 +186,20 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 
 `purpose` 为 draft/play/publish：draft 只要求可解析、数据类型安全、容量合理，不要求关卡完整；play 要完整接口、资源/对象可运行；publish 再要求普通池/认证约束。decode 对未来 schemaVersion 返回 UNSUPPORTED_SCHEMA，并保留用户原文件，不能降级删除字段再保存。
 
-2026-10-31 接口澄清：encode 无 I/O，采纳 T01 现有同步 Result 签名；Repository 仍为异步事务。encode 与 decode 都必须拒绝不支持的 schema，最终导出必须在自身导入容量内；未知 JSON 内容不得因字段投影而无提示丢失。认证与当前 rules 的版本/指纹先分别验证为非空合法字符串，再比较，不能让两个缺失字段被视为匹配。T01 当前实现尚未满足这些边界，修复见 T01-R。
+2026-10-31 接口澄清：encode 无 I/O，采纳同步 Result 签名；Repository 仍为异步事务。encode 与 decode 都拒绝不支持的 schema，最终导出必须在自身导入容量内；未知 JSON 内容不得因字段投影而无提示丢失。认证与当前 rules 的版本/指纹先分别验证为非空合法字符串，再比较，不能让两个缺失字段被视为匹配。这些边界已由 T01-R 修复并通过独立复验。
 
-2026-10-31 T01-R 实施结果（已修，待复验）：
+2026-10-31 T01-R 实施结果（已独立复验）：
 
 - **未知内容保留**：顶层、objects、paths、路径点、size / terrain / visuals、装饰里的未知字段原样保留并参与 `contentHash`；规范化只补契约字段的默认值，不删除未知内容。hash、encode、decode 共用同一个内容投影，`encode` 还会把写出的文本回读一遍，保证“保存的草稿能按同一契约重开”。
 - **schema 双端拒绝**：`encode` 与 `decode` 都只接受 `schemaVersion=2`，其他值返回 `UNSUPPORTED_SCHEMA`，不允许隐式降级或升级。
 - **导出容量**：`encode` 按最终文本的真实 UTF-8 字节数检查 `DATA_LIMITS.MAX_IMPORT_BYTES`，超限返回 `LIMIT_EXCEEDED`，不产生“保存成功但打不开”的文件。
 - **断路径引用**：`draft` 用途下是 warning（保留引用，标为待修复，允许保存备份）；`play` / `publish` 是 error。
 - **认证门槛**：认证里的 `rulesVersion` / `rulesFingerprint` 与传入的当前规则分别验证为非空字符串后再比较；缺失、空串、类型不符都返回 `RULES_MISMATCH`。`completedAt` 必须是带时区的 ISO8601（允许 1～3 位小数秒）。
-- **迁移路径安全**：`migrate_levels.mjs` 先规划后写入；写入前检查输入/输出/报告的真实路径（含 Windows 大小写与符号链接别名）、输出 id 归一化碰撞、输出落在源文件上、报告落在源/输出上；内容不同的既有输出默认报冲突，`--force` 才覆盖；失败时不写任何文件。报告必须放在输入目录之外，避免下次被当作源文件。
+- **迁移路径安全**：`migrate_levels.mjs` 先规划后写入；写入前检查输入/输出/报告的真实路径（含 Windows 大小写与符号链接别名）、输出 id 归一化碰撞、输出落在源文件上、报告落在源/输出上；内容不同的既有输出默认报冲突，`--force` 才覆盖。规划失败不写文件；执行阶段 I/O 失败可能留下部分新输出，不是多文件原子事务。报告必须放在输入目录之外且父目录预先存在；父目录准备为非阻塞维护项 N01。
 
 上述行为由 `tools/test_leveldata.mjs` 与 `tools/test_t01r.mjs` 覆盖；修复前的复现记录保留在 `docs/checks/review-2026-10-31-probes.json`，修复后的对照在 `docs/checks/T01R-fix-report.md`。
+
+2026-10-31 T02A 编辑器接入：`EditorModel.data` 是完整 LevelData 的唯一真值（旧的字符 `cells` 已删除，字符只在画笔边界转换）；编辑器打开/导出分别调用 `LevelCodec.decode/encode`，旧 TXT/旧 JSON 只走 `LegacyImport`；编辑后立即清空 `contentHash` 与 `certification`。缩小时先用 `resizeImpact` 统计会丢失的地形/对象/路径/出生点/装饰，确认后才提交且可撤销；向左/上扩展把地形、对象、路径点、出生点、装饰与 `ports.entry/exit.col` 一起平移，**不改写 `extensions.legacy` 中记录的原文件坐标**。旧出口 G 只作为迁移信息显示，不能作为画笔生成新接口。编辑器不写 `levels/`、不改旧浏览器关卡池；导出只发起浏览器下载。`decode` 的 size/terrain 与传入对象不共享引用，调用方数据不会被模型编辑改坏。草稿仓库（IndexedDB）、正式试玩与发布仍留 T02B/T03/T06。
 
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。
 

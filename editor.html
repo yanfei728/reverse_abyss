@@ -12,9 +12,12 @@
   <!-- ============ 左:地物 + 工具 ============ -->
   <aside id="left">
     <h1>关卡编辑器</h1>
-    <p class="dim small">画一层塔:试玩它、下载成 txt、或者直接存进游戏。</p>
+    <p class="dim small">
+      T02A:编辑<b>完整 LevelData</b>(地形 / 对象 / 路线 / 出生点 / 背景 / 装饰 / extensions),
+      导出与重新打开都走同一份 JSON 契约。草稿仓库、正式试玩、发布还没有接入。
+    </p>
 
-    <h2>地物 <span class="dim">(引擎里新增的会自动出现)</span></h2>
+    <h2>地物 <span class="dim">(地块 + 已注册机关)</span></h2>
     <div id="palette" class="palette"></div>
 
     <h2>工具</h2>
@@ -28,7 +31,7 @@
 
     <h2>视图 / 历史</h2>
     <label class="chk"><input type="checkbox" id="chk-grid" checked> 网格</label>
-    <label class="chk"><input type="checkbox" id="chk-entities" checked> 显示地物(P / G / S)</label>
+    <label class="chk"><input type="checkbox" id="chk-entities" checked> 显示出生点 / 对象 / 旧出口</label>
     <label class="chk"><input type="checkbox" id="chk-autogrow" checked> 画到界外自动扩展</label>
     <div class="row">
       <button id="btn-fit" title="把整层缩放到刚好放得下">适应窗口</button>
@@ -39,24 +42,25 @@
     <h2>快捷键</h2>
     <p class="dim small">
       B 画笔 · E 橡皮 · R 矩形 · F 油漆桶 · K 吸管<br>
-      1-9/0 选地物 · [ ] 笔刷大小 · Ctrl+Z/Y 撤销重做<br>
-      P 试玩(开新标签页) · Ctrl+S 下载 txt
+      1-9/0 选地物 · [ ] 笔刷大小 · Ctrl+Z / Ctrl+Shift+Z 撤销重做<br>
+      Ctrl+S 导出 JSON · 方向键平移 · 滚轮缩放
     </p>
   </aside>
 
   <!-- ============ 中:画布 ============ -->
   <main>
     <div id="toolbar">
-      <input id="name" type="text" placeholder="关卡名(新建的必填;老关卡沿用原名)" spellcheck="false" title="名字会写进 // name: 注释,也是 txt 的文件名。新建的层「保存到游戏」必须先起个名字;从关卡池 / txt 打开的老关卡沿用原来的名字">
+      <input id="name" type="text" placeholder="显示名(可以重名;逻辑身份是 id)" spellcheck="false"
+             title="显示名写进 LevelData.title,不影响逻辑 id。另存为新模板才需要新的 id">
+      <span id="id-label" class="dim">id: …</span>
       <span id="size-label" class="dim">15 × 24 格</span>
       <span id="check-badge" class="badge ok">✔ 检查通过</span>
       <span class="grow"></span>
-      <button id="btn-play" class="primary" title="在新标签页里用真引擎玩这一层(P)">▶ 试玩 (P)</button>
-      <button id="btn-download">下载 txt</button>
-      <button id="btn-copy">复制</button>
-      <button id="btn-view-text" title="把导出的 txt 摊开看 / 手动复制">看 txt</button>
-      <button id="btn-save-folder" class="primary" title="写 txt 进 levels/,游戏里就能抽到 / 刷新后就是新的一层">保存到游戏</button>
-      <a class="back" id="back-link" href="index.html" title="回游戏:有没保存的改动会先问一句">← 回游戏</a>
+      <button id="btn-export" class="primary" title="导出完整 LevelData JSON(Ctrl+S)。只发起浏览器下载,不写 levels/">导出 JSON (Ctrl+S)</button>
+      <button id="btn-copy" title="把导出的 JSON 放进剪贴板">复制 JSON</button>
+      <button id="btn-view-json" title="把导出的 JSON 摊开看 / 手动复制">查看 JSON</button>
+      <button id="btn-play" disabled title="新格式试玩要等 T03 共用会话 / T04 连续世界;不会偷偷转成旧 TXT">▶ 试玩(待接入)</button>
+      <a class="back" id="back-link" href="index.html" title="回游戏:有未导出的改动会先问一句">← 回游戏</a>
     </div>
     <div id="board-wrap">
       <canvas id="board"></canvas>
@@ -72,51 +76,63 @@
       <button id="btn-new-ground">新建(带地面)</button>
     </div>
     <div class="row">
-      <select id="pool-select" title="打开关卡池里已有的某一层"></select>
+      <button id="btn-open-json">打开 JSON…</button>
+      <button id="btn-import-legacy" title="旧 TXT / 旧 JSON 只作为迁移入口,结果是未认证草稿">导入旧图…</button>
+    </div>
+    <p class="dim small">
+      「打开 JSON」只接受 schemaVersion=2(自报 hash 必须匹配);
+      「导入旧图」走 LegacyImport,保留警告与待修复引用,ports 留空。
+    </p>
+    <input type="file" id="file-json" accept=".json,application/json" style="display:none">
+    <input type="file" id="file-legacy" accept=".txt,.json,text/plain,application/json" style="display:none">
+
+    <h2>内置关卡(只读副本)</h2>
+    <div class="row">
+      <select id="pool-select" title="打开旧内置关卡的迁移副本,不会写回 levels/"></select>
     </div>
     <div class="row">
-      <button id="btn-open-pool">打开选中的</button>
-      <button id="btn-open-file">打开 txt…</button>
+      <button id="btn-open-pool">打开内置副本</button>
     </div>
-    <p class="dim small" id="pool-label">关卡池:…</p>
-    <input type="file" id="file-input" accept=".txt,text/plain" style="display:none">
+    <p class="dim small" id="pool-label">内置关卡:…</p>
 
     <h2>尺寸</h2>
     <div class="row">
       <span class="lab">宽</span>
       <input type="number" id="w-input" min="1" max="600" step="1">
-      <span class="unit">格(最多 600)</span>
+      <span class="unit">格</span>
     </div>
     <div class="row">
       <span class="lab">高</span>
-      <input type="number" id="h-input" min="1" step="1">
-      <span class="unit">格(不限)</span>
+      <input type="number" id="h-input" min="1" max="4096" step="1">
+      <span class="unit">格</span>
     </div>
     <p class="dim small" id="world-label">世界 675 × 1080 px</p>
+    <p class="dim small">
+      缩小会移除界外内容:先弹窗列出影响,取消则零变更,确认后可撤销。
+      向左/上扩展时,地形、对象、路线、出生点、装饰、接口 col 一起平移。
+    </p>
 
-    <h2>天空</h2>
+    <h2>元信息</h2>
     <div class="row">
+      <span class="lab">难度</span>
+      <select id="difficulty-select" title="普通层难度 1~4;固定场景在后续卡处理"></select>
+    </div>
+    <div class="row">
+      <span class="lab">背景</span>
       <select id="sky-select" title="这一层用哪张天空贴图"></select>
     </div>
-    <p class="dim small">贴图在 <code>assets/sky/sky1~sky8.png</code>。
-      选"自动"就是爬塔时<b>随层数循环</b>;选定了就这一层一直用它。</p>
-
-    <h2>保存到游戏</h2>
-    <div class="row">
-      <button id="btn-pick-folder">选择 levels 文件夹…</button>
-      <button id="btn-forget-folder" title="忘掉已经授权的文件夹">忘掉</button>
-    </div>
-    <p class="dim small" id="folder-label">还没选文件夹。</p>
-    <label class="chk"><input type="checkbox" id="chk-autosave"> 改完自动写入(1.5 秒)</label>
     <p class="dim small">
-      「保存到游戏」= 把这一层写进 <code>levels/</code> 文件夹(关卡池的源头),同时把浏览器里
-      的关卡池也换成这一份 —— 所以回游戏刷新就有:<b>新的一份按 R 重构塔就有概率刷出来</b>,
-      <b>塔里本来就有的那一层,刷新后直接变成你改过的样子</b>。<br>
-      浏览器不许网页自己往项目目录里写文件,所以要你授权一次
-      (Chrome / Edge 支持,句柄记在本机,下次打开还在;不支持就用「下载 txt」,把它丢进 levels/ 一样用)。<br>
-      文件名 = <b>关卡名</b>:新建的层必须给它起个名字(会自动给你一个);
-      从关卡池 / txt 打开的层沿用它<b>原来的文件名</b>(<code>floor01.txt</code> 还是
-      <code>floor01.txt</code>),改显示名只改注释,不会在 levels/ 里多出一份。
+      背景写进 <code>visuals.backgroundId</code>(<code>sky1~sky8</code>);
+      「自动」= null,爬塔时随层数循环。贴图在 <code>assets/sky/</code>。
+    </p>
+
+    <h2>草稿 / 发布</h2>
+    <div class="row">
+      <button id="btn-draft" disabled title="T02B 接 IndexedDB 草稿仓库">持久草稿(待接入)</button>
+    </div>
+    <p class="dim small">
+      T02A 只做文件往返:导出 JSON 由你自己保管;刷新页面不会恢复草稿(T02B)。
+      发布、正式试玩与旧正式池都不在本卡,导出不会被当成已发布。
     </p>
 
     <h2>检查</h2>
@@ -124,30 +140,19 @@
 
     <h2>怎么用</h2>
     <p class="dim small">
-      0. 关卡池下拉框:<b>✎ 开头</b>=这一层在浏览器里有你存过的新版本(读不到 txt 时优先用它),
-      <b>★ 开头</b>=只存在浏览器里、没有 txt 文件。选中点「打开选中的」就接着改。<br>
-      1. 选地物,在中间画。每层**必须**有一个 <b>P</b>(出生点)和一个 <b>G</b>(出口「上一层」)。<br>
-      2. 按 <b>P</b> 或点「试玩」:<b>新标签页</b>里用真引擎玩这一层。走到出口就通关,
-      结束之后可以<b>重新开始</b>,或者<b>回编辑器</b>(等于关掉试玩页,回你原来的标签页接着改)。<br>
-      3. 关卡的<b>名字</b>:新建的层会自动起一个(新楼层 1、新楼层 2……),
-      <b>新建之后要「保存到游戏」就必须有名字</b>;从关卡池 / txt 打开的老关卡不用管,
-      它沿用原来的名字和文件名。名字写进 <code>// name:</code> 注释,也是 txt 的文件名。<br>
-      4. 满意之后点<b>「保存到游戏」</b>:把这一层写进 <code>levels/</code>,同时把浏览器里的
-      关卡池也换成新的 —— 新的一份(R 重构塔会刷出来)、老的一层(刷新网页塔里就变了)。
-      <b>改名之后再存,旧名字那一份会被顺手清掉</b>,塔里不会多出一个同名的层。<br>
-      「下载 txt」只导出文件,不动游戏里的关卡池。<br>
-      5. 想让 <code>levels/levels.js</code> 那份内嵌副本也更新(以及把新关卡正式收进项目),
-      跑一次 <code>node tools/sync_levels.mjs</code>。
-      <b>双击 index.html(file://)时游戏只能读内嵌副本</b> —— 所以手改 txt 之后要么跑一次
-      sync,要么直接用编辑器「保存到游戏」(它会同时更新浏览器里的那份)。
+      1. 选地块/机关,在中间画。每层最多一个出生点 <b>P</b>;对象用 <b>S / x / y</b> 摆放。
+      出口 G 不再是画笔:新格式的出口是顶边接口,等 T04 的端口工具;<b>旧 G 只作为迁移信息显示</b>。<br>
+      2. 撤销/重做保存整份 LevelData(对象、路线、元信息一起),最多 100 步 / 32 MiB;<br>
+      3. 编辑后认证立即失效。点「导出 JSON」只发起浏览器下载,不会清掉未持久状态;<br>
+      4. 打开一份 JSON 或旧图,失败不会替换当前图;未知对象与未知字段会保留并显示,不会被自动补成"可运行"。
     </p>
   </aside>
 </div>
 
-<!-- 看 txt 的小弹窗 -->
+<!-- 查看 JSON 的小弹窗 -->
 <div id="modal">
   <div class="box">
-    <h3>这一层的 txt(可以手动复制)</h3>
+    <h3>这一层的 JSON(可以手动复制)</h3>
     <textarea id="modal-text" spellcheck="false"></textarea>
     <div class="row"><button id="modal-close">关闭</button></div>
   </div>

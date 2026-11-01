@@ -1,440 +1,70 @@
 /* -*- coding: utf-8 -*- */
 /*
- * editor.js —— 关卡编辑器
- * ========================
- * 画出 reverse_abyss 的一层塔,试玩它、下载成 txt、或者"保存到游戏"。
- * 页面最上面就三个出口:
- *   ▶ 试玩      —— 新标签页里用真引擎玩这一层(play.html),玩完重来或回编辑器
- *   下载 txt    —— 把这一层存成 txt 文件(文件动了,游戏里的关卡池不动)
- *   保存到游戏  —— 写进 levels/ 文件夹 + 把浏览器里的关卡池也换成新的
+ * editor.js —— 关卡编辑器(T02A:完整 LevelData 模型 + JSON 文件往返)
+ * ================================================================
  *
- * 三条设计原则:
- *   ① 地物表**从引擎推导**,不在这里写死:
- *        · 地块 ← level.js 的 TILE_IMAGES(现在 5 种;画的时候和游戏一样缩放到一格)
- *        · 地物 ← entities/ 的 BY_LETTER 注册表(现在出口 G、弹簧板 S)
- *        · 起点 ← level.js 的 SPAWN_CHARS(现在 P)
- *      所以以后往引擎里加一种地块 / 一个新实体,编辑器里**自动就有**它的笔刷
- *      (图标默认画成带字符的方块,实体可以自己写 drawIcon 画好看点)。
- *   ② 大小不限:画到界外会自动把地图撑大(可以关),也能直接填宽高;
- *      **高度完全不设上限**(向上爬的塔,想画多高画多高,几十万行也行),
- *      宽度留了个安全上限 C.EDITOR_MAX_COLS —— 再宽就不是竖井,是壁纸了。
- *   ③ 必须画起点和出口:没画全就不给试玩 / 不给存,检查面板会盯着你。
- *      新建的层还要有个名字(它同时是 txt 文件名),老关卡沿用原来的名字就行。
+ * 这一版的数据真值只有一份:EditorModel.data(完整 LevelData,schemaVersion=2)。
+ * 地形、对象、路线、出生点、背景、装饰、extensions、未知字段都在这一份数据里;
+ * 画布上的"字符"只是画笔和显示用的适配层,**不再有第二份可编辑的字符地图**。
  *
- * 页面结构(editor.html)分三块:左边地物+工具、中间画布、右边关卡+检查。
- * 画布只负责画地图,所有输入框 / 按钮都是原生 HTML —— 中文关卡名能用输入法打。
+ * 三条出口(本卡只做前两条):
+ *   ① 导出 JSON —— LevelCodec.encode() 的同步结果;浏览器下载只报"已发起",
+ *      不声称已写进 levels/,也不清除未持久状态;
+ *   ② 导入 —— v2 JSON 走 LevelCodec;旧 TXT / 旧 JSON 只走显式 LegacyImport,
+ *      迁移成未认证草稿(保留警告和待修复引用);
+ *   ③ 草稿仓库、正式试玩、发布 —— 尚未接入(T02B / T03 / T06),按钮明确禁用。
+ *
+ * 与旧编辑器的差别(都是目标契约要求,不是顺手改玩法):
+ *   · 旧 TXT 导出、`保存到游戏`(先改浏览器池再写盘)整条移除;
+ *   · 出口 G 不再是可画笔刷,旧 G 只作为迁移信息显示;spawn 是显式数据;
+ *   · 撤销/重做保存整份 LevelData(对象/路线/元信息一起),有 100 步 / 32MiB 预算;
+ *   · 首次内容编辑清除认证;undo/redo 不恢复旧通关资格。
+ *
+ * 坐标约定:格坐标 (col,row),X 向右、Y 向下;spawn 的 row 表示脚底所在格的底边
+ * (feet=(row+1)*TS,见 docs/design/data-and-interfaces.md 第 2 节)。
  */
 (function (RA) {
   'use strict';
 
   var C = RA.C;
+  var LD = RA.LevelData;
   var AIR = RA.EMPTY_CHARS[0];                 // '+'
   var TS = C.TS;
-  var MAX_COLS = C.EDITOR_MAX_COLS || 600;     // 宽度上限(格)
-  var MAX_ROWS = C.EDITOR_MAX_ROWS === undefined ? 0 : C.EDITOR_MAX_ROWS;  // 0 = 高度不限
+  var MAX_COLS = LD.LIMITS.COLS;               // 600
+  var MAX_ROWS = LD.LIMITS.ROWS;               // 4096(新契约上限,不再是"无限")
+  var MAX_TILES = LD.LIMITS.TILES;
+  var MAX_OBJECTS = LD.LIMITS.OBJECTS;
+  var MAX_TITLE = LD.LIMITS.TITLE;
+  var MAX_ID = LD.LIMITS.ID;
+  var HISTORY_STEPS = 100;
+  var HISTORY_BYTES = 32 * 1024 * 1024;        // 32 MiB(可调技术提案)
 
-  /** 宽度 / 高度各自夹一下(高度默认不限,所以 0 表示"随便") */
+  var ID_RE = /^[A-Za-z0-9_-]+$/;
+
+  // ===================== 小工具 =====================
+  function isInt(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v; }
   function capCols(n) { return RA.clamp(Math.round(n) || 1, 1, MAX_COLS); }
-  function capRows(n) {
-    var v = Math.max(1, Math.round(n) || 1);
-    return MAX_ROWS > 0 ? Math.min(v, MAX_ROWS) : v;
+  function capRows(n) { return RA.clamp(Math.round(n) || 1, 1, MAX_ROWS); }
+  function limitsText() {
+    return '宽最多 ' + MAX_COLS + ' 格、高最多 ' + MAX_ROWS + ' 格、' +
+      MAX_TILES + ' 格以内(JSON 导入上限)';
   }
-  function rowLimit() { return MAX_ROWS > 0 ? MAX_ROWS : Infinity; }
-  function limitText() {
-    return MAX_ROWS > 0
-      ? ('宽最多 ' + MAX_COLS + ' 格、高最多 ' + MAX_ROWS + ' 格')
-      : ('宽最多 ' + MAX_COLS + ' 格、高度不限');
+  function byteLength(str) {
+    if (typeof globalThis.TextEncoder === 'function') {
+      try { return new globalThis.TextEncoder().encode(str).length; } catch (e) { /* 手算 */ }
+    }
+    return String(str).length * 2;
   }
-
-  // ===================== 工具 =====================
-  var TOOLS = [
-    { id: 'brush', name: '画笔', key: 'KeyB', hint: '按住左键拖动连续画' },
-    { id: 'erase', name: '橡皮', key: 'KeyE', hint: '把地物擦成空气' },
-    { id: 'rect', name: '矩形', key: 'KeyR', hint: '拖一个方框,松手填满' },
-    { id: 'fill', name: '油漆桶', key: 'KeyF', hint: '点一下,把连成一片的同种地物换掉' },
-    { id: 'pick', name: '吸管', key: 'KeyK', hint: '点一下取走那格的地物' }
-  ];
-
-  /** 缩得很小的时候,地块用近似色画(新地块没写也有个颜色,不会看不见) */
-  var TILE_COLORS = {
-    '^': [112, 186, 92], '_': [170, 132, 102], '~': [172, 100, 80],
-    '=': [150, 154, 164], '-': [222, 234, 250]
-  };
-
-  function hashColor(ch) {
-    var h = (String(ch).charCodeAt(0) * 47) % 360;
-    return 'hsl(' + h + ',45%,58%)';
+  function blankTiles(cols, rows) {
+    var out = [];
+    for (var r = 0; r < rows; r++) out.push(new Array(cols).fill(0));
+    return out;
   }
-
-  function tileColor(ch) {
-    var c = TILE_COLORS[ch];
-    return c ? RA.rgba(c) : hashColor(ch);
+  function newLevelId() {
+    var rand = Math.floor(Math.random() * 1296).toString(36);
+    return 'level_' + Date.now().toString(36) + '_' + rand;
   }
-
-  // ===================== 地物调色板(从引擎推导) =====================
-  var EditorPalette = {
-    /** 返回全部可画的"笔刷":空气 + 地块 + 起点标记 + 所有注册的地物 */
-    build: function () {
-      var out = [];
-      out.push({ ch: AIR, name: '空气(橡皮)', kind: 'air' });
-      Object.keys(RA.TILE_IMAGES).forEach(function (ch) {
-        out.push({
-          ch: ch, name: RA.TILE_IMAGES[ch][1], kind: 'tile',
-          image: RA.TILE_IMAGES[ch][0]
-        });
-      });
-      RA.SPAWN_CHARS.split('').forEach(function (ch) {
-        out.push({ ch: ch, name: '出生点(必须画一个)', kind: 'spawn' });
-      });
-      Object.keys(RA.BY_LETTER).forEach(function (ch) {
-        var cls = RA.BY_LETTER[ch];
-        out.push({
-          ch: ch, cls: cls, kind: 'entity',
-          name: (cls.NAME || cls.name || ch) + '(' + ch + ')'
-        });
-      });
-      return out;
-    },
-
-    /** 这个字符是不是"能画的东西"(用来判断文件里有没有不认识的字) */
-    known: function (ch) {
-      if (ch === AIR || ch === ' ') return true;
-      if (RA.SOLID_CHARS.indexOf(ch) >= 0) return true;
-      if (RA.ONEWAY_CHARS.indexOf(ch) >= 0) return true;     // 单向云板也是能画的地块
-      if (RA.SPAWN_CHARS.indexOf(ch) >= 0) return true;
-      return !!RA.BY_LETTER[ch];
-    }
-  };
-
-  // ===================== 关卡数据(纯逻辑,不开浏览器也能测) =====================
-  class EditorModel {
-    constructor(cols, rows, name) {
-      this.cols = capCols(cols || 15);
-      this.rows = capRows(rows || 24);
-      this.name = name || '新楼层';
-      this.header = [];                       // 原来文件里的 // 注释行(导出时原样放回)
-      this.cells = [];
-      for (var r = 0; r < this.rows; r++) {
-        this.cells.push(new Array(this.cols).fill(AIR));
-      }
-    }
-
-    static fromText(text, fallbackName) {
-      var header = [], body = [];
-      String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
-        .forEach(function (raw) {
-          var line = raw.replace(/\s+$/, '');
-          if (line.replace(/^\s+/, '').indexOf('//') === 0) { header.push(line); return; }
-          body.push(line);
-        });
-      while (body.length && !body[0].trim()) body.shift();
-      while (body.length && !body[body.length - 1].trim()) body.pop();
-      var width = body.reduce(function (m, l) { return Math.max(m, l.length); }, 0);
-      width = capCols(width || 1);
-      var rows = capRows(body.length || 1);
-      var m = new EditorModel(width, rows, RA.LevelPack.levelName(text, fallbackName));
-      m.header = header;
-      for (var r = 0; r < rows; r++) {
-        var line = (body[r] || '').padEnd(width, ' ');
-        for (var c = 0; c < width; c++) {
-          var ch = line[c];
-          if (ch === ' ' || ch === AIR) m.cells[r][c] = AIR;
-          else if (ch === RA.LEGACY_EMPTY) m.cells[r][c] = AIR;   // 老地图的 '.' 也当空气
-          else m.cells[r][c] = ch;
-        }
-      }
-      return m;
-    }
-
-    // ---------- 基本读写 ----------
-    inBounds(c, r) { return c >= 0 && r >= 0 && c < this.cols && r < this.rows; }
-
-    get(c, r) { return this.inBounds(c, r) ? this.cells[r][c] : AIR; }
-
-    set(c, r, ch) {
-      if (!this.inBounds(c, r)) return false;
-      this.cells[r][c] = ch;
-      return true;
-    }
-
-    /** 想画到界外时先把地图撑大(关掉自动扩展时返回 false) */
-    ensure(c, r) {
-      var left = c < 0 ? -c : 0;
-      var top = r < 0 ? -r : 0;
-      var right = Math.max(0, c + 1 - this.cols);
-      var bottom = Math.max(0, r + 1 - this.rows);
-      if (!left && !right && !top && !bottom) return true;
-      return this.grow(left, right, top, bottom);
-    }
-
-    grow(left, right, top, bottom) {
-      var nc = this.cols + left + right;
-      var nr = this.rows + top + bottom;
-      if (nc < 1 || nr < 1 || nc > MAX_COLS || nr > rowLimit()) return false;
-      var next = [];
-      for (var r = 0; r < nr; r++) next.push(new Array(nc).fill(AIR));
-      for (r = 0; r < this.rows; r++) {
-        for (var c = 0; c < this.cols; c++) next[r + top][c + left] = this.cells[r][c];
-      }
-      this.cells = next;
-      this.cols = nc;
-      this.rows = nr;
-      return true;
-    }
-
-    /** 直接改尺寸(缩小会把外面的内容裁掉) */
-    setSize(cols, rows) {
-      var nc = capCols(cols);
-      var nr = capRows(rows);
-      if (nc === this.cols && nr === this.rows) return false;
-      var next = [];
-      for (var r = 0; r < nr; r++) {
-        var row = new Array(nc).fill(AIR);
-        for (var c = 0; c < nc; c++) {
-          if (r < this.rows && c < this.cols) row[c] = this.cells[r][c];
-        }
-        next.push(row);
-      }
-      this.cells = next;
-      this.cols = nc;
-      this.rows = nr;
-      return true;
-    }
-
-    fillRect(c0, r0, c1, r1, ch) {
-      var a = Math.min(c0, c1), b = Math.max(c0, c1);
-      var t = Math.min(r0, r1), d = Math.max(r0, r1);
-      for (var r = t; r <= d; r++) {
-        for (var c = a; c <= b; c++) {
-          if (this.inBounds(c, r)) this.cells[r][c] = ch;
-        }
-      }
-    }
-
-    /** 从 (c,r) 出发把连成一片的同种地物换成 ch(四邻) */
-    floodFill(c, r, ch) {
-      if (!this.inBounds(c, r)) return 0;
-      var from = this.cells[r][c];
-      if (from === ch) return 0;
-      var stack = [[c, r]], n = 0;
-      while (stack.length) {
-        var p = stack.pop(), x = p[0], y = p[1];
-        if (!this.inBounds(x, y) || this.cells[y][x] !== from) continue;
-        this.cells[y][x] = ch;
-        n++;
-        stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-      }
-      return n;
-    }
-
-    clear(ch) {
-      for (var r = 0; r < this.rows; r++) {
-        for (var c = 0; c < this.cols; c++) this.cells[r][c] = ch || AIR;
-      }
-    }
-
-    /** 某个字符都在哪(从上往下、从左往右) */
-    findChar(ch) {
-      var out = [];
-      for (var r = 0; r < this.rows; r++) {
-        for (var c = 0; c < this.cols; c++) {
-          if (this.cells[r][c] === ch) out.push({ c: c, r: r });
-        }
-      }
-      return out;
-    }
-
-    /** 从 (c,r) 往下找第一块实心在第几行(没有就 null) */
-    groundBelow(c, r) {
-      if (c < 0 || c >= this.cols) return null;
-      for (var y = Math.max(0, r); y < this.rows; y++) {
-        // 单向云板也算"有地面"(起点/出口落到它上面是合理的)
-        if (RA.isGroundChar(this.cells[y][c])) return y;
-      }
-      return null;
-    }
-
-    // ---------- 元信息(// 键: 值 那一行) ----------
-    /** 读一条元信息,比如 getMeta('sky') → '3';没有就返回空串 */
-    getMeta(key) {
-      var re = new RegExp('^\\s*//\\s*' + key + '\\s*:\\s*(.*)$', 'i');
-      for (var i = 0; i < this.header.length; i++) {
-        var m = re.exec(this.header[i]);
-        if (m) return m[1].trim();
-      }
-      return '';
-    }
-
-    /** 写一条元信息(已经有那行就改,没有就插在 // name: 后面) */
-    setMeta(key, value) {
-      var re = new RegExp('^\\s*//\\s*' + key + '\\s*:', 'i');
-      var line = '// ' + key + ': ' + value;
-      for (var i = 0; i < this.header.length; i++) {
-        if (re.test(this.header[i])) { this.header[i] = line; return true; }
-      }
-      var at = 0;
-      for (i = 0; i < this.header.length; i++) {
-        if (/^\s*\/\/\s*name\s*:/i.test(this.header[i])) { at = i + 1; break; }
-      }
-      this.header.splice(at, 0, line);
-      return true;
-    }
-
-    /** 删掉一条元信息(天空选"自动"就是这么干的) */
-    removeMeta(key) {
-      var re = new RegExp('^\\s*//\\s*' + key + '\\s*:', 'i');
-      this.header = this.header.filter(function (l) { return !re.test(l); });
-    }
-
-    // ---------- 导出 ----------
-    toText() {
-      var lines = [];
-      var head = this.header.slice();
-      var nameIdx = -1;
-      head.forEach(function (l, i) {
-        if (/^\s*\/\/\s*name\s*:/i.test(l)) nameIdx = i;
-      });
-      if (nameIdx < 0) head.unshift('// name: ' + this.name);
-      else head[nameIdx] = '// name: ' + this.name;
-      head.forEach(function (l) { lines.push(l); });
-
-      // 每行去掉尾巴上的空气;再掐掉首尾整行都是空气的行
-      var rows = this.cells.map(function (row) {
-        return row.join('').replace(/[+ ]+$/, '');
-      });
-      var top = 0, bot = rows.length - 1;
-      while (top <= bot && !rows[top]) top++;
-      while (bot >= top && !rows[bot]) bot--;
-      rows = (top > bot) ? [] : rows.slice(top, bot + 1);
-      rows.forEach(function (l) { lines.push(l); });
-      return lines.join('\n') + '\n';
-    }
-
-    // ---------- 检查 ----------
-    /** 返回 {errors, warnings, notes, spawns, goals, unknown, counts} */
-    validate() {
-      var v = {
-        errors: [], warnings: [], notes: [],
-        spawns: [], goals: [], unknown: [], springs: [], counts: {}
-      };
-      var self = this;
-      // 名字是硬要求:它会写进 // name: 注释,也是 txt 文件名
-      var nm = String(this.name || '').trim();
-      if (!nm) {
-        v.errors.push('还没给这一层起名字 —— 导出前必须起一个(会写进 // name: 注释,也是 txt 文件名)。');
-      } else if (nm.length > 40) {
-        v.warnings.push('名字有 ' + nm.length + ' 个字,短一点更舒服(文件名 / 关卡列表都好看)。');
-      }
-
-      // 一次扫完整张图:字符统计 / 不认识的字符 / 特殊标记的位置都在这儿收齐,
-      // 免得为每种字符各扫一遍(600×600 的时候差很多)
-      var special = {};
-      for (var r = 0; r < this.rows; r++) {
-        for (var c = 0; c < this.cols; c++) {
-          var ch = this.cells[r][c];
-          v.counts[ch] = (v.counts[ch] || 0) + 1;
-          if (!EditorPalette.known(ch)) {
-            v.unknown.push({ ch: ch, c: c, r: r });
-          } else if (ch !== AIR && !RA.isTileChar(ch)) {      // 不是地块的才算特殊地物
-            (special[ch] || (special[ch] = [])).push({ c: c, r: r });
-          }
-        }
-      }
-      RA.SPAWN_CHARS.split('').forEach(function (ch) {
-        if (special[ch]) v.spawns = v.spawns.concat(special[ch]);
-      });
-      Object.keys(RA.BY_LETTER).forEach(function (ch) {
-        var list = special[ch] || [];
-        if (RA.BY_LETTER[ch] === RA.Goal) {
-          v.goals = v.goals.concat(list);
-        } else if (list.length) {
-          v.springs = v.springs.concat(list.map(function (p) {
-            return { c: p.c, r: p.r, ch: ch };
-          }));
-        }
-      });
-
-      if (v.unknown.length) {
-        var names = v.unknown.slice(0, 5).map(function (u) {
-          return "'" + u.ch + "'(第 " + (u.r + 1) + " 行第 " + (u.c + 1) + " 列)";
-        }).join('、');
-        v.errors.push('有不认识的字符:' + names +
-          (v.unknown.length > 5 ? ' 等 ' + v.unknown.length + ' 处' : '') +
-          '。用橡皮擦掉,或者换成调色板里的地物。');
-      }
-      if (!v.spawns.length) {
-        v.errors.push('还没画出生点 P —— 每层必须有一个,角色从那儿开始爬。');
-      } else if (v.spawns.length > 1) {
-        v.errors.push('画了 ' + v.spawns.length +
-          ' 个起点,引擎只认第一个(从上往下、从左往右)。留一个就够了。');
-      }
-      if (!v.goals.length) {
-        v.errors.push('还没画出出口 G —— 每层必须有一个,碰到它就往上爬一层。');
-      } else if (v.goals.length > 1) {
-        v.warnings.push('画了 ' + v.goals.length +
-          ' 个出口,只有第一个算数(其余的画着好看,不会通到上一层)。');
-      }
-      if (v.spawns.length) {
-        var sp = v.spawns[0];
-        if (this.groundBelow(sp.c, sp.r) === null) {
-          v.errors.push('起点下面没有地面 —— 角色会一直往下掉。');
-        } else if (this.groundBelow(sp.c, sp.r) !== sp.r + 1) {
-          v.notes.push('起点不在紧贴地面的那一格,引擎会自动让它落到下面的地面。');
-        }
-      }
-      if (v.goals.length) {
-        var g = v.goals[0];
-        if (this.groundBelow(g.c, g.r) === null) {
-          v.warnings.push('出口下面是空的,它会悬在半空(能碰到就算过,但不好爬上去)。');
-        }
-        if (v.spawns.length && g.r >= v.spawns[0].r) {
-          v.warnings.push('出口在起点下面或者同一行 —— 这是"向上爬"的塔,通常出口要在上面。');
-        }
-      }
-      v.springs.forEach(function (s) {
-        if (self.groundBelow(s.c, s.r) !== s.r + 1) {
-          v.warnings.push("弹簧板 '" + s.ch + "'(第 " + (s.r + 1) + ' 行第 ' + (s.c + 1) +
-            ' 列)悬空了,踩不到 —— 要贴着地面那一格放。');
-        }
-      });
-
-      var skyMeta = this.getMeta('sky');
-      if (skyMeta) {
-        var skyN = parseInt(skyMeta, 10);
-        if (!(skyN >= 1 && skyN <= (C.SKY_COUNT || 8))) {
-          v.warnings.push('// sky: ' + skyMeta + ' 超出范围(天空贴图一共 ' +
-            (C.SKY_COUNT || 8) + ' 张),这一层会按默认循环走。');
-        } else {
-          v.notes.push('这一层固定用 assets/sky/sky' + skyN + '.png。');
-        }
-      }
-
-      v.notes.push('地图 ' + this.cols + ' × ' + this.rows + ' 格,世界 ' +
-        this.worldW() + ' × ' + this.worldH() + ' px' +
-        (this.rows > 12 ? '(比屏幕高,镜头会上下跟随)' : '(一屏就放得下)') +
-        (this.cols > 21 ? ',比屏幕宽,要横向滚屏' : ''));
-      return v;
-    }
-
-    worldW() { return this.cols * TS; }
-    worldH() { return this.rows * TS; }
-
-    /**
-     * 导出用的文件名:就是关卡名去掉不能做文件名的字符(放进 levels/ 用)。
-     * 换算规则放在 RA.LevelPack.fileNameOf 里 —— 因为"这一层的文件名"和
-     * "它在浏览器里那几把钥匙(custom_xxx / overrides)"必须是同一套算法,
-     * 不然就会出现"同一层存了两份"的重复层。
-     */
-    fileName() {
-      return RA.LevelPack.fileNameOf(this.name) + '.txt';
-    }
-  }
-
-  /**
-   * 自动起名:新楼层 1 / 新楼层 2 ……(跳过 taken 里已经用过的)。
-   * 编辑器的"新建"和打开页面时的第一层都走它 —— 每层一建出来就有名字。
-   */
-  function autoLevelName(taken) {
+  function autoTitle(taken) {
     var used = {};
     (taken || []).forEach(function (n) { used[String(n || '').trim()] = true; });
     for (var i = 1; i <= 9999; i++) {
@@ -443,142 +73,614 @@
     }
     return '新楼层';
   }
+  /** 校验问题的展示文本:带 code 与 path,便于定位格子/字段 */
+  function fmtIssue(i) {
+    return '[' + i.code + '] ' + (i.path || '/') + ' ' + i.message;
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
 
-  // ===================== 写进 levels/ 文件夹 =====================
+  // ===================== 工具 =====================
+  var TOOLS = [
+    { id: 'brush', name: '画笔', key: 'KeyB', hint: '按住左键拖动连续画' },
+    { id: 'erase', name: '橡皮', key: 'KeyE', hint: '把地形擦成空气,同时移除这一格的对象/出生点' },
+    { id: 'rect', name: '矩形', key: 'KeyR', hint: '拖一个方框,松手填满' },
+    { id: 'fill', name: '油漆桶', key: 'KeyF', hint: '点一下,把连成一片的同种内容换掉' },
+    { id: 'pick', name: '吸管', key: 'KeyK', hint: '点一下取走那一格的画笔' }
+  ];
+
+  /** 缩得很小的时候,地块用近似色画 */
+  var TILE_COLORS = {
+    '^': [112, 186, 92], '_': [170, 132, 102], '~': [172, 100, 80],
+    '=': [150, 154, 164], '-': [222, 234, 250]
+  };
+  function hashColor(ch) {
+    var h = (String(ch).charCodeAt(0) * 47) % 360;
+    return 'hsl(' + h + ',45%,58%)';
+  }
+  function tileColor(ch) {
+    var c = TILE_COLORS[ch];
+    return c ? RA.rgba(c) : hashColor(ch);
+  }
+
+  // ===================== 地物调色板 =====================
   /*
-   * 网页不能自己往项目目录里写文件(浏览器安全限制)。Chromium 系的
-   * File System Access API 可以让用户**授权一个文件夹**,之后就能往里面写 txt:
-   *     showDirectoryPicker() → dir.getFileHandle(name, {create:true}) →
-   *     handle.createWritable() → write(text) → close()
-   * 授权句柄存进 IndexedDB,下次打开编辑器还记得(随时能换 / 忘掉)。
-   * 没有这个 API 的浏览器(Firefox / Safari)自动退回「下载 txt」——
-   * 下载下来的文件名就是关卡名,丢进 levels/ 一样用。
+   * 调色板从"新契约"推导:地块来自 LevelCodec 的整数字典,对象来自 EntityRegistry
+   * 里带旧字符的类型(S / x / y)。出口 G 不再是可画笔刷 —— 旧 G 只作为迁移信息显示;
+   * 新格式的出口是顶边接口 ports,由图层的端口工具(T04)负责,不能随手画。
    */
-  var IDB_DB = 'reverse_abyss.editor';
-  var IDB_STORE = 'handles';
-  var HANDLE_KEY = 'levelsDir';
-
-  function idbOpen() {
-    return new Promise(function (res, rej) {
-      var f = globalThis.indexedDB;
-      if (!f) { rej(new Error('这个环境没有 IndexedDB')); return; }
-      var req = f.open(IDB_DB, 1);
-      req.onupgradeneeded = function () {
-        var db = req.result;
-        if (db.objectStoreNames && !db.objectStoreNames.contains(IDB_STORE)) {
-          db.createObjectStore(IDB_STORE);
-        }
-      };
-      req.onsuccess = function () { res(req.result); };
-      req.onerror = function () { rej(req.error || new Error('打不开 IndexedDB')); };
-    });
-  }
-
-  function idbPut(key, val) {
-    return idbOpen().then(function (db) {
-      return new Promise(function (res, rej) {
-        var tx = db.transaction(IDB_STORE, 'readwrite');
-        tx.objectStore(IDB_STORE).put(val, key);
-        tx.oncomplete = function () { res(true); };
-        tx.onerror = function () { rej(tx.error || new Error('写 IndexedDB 失败')); };
-      });
-    });
-  }
-
-  function idbGet(key) {
-    return idbOpen().then(function (db) {
-      return new Promise(function (res, rej) {
-        var tx = db.transaction(IDB_STORE, 'readonly');
-        var req = tx.objectStore(IDB_STORE).get(key);
-        req.onsuccess = function () { res(req.result || null); };
-        req.onerror = function () { rej(req.error || new Error('读 IndexedDB 失败')); };
-      });
-    });
-  }
-
-  class LevelFolder {
-    constructor() {
-      this.handle = null;      // 授权的目录句柄
-      this.label = '';         // 界面上显示的名字(一般是 levels)
-      this.lastFile = '';      // 这次会话刚写过哪个文件(改名时把旧的删掉)
-    }
-
-    /** 这个浏览器支不支持"授权一个文件夹"(Chrome / Edge 支持) */
-    supported() {
-      return typeof globalThis.showDirectoryPicker === 'function';
-    }
-
-    /** 让用户选文件夹(就是项目里的 levels/) */
-    pick() {
-      var self = this;
-      if (!this.supported()) return Promise.resolve(false);
-      return globalThis.showDirectoryPicker({ id: 'ra-levels', mode: 'readwrite' })
-        .then(function (dir) {
-          self.handle = dir;
-          self.label = (dir && dir.name) || 'levels';
-          self.lastFile = '';
-          // 记不住也不影响这次用(有些环境不给存句柄)
-          return idbPut(HANDLE_KEY, dir).then(function () { return true; })
-            .catch(function () { return true; });
-        })
-        .catch(function () { return false; });     // 用户点了取消
-    }
-
-    /** 打开编辑器时把上次授权的文件夹找回来 */
-    restore() {
-      var self = this;
-      if (!this.supported()) return Promise.resolve(false);
-      return idbGet(HANDLE_KEY).then(function (h) {
-        if (!h) return false;
-        self.handle = h;
-        self.label = (h && h.name) || 'levels';
-        return true;
-      }).catch(function () { return false; });
-    }
-
-    /** 权限还在不在(重启浏览器之后可能要再点一次"同意") */
-    ensurePermission() {
-      var h = this.handle;
-      if (!h) return Promise.resolve(false);
-      if (!h.queryPermission) return Promise.resolve(true);
-      return h.queryPermission({ mode: 'readwrite' }).then(function (p) {
-        if (p === 'granted') return true;
-        if (!h.requestPermission) return false;
-        return h.requestPermission({ mode: 'readwrite' }).then(function (p2) {
-          return p2 === 'granted';
+  var EditorPalette = {
+    build: function () {
+      var out = [];
+      out.push({ ch: AIR, name: '空气(橡皮)', kind: 'air' });
+      LD.TILES.forEach(function (t) {
+        if (t.id === 0) return;
+        out.push({
+          ch: t.ch, name: t.name + '(地块 ' + t.id + ')', kind: 'tile',
+          image: (RA.TILE_IMAGES[t.ch] || [])[0], tileId: t.id
         });
-      }).catch(function () { return false; });
-    }
-
-    /** 真的写一个 txt 进去,成功返回 {dir, file, removed} */
-    write(fileName, text) {
-      var self = this;
-      if (!this.handle) return Promise.reject(new Error('还没选 levels/ 文件夹'));
-      return this.ensurePermission().then(function (ok) {
-        if (!ok) throw new Error('没有这个文件夹的写权限(再点一次「选择 levels 文件夹」)');
-        return self.handle.getFileHandle(fileName, { create: true });
-      }).then(function (fh) {
-        return fh.createWritable();
-      }).then(function (w) {
-        return w.write(text).then(function () { return w.close(); });
-      }).then(function () {
-        var old = self.lastFile;
-        self.lastFile = fileName;
-        // 改过名字:把上次写的那份删掉,别在 levels/ 里留两个同名层
-        if (old && old !== fileName && self.handle.removeEntry) {
-          return self.handle.removeEntry(old).then(function () { }, function () { })
-            .then(function () { return { dir: self.label, file: fileName, removed: old }; });
-        }
-        return { dir: self.label, file: fileName, removed: '' };
       });
+      out.push({ ch: 'P', name: '出生点(每层一个)', kind: 'spawn' });
+      RA.EntityRegistry.list().forEach(function (t) {
+        if (!t.letter) return;
+        out.push({
+          ch: t.letter, name: t.name + '(' + t.letter + ')', kind: 'object',
+          type: t.type, implemented: t.implemented
+        });
+      });
+      return out;
+    },
+
+    /** 这个字符是不是当前调色板里能选的东西(用于吸管/状态栏) */
+    known: function (ch) {
+      if (ch === AIR || ch === ' ') return true;
+      if (LD.idOf(ch) !== null) return true;
+      if ('P'.indexOf(ch) >= 0) return true;
+      return !!(RA.EntityRegistry && RA.EntityRegistry.typeOfLetter(ch));
+    }
+  };
+
+  // ===================== 关卡数据(唯一真值) =====================
+  class EditorModel {
+    /**
+     * 直接用一份 LevelData 构造(内部使用,调用方应已确认结构)。
+     * 外部输入请用 fromData / fromJSON / fromLegacy,它们会走共用编解码与校验。
+     */
+    constructor(data) {
+      this.data = data;
+      this.importWarnings = [];      // 迁移/导入时的说明,只展示,不写回数据
+      this.importSource = '';        // 来源说明(文件名 / 内置关卡 id)
     }
 
-    /** 忘掉授权过的文件夹 */
-    forget() {
-      this.handle = null;
-      this.label = '';
-      this.lastFile = '';
-      return idbPut(HANDLE_KEY, null).catch(function () { });
+    // ---------- 构造 / 导入 ----------
+    /** 新建一份空白(v2)关卡;withGround=true 时铺一层地面并放好出生点 */
+    static create(opts) {
+      opts = opts || {};
+      var cols = capCols(opts.cols || 15);
+      var rows = capRows(opts.rows || 24);
+      if (cols * rows > MAX_TILES) rows = Math.max(1, Math.floor(MAX_TILES / cols));
+      var tiles = blankTiles(cols, rows);
+      var spawn = null;
+      if (opts.withGround) {
+        var ground = rows - 2;
+        for (var c = 0; c < cols; c++) {
+          tiles[ground][c] = 1;       // 草
+          tiles[ground + 1][c] = 4;   // 石
+        }
+        spawn = { col: 1, row: ground - 1 };
+      }
+      var data = {
+        schemaVersion: LD.SCHEMA_VERSION,
+        id: opts.id || newLevelId(),
+        title: opts.title || autoTitle(opts.taken),
+        kind: 'normal',
+        difficulty: isInt(opts.difficulty) ? opts.difficulty : 1,
+        size: { cols: cols, rows: rows },
+        terrain: { tiles: tiles },
+        ports: null,
+        spawn: spawn,
+        objects: [],
+        paths: [],
+        visuals: { backgroundId: null, decorations: [] },
+        extensions: {},
+        contentHash: null,
+        certification: null
+      };
+      var model = new EditorModel(data);
+      if (opts.source) model.importSource = opts.source;
+      return model;
+    }
+
+    /** 从内存 LevelData 构造;深复制 + 共用 decode(含自报 hash 校验) */
+    static fromData(data, opts) {
+      opts = opts || {};
+      var dec = LD.decode(data, { verifyHash: opts.verifyHash !== false });
+      if (!dec.ok) return dec;
+      var model = new EditorModel(dec.value);
+      model.importWarnings = (dec.warnings || []).slice();
+      model.importSource = opts.source || '';
+      return LD.ok(model);
+    }
+
+    /** 从 v2 JSON 文本构造 */
+    static fromJSON(text, opts) {
+      opts = opts || {};
+      var dec = LD.decode(text, { verifyHash: opts.verifyHash !== false });
+      if (!dec.ok) return dec;
+      var model = new EditorModel(dec.value);
+      model.importWarnings = (dec.warnings || []).slice();
+      model.importSource = opts.source || '';
+      return LD.ok(model);
+    }
+
+    /** 旧 TXT / 旧 JSON:只走显式迁移,结果是未认证草稿 */
+    static fromLegacy(input, opts) {
+      opts = opts || {};
+      var mig = RA.LegacyImport.migrate(input, opts);
+      if (!mig.ok) return mig;
+      var model = new EditorModel(mig.value.draft);
+      model.importWarnings = (mig.value.warnings || []).slice();
+      model.importSource = opts.source || '';
+      return LD.ok(model);
+    }
+
+    /** 撤销/重做等内部恢复:数据来自本编辑器的快照,不再重复 decode */
+    static fromTrusted(data) {
+      return new EditorModel(LD.cloneJson(data));
+    }
+
+    // ---------- 导出 ----------
+    /** 完整快照(深复制),调用方拿不到内部可变引用 */
+    toData() { return LD.cloneJson(this.data); }
+
+    /** 走共用编码器;失败返回 code/path/message */
+    toJSON() { return LD.encode(this.data); }
+
+    fileName() { return this.data.id + '.json'; }
+
+    // ---------- 只读几何 ----------
+    get cols() { return this.data.size.cols; }
+    get rows() { return this.data.size.rows; }
+    get title() { return this.data.title; }
+    get id() { return this.data.id; }
+    get kind() { return this.data.kind; }
+    get difficulty() { return this.data.difficulty; }
+    get backgroundId() { return this.data.visuals.backgroundId; }
+    get spawn() { return this.data.spawn; }
+    get objects() { return this.data.objects; }
+    get paths() { return this.data.paths; }
+    worldW() { return this.cols * TS; }
+    worldH() { return this.rows * TS; }
+
+    inBounds(c, r) { return c >= 0 && r >= 0 && c < this.cols && r < this.rows; }
+
+    // ---------- 元信息 ----------
+    setTitle(title) {
+      var t = String(title === undefined || title === null ? '' : title);
+      if (t.length > MAX_TITLE) t = t.slice(0, MAX_TITLE);
+      if (t === this.data.title) return false;
+      this.data.title = t;
+      this.invalidate();
+      return true;
+    }
+    setDifficulty(n) {
+      if (!isInt(n) || n < 1 || n > 4) return false;
+      if (this.data.difficulty === n) return true;
+      this.data.difficulty = n;
+      this.invalidate();
+      return true;
+    }
+    /** backgroundId = 'skyN' 或 null(按层循环) */
+    setBackground(id) {
+      var v = id || null;
+      if (v !== null && RA.EntityRegistry.backgroundIds().indexOf(v) < 0) return false;
+      if (this.data.visuals.backgroundId === v) return true;
+      this.data.visuals.backgroundId = v;
+      this.invalidate();
+      return true;
+    }
+    /** 逻辑身份只在新模板/导入时确定;改名不改 id */
+    setId(id) {
+      var v = String(id || '').trim();
+      if (!v || v.length > MAX_ID || !ID_RE.test(v)) return false;
+      if (v === this.data.id) return true;
+      this.data.id = v;
+      this.invalidate();
+      return true;
+    }
+    /** 派生字段:任何内容编辑后立即失效(首版保守策略) */
+    invalidate() {
+      this.data.contentHash = null;
+      this.data.certification = null;
+    }
+
+    // ---------- 地形 ----------
+    getTile(c, r) {
+      if (!this.inBounds(c, r)) return 0;
+      return this.data.terrain.tiles[r][c];
+    }
+    setTile(c, r, tileId) {
+      if (!this.inBounds(c, r) || !isInt(tileId) || tileId < 0 || tileId > 5) return false;
+      if (this.data.terrain.tiles[r][c] === tileId) return true;
+      this.data.terrain.tiles[r][c] = tileId;
+      this.invalidate();
+      return true;
+    }
+
+    // ---------- 画笔适配(字符 ↔ 数据) ----------
+    /** 这一格在画笔/状态栏里的显示字符:地形 > 出生点 > 对象 */
+    getChar(c, r) {
+      if (!this.inBounds(c, r)) return AIR;
+      var tile = this.getTile(c, r);
+      if (tile !== 0) return LD.charOf(tile);
+      var sp = this.data.spawn;
+      if (sp && sp.col === c && sp.row === r) return 'P';
+      var obj = this.objectAt(c, r);
+      if (obj) {
+        var reg = RA.EntityRegistry.get(obj.type);
+        return (reg && reg.letter) ? reg.letter : null;
+      }
+      return AIR;
+    }
+
+    /**
+     * 统一画一格(T02A 的画笔入口):
+     *   空气 → 擦掉地形/对象/出生点;地块 → 铺地并移除这一格的对象/出生点;
+     *   P → 移动出生点;S/x/y → 放注册对象(默认参数、唯一 id)。
+     * 返回是否产生了变化。
+     */
+    applyChar(c, r, ch) {
+      if (!this.inBounds(c, r)) return false;
+      if (ch === AIR || ch === ' ') return this.eraseCell(c, r);
+      var tileId = LD.idOf(ch);
+      if (tileId !== null) {
+        var before = this.getTile(c, r);
+        this.data.terrain.tiles[r][c] = tileId;
+        var removed = this.removeObjectsAt(c, r);
+        var cleared = this.clearSpawnAt(c, r);
+        this.invalidate();
+        return before !== tileId || removed > 0 || cleared;
+      }
+      if ('P'.indexOf(ch) >= 0) return this.setSpawn(c, r);
+      var type = RA.EntityRegistry.typeOfLetter(ch);
+      if (type) {
+        var res = this.placeObject(type, c, r);
+        return !!res.ok;
+      }
+      return false;                  // G 与未知字符不再能画
+    }
+
+    eraseCell(c, r) {
+      if (!this.inBounds(c, r)) return false;
+      var changed = false;
+      if (this.data.terrain.tiles[r][c] !== 0) {
+        this.data.terrain.tiles[r][c] = 0;
+        changed = true;
+      }
+      if (this.removeObjectsAt(c, r) > 0) changed = true;
+      if (this.clearSpawnAt(c, r)) changed = true;
+      if (changed) this.invalidate();
+      return changed;
+    }
+
+    // ---------- 出生点 ----------
+    setSpawn(c, r) {
+      if (!this.inBounds(c, r)) return false;
+      var sp = this.data.spawn;
+      if (sp && sp.col === c && sp.row === r) return false;
+      this.data.spawn = { col: c, row: r };
+      this.removeObjectsAt(c, r);
+      this.invalidate();
+      return true;
+    }
+    clearSpawnAt(c, r) {
+      var sp = this.data.spawn;
+      if (!sp || sp.col !== c || sp.row !== r) return false;
+      this.data.spawn = null;
+      this.invalidate();
+      return true;
+    }
+    clearSpawn() {
+      if (!this.data.spawn) return false;
+      this.data.spawn = null;
+      this.invalidate();
+      return true;
+    }
+
+    // ---------- 对象 ----------
+    objectsAt(c, r) {
+      return this.data.objects.filter(function (o) { return o.col === c && o.row === r; });
+    }
+    objectAt(c, r) {
+      var list = this.objectsAt(c, r);
+      return list.length ? list[0] : null;
+    }
+    removeObjectsAt(c, r) {
+      var before = this.data.objects.length;
+      this.data.objects = this.data.objects.filter(function (o) {
+        return !(o.col === c && o.row === r);
+      });
+      var n = before - this.data.objects.length;
+      if (n) this.invalidate();
+      return n;
+    }
+    removeObject(id) {
+      var before = this.data.objects.length;
+      this.data.objects = this.data.objects.filter(function (o) { return o.id !== id; });
+      var n = before - this.data.objects.length;
+      if (n) this.invalidate();
+      return n;
+    }
+    uniqueObjectId(type) {
+      var base = String(type || 'obj').replace(/[^A-Za-z0-9_-]+/g, '_') || 'obj';
+      var used = {};
+      this.data.objects.forEach(function (o) { used[o.id] = true; });
+      for (var i = 1; i < 100000; i++) {
+        var id = base + '_' + i;
+        if (!used[id]) return id;
+      }
+      return base + '_' + Date.now().toString(36);
+    }
+    placeObject(type, c, r) {
+      if (!RA.EntityRegistry || !RA.EntityRegistry.has(type)) {
+        return LD.fail('UNKNOWN_ENTITY', '未注册的对象类型 "' + type + '"', [
+          LD.issue('UNKNOWN_ENTITY', '/objects', '调色板里没有这个类型')
+        ]);
+      }
+      if (!this.inBounds(c, r)) {
+        return LD.fail('INVALID_FIELD', '位置 (' + c + ',' + r + ') 在地图外', []);
+      }
+      if (this.data.objects.length >= MAX_OBJECTS) {
+        return LD.fail('LIMIT_EXCEEDED', '对象数已达到上限 ' + MAX_OBJECTS, []);
+      }
+      var params = RA.EntityRegistry.defaults(type) || {};
+      var rec = {
+        id: this.uniqueObjectId(type),
+        type: type,
+        col: c, row: r,
+        params: params,
+        pathId: null
+      };
+      this.data.objects.push(rec);
+      // 对象占的格子必须是空的(和旧编辑器"用字符替换地块"一致)
+      this.data.terrain.tiles[r][c] = 0;
+      this.clearSpawnAt(c, r);
+      this.invalidate();
+      return LD.ok(rec);
+    }
+
+    // ---------- 批量绘制 ----------
+    fillRect(c0, r0, c1, r1, ch) {
+      var a = Math.min(c0, c1), b = Math.max(c0, c1);
+      var t = Math.min(r0, r1), d = Math.max(r0, r1);
+      var n = 0;
+      for (var r = t; r <= d; r++) {
+        for (var c = a; c <= b; c++) {
+          if (this.inBounds(c, r) && this.applyChar(c, r, ch)) n++;
+        }
+      }
+      return n;
+    }
+
+    floodFill(c, r, ch) {
+      if (!this.inBounds(c, r)) return 0;
+      var from = this.getChar(c, r);
+      if (from === ch) return 0;
+      var stack = [[c, r]], n = 0, seen = {};
+      while (stack.length) {
+        var p = stack.pop(), x = p[0], y = p[1];
+        var key = x + ',' + y;
+        if (seen[key] || !this.inBounds(x, y)) continue;
+        if (this.getChar(x, y) !== from) continue;
+        seen[key] = true;
+        this.applyChar(x, y, ch);
+        n++;
+        stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      }
+      return n;
+    }
+
+    findChar(ch) {
+      var out = [];
+      for (var r = 0; r < this.rows; r++) {
+        for (var c = 0; c < this.cols; c++) {
+          if (this.getChar(c, r) === ch) out.push({ c: c, r: r });
+        }
+      }
+      return out;
+    }
+
+    /** 从 (c,r) 往下找第一块可站立地形(含单向云板) */
+    groundBelow(c, r) {
+      if (c < 0 || c >= this.cols) return null;
+      for (var y = Math.max(0, r); y < this.rows; y++) {
+        var ch = LD.charOf(this.data.terrain.tiles[y][c]);
+        if (ch && RA.isGroundChar(ch)) return y;
+      }
+      return null;
+    }
+
+    // ---------- 尺寸 / 平移 ----------
+    /** 缩小/平移会丢弃哪些内容(先给用户看,取消则零变更) */
+    resizeImpact(cols, rows) {
+      cols = Math.max(1, Math.min(MAX_COLS, Math.round(cols) || 1));
+      rows = Math.max(1, Math.min(MAX_ROWS, Math.round(rows) || 1));
+      var impact = { tiles: 0, objects: 0, paths: 0, pathPoints: 0, spawn: 0, decorations: 0, total: 0 };
+      for (var r = rows; r < this.rows; r++) {
+        for (var c = 0; c < this.cols; c++) if (this.getTile(c, r) !== 0) impact.tiles++;
+      }
+      for (var c2 = cols; c2 < this.cols; c2++) {
+        for (var r2 = 0; r2 < Math.min(rows, this.rows); r2++) {
+          if (this.getTile(c2, r2) !== 0) impact.tiles++;
+        }
+      }
+      this.data.objects.forEach(function (o) {
+        if (o.col >= cols || o.row >= rows) impact.objects++;
+      });
+      this.data.paths.forEach(function (p) {
+        var lost = (p.points || []).some(function (pt) { return pt.col >= cols || pt.row >= rows; });
+        if (lost) {
+          impact.paths++;
+          impact.pathPoints += (p.points || []).length;
+        }
+      });
+      if (this.data.spawn && (this.data.spawn.col >= cols || this.data.spawn.row >= rows)) impact.spawn = 1;
+      (this.data.visuals.decorations || []).forEach(function (d) {
+        if (d.col >= cols || d.row >= rows) impact.decorations++;
+      });
+      impact.total = impact.tiles + impact.objects + impact.paths + impact.spawn + impact.decorations;
+      return impact;
+    }
+
+    /** 显式改尺寸;会丢内容时必须 allowLoss(UI 先确认),否则整次不改 */
+    resize(cols, rows, opts) {
+      opts = opts || {};
+      cols = Math.max(1, Math.min(MAX_COLS, Math.round(cols) || 1));
+      rows = Math.max(1, Math.min(MAX_ROWS, Math.round(rows) || 1));
+      if (cols * rows > MAX_TILES) {
+        return LD.fail('LIMIT_EXCEEDED',
+          '新尺寸 ' + cols + '×' + rows + ' 有 ' + (cols * rows) + ' 格,超过上限 ' + MAX_TILES, []);
+      }
+      if (cols === this.cols && rows === this.rows) return LD.ok({ changed: false, impact: null });
+      var impact = this.resizeImpact(cols, rows);
+      if (impact.total > 0 && !opts.allowLoss) {
+        return LD.fail('NEEDS_CONFIRM',
+          '缩小会丢弃 ' + impact.total + ' 项内容(地形 ' + impact.tiles + ' 格、对象 ' +
+          impact.objects + ' 个、路径 ' + impact.paths + ' 条、出生点 ' + impact.spawn +
+          '、装饰 ' + impact.decorations + ');需要确认', [], impact);
+      }
+      var next = blankTiles(cols, rows);
+      for (var r = 0; r < Math.min(rows, this.rows); r++) {
+        for (var c = 0; c < Math.min(cols, this.cols); c++) next[r][c] = this.getTile(c, r);
+      }
+      this.data.size.cols = cols;
+      this.data.size.rows = rows;
+      this.data.terrain.tiles = next;
+      if (this.data.spawn && (this.data.spawn.col >= cols || this.data.spawn.row >= rows)) {
+        this.data.spawn = null;
+      }
+      this.data.objects = this.data.objects.filter(function (o) {
+        return o.col < cols && o.row < rows;
+      });
+      this.data.paths = this.data.paths.filter(function (p) {
+        return (p.points || []).every(function (pt) { return pt.col < cols && pt.row < rows; });
+      });
+      this.data.visuals.decorations = (this.data.visuals.decorations || []).filter(function (d) {
+        return d.col < cols && d.row < rows;
+      });
+      this.invalidate();
+      return LD.ok({ changed: true, impact: impact });
+    }
+
+    /**
+     * 向四周扩展,并把现有内容整体平移 (left, top)。
+     * 只扩大、不丢内容;返回 Result。
+     */
+    grow(left, right, top, bottom) {
+      left = Math.max(0, Math.round(left) || 0);
+      right = Math.max(0, Math.round(right) || 0);
+      top = Math.max(0, Math.round(top) || 0);
+      bottom = Math.max(0, Math.round(bottom) || 0);
+      var cols = this.cols + left + right;
+      var rows = this.rows + top + bottom;
+      if (cols < 1 || rows < 1 || cols > MAX_COLS || rows > MAX_ROWS || cols * rows > MAX_TILES) {
+        return LD.fail('LIMIT_EXCEEDED', '扩展后超出上限:' + limitsText(), []);
+      }
+      if (!left && !right && !top && !bottom) return LD.ok({ changed: false });
+      var next = blankTiles(cols, rows);
+      for (var r = 0; r < this.rows; r++) {
+        for (var c = 0; c < this.cols; c++) next[r + top][c + left] = this.getTile(c, r);
+      }
+      this.data.size.cols = cols;
+      this.data.size.rows = rows;
+      this.data.terrain.tiles = next;
+      this._shiftCoords(left, top);
+      this.invalidate();
+      return LD.ok({ changed: true, dc: left, dr: top });
+    }
+
+    /** 把对象/路线/出生点/装饰/接口 col 一起平移(不碰 extensions 里的历史坐标) */
+    _shiftCoords(dc, dr) {
+      if (!dc && !dr) return;
+      var sp = this.data.spawn;
+      if (sp) { sp.col += dc; sp.row += dr; }
+      this.data.objects.forEach(function (o) { o.col += dc; o.row += dr; });
+      this.data.paths.forEach(function (p) {
+        (p.points || []).forEach(function (pt) { pt.col += dc; pt.row += dr; });
+      });
+      (this.data.visuals.decorations || []).forEach(function (d) {
+        d.col += dc; d.row += dr;
+      });
+      if (this.data.ports) {
+        var ports = this.data.ports;
+        ['entry', 'exit'].forEach(function (k) {
+          if (ports[k] && isInt(ports[k].col)) ports[k].col += dc;
+        });
+      }
+    }
+
+    /** 保证 (c,r) 在界内:不够就往左上/右下扩;返回 {dc,dr} 或 false */
+    ensure(c, r) {
+      var left = c < 0 ? -c : 0;
+      var top = r < 0 ? -r : 0;
+      var right = Math.max(0, c + 1 - this.cols);
+      var bottom = Math.max(0, r + 1 - this.rows);
+      if (!left && !right && !top && !bottom) return { dc: 0, dr: 0 };
+      var res = this.grow(left, right, top, bottom);
+      if (!res.ok) return false;
+      return { dc: left, dr: top };
+    }
+
+    // ---------- 检查 ----------
+    /**
+     * 面向编辑器面板的校验:共用 LevelData.validate(purpose=draft),
+     * 把问题拆成 errors / warnings / notes;errors 会让导出/发布失败。
+     */
+    validate() {
+      var issues = LD.validate(this.data, { purpose: 'draft' });
+      var errors = [], warnings = [], notes = [];
+      issues.forEach(function (i) {
+        if (i.severity === 'warning') warnings.push(fmtIssue(i));
+        else errors.push(fmtIssue(i));
+      });
+      this.importWarnings.forEach(function (w) { warnings.push('导入: ' + w); });
+
+      if (!String(this.data.title || '').trim()) {
+        warnings.push('标题为空:显示名不影响逻辑 id,导出后仍可读,但列表里不好认');
+      }
+      if (this.data.ports) {
+        notes.push('接口:vertical-v1 · 入口 col ' + this.data.ports.entry.col +
+          ' / 出口 col ' + this.data.ports.exit.col + '(保护区与端口编辑留 T04)');
+      } else {
+        notes.push('接口:未设置(ports=null)。草稿可编辑/导出;试玩与发布要等 T04 端口工具');
+      }
+      var legacy = this.data.extensions && this.data.extensions.legacy;
+      if (legacy && legacy.exit) {
+        notes.push('旧出口 G 在 (' + legacy.exit.col + ',' + legacy.exit.row +
+          '):只作为迁移信息显示,不代表合格接口');
+      }
+      if (this.data.spawn) {
+        var below = this.groundBelow(this.data.spawn.col, this.data.spawn.row + 1);
+        if (below === null) {
+          warnings.push('出生点下面没有可站立地形,角色会一直往下掉');
+        } else if (below !== this.data.spawn.row + 1) {
+          notes.push('出生点不贴着下面的地面,游戏会把角色落到地面');
+        }
+      }
+      notes.push('地图 ' + this.cols + ' × ' + this.rows + ' 格,世界 ' +
+        this.worldW() + ' × ' + this.worldH() + ' px' +
+        (this.rows > 12 ? '(比屏幕高,镜头会上下跟随)' : '(一屏就放得下)') +
+        (this.cols > 21 ? ',比屏幕宽,要横向滚屏' : ''));
+      notes.push('id: ' + this.data.id + ' · 类型: ' + this.data.kind +
+        ' · 难度: ' + (this.data.difficulty === null ? '(未设置)' : this.data.difficulty) +
+        ' · 背景: ' + (this.backgroundId || '自动(随层数循环)'));
+      if (this.data.certification) {
+        notes.push('这道关卡的认证还在,但第一次编辑后就会失效(需要重新标准试玩)');
+      }
+      return { errors: errors, warnings: warnings, notes: notes, issues: issues };
     }
   }
 
@@ -594,9 +696,7 @@
       this.assets = new RA.Assets();
       this.snd = new RA.SoundBank();
       this.input.onFirstInput = () => { this.snd.resume(); };
-
-      this.model = new EditorModel(15, 24, '新楼层');
-      RA.assets = this.assets;              // 界面层画天空/背景时要用
+      RA.assets = this.assets;
 
       this.view = { x: 0, y: 0, zoom: 1 };
       this.tool = 'brush';
@@ -607,43 +707,33 @@
       this.showEntities = true;
       this.autoGrow = true;
 
-      this.undoStack = [];
+      this.undoStack = [];      // [{json, bytes}]
       this.redoStack = [];
+      this.undoBytes = 0;
+      this.redoBytes = 0;
       this.stroke = null;
       this.mouse = { x: 0, y: 0, outside: true };
       this.prevMouse = null;
       this.prevCodes = {};
 
-      this.playTests = [];                 // 开出去的试玩页:这一层的一份快照 [{name,text}]
-      this.lastPlaytest = null;
-
       this.msg = '';
       this.msgT = 0;
       this.dirty = false;
 
-      this.folder = new LevelFolder();     // 授权过的 levels/ 文件夹(支持的话)
-      this.autoSave = false;               // 改完自动写进 levels/
-      this.autoSaveDelay = 1500;           // 自动写入的防抖时间(毫秒)
-      this.madeNames = [];                 // 这次打开编辑器建过的楼层名(自动起名要避开)
-      this.sourceId = '';                  // 这一层是从哪个 txt 打开的('' = 新层,按关卡名存)
-      this.lastPoolId = '';                // 这一层上次写进关卡池用的 id(改名时要清掉旧的)
-      this._saveTimer = null;
-
       this.W = this.canvas.width || 800;
       this.H = this.canvas.height || 600;
 
-      this.wire();                          // 接上 HTML 里的按钮 / 输入框
+      this.wire();
       this.buildPalette();
       this.buildTools();
       this.buildSkySelect();
-      this.newLevel(15, 24, true);
+      this.buildDifficultySelect();
+      this.model = null;
+      this.newLevel(15, 24, false);
       this.resize();
       this.fitView();
       this.syncUI();
-      // 贴图都是 assets/ 下独立的 PNG:读进来之后把调色板图标也换成真贴图
       this.assets.loadAll(() => { this.buildPalette(); });
-      // 上次授权过的 levels/ 文件夹(浏览器支持的话自动找回来)
-      this.folder.restore().then(() => this.syncFolderLabel());
       this.loop();
     }
 
@@ -661,8 +751,10 @@
       click('btn-new', () => self.newLevel(15, 24, false));
       click('btn-new-ground', () => self.newLevel(15, 24, true));
       click('btn-open-pool', () => self.openFromPool());
-      click('btn-open-file', () => { var f = self.$('file-input'); if (f) f.click(); });
-      on('file-input', 'change', (e) => self.openFiles(e.target.files));
+      click('btn-open-json', () => { var f = self.$('file-json'); if (f) f.click(); });
+      click('btn-import-legacy', () => { var f = self.$('file-legacy'); if (f) f.click(); });
+      on('file-json', 'change', (e) => self.openFiles(e.target.files, 'json'));
+      on('file-legacy', 'change', (e) => self.openFiles(e.target.files, 'legacy'));
       on('pool-select', 'change', () => self.syncUI());
 
       click('btn-undo', () => self.undo());
@@ -671,48 +763,56 @@
       click('btn-brush-minus', () => self.setBrush(self.brush - 1));
       click('btn-brush-plus', () => self.setBrush(self.brush + 1));
 
-      /*
-       * 勾选框一定要听 change(而不是 click):浏览器的勾选框在**派发 click 之前**
-       * 就已经把自己的 checked 翻过来了,所以在 click 里再取反一次就等于没变
-       * (表现就是"勾了没反应、状态和画面反着来")。change 里直接读 checked 才是对的。
-       */
       on('chk-grid', 'change', () => { self.grid = !!self.$('chk-grid').checked; });
       on('chk-entities', 'change', () => { self.showEntities = !!self.$('chk-entities').checked; });
       on('chk-autogrow', 'change', () => { self.autoGrow = !!self.$('chk-autogrow').checked; });
 
       on('name', 'input', () => {
-        // 名字必填:空了就让它空着,导出时会被 requireName 拦住
-        self.model.name = self.$('name').value.replace(/\s+/g, ' ').trim();
-        self.markDirty();
+        // 一次连续输入算一步撤销:第一次按键前记快照,失焦/回车后重新武装
+        if (!self._nameUndoArmed) {
+          self.pushUndo();
+          self._nameUndoArmed = true;
+        }
+        if (self.model.setTitle(self.$('name').value.replace(/\s+/g, ' ').trim())) {
+          self.markDirty();
+          self._needSync = true;
+        }
       });
+      on('name', 'change', () => { self._nameUndoArmed = false; self.syncUI(); });
+      on('name', 'blur', () => { self._nameUndoArmed = false; });
       on('w-input', 'change', () => self.changeSize(parseInt(self.$('w-input').value, 10), self.model.rows));
       on('h-input', 'change', () => self.changeSize(self.model.cols, parseInt(self.$('h-input').value, 10)));
-      // 天空:选了就写进 // sky: N,选"自动"就把那行删掉(变成按层循环)
+      on('difficulty-select', 'change', () => {
+        var nv = parseInt(self.$('difficulty-select').value, 10);
+        if (nv === self.model.difficulty) return;
+        self.pushUndo();
+        if (self.model.setDifficulty(nv)) {
+          self.markDirty();
+          self.syncUI();
+          self.say('难度改成 ' + self.model.difficulty + ' 档');
+        } else {
+          self.popUndo();
+        }
+      });
       on('sky-select', 'change', () => {
-        var v = self.$('sky-select').value;
-        if (v) self.model.setMeta('sky', v);
-        else self.model.removeMeta('sky');
-        self.markDirty();
-        self.syncUI();
-        self.say(v ? ('这一层固定用 assets/sky/sky' + v + '.png')
-          : '天空改回自动(爬塔时随层数循环)');
+        var v = self.$('sky-select').value || null;
+        if (v === self.model.backgroundId) return;
+        self.pushUndo();
+        if (self.model.setBackground(v)) {
+          self.markDirty();
+          self.syncUI();
+          self.say(v ? ('这一层固定用 assets/sky/' + v + '.png') : '背景改回自动(随层数循环)');
+        } else {
+          self.popUndo();
+        }
       });
 
+      click('btn-export', () => self.downloadJSON());
+      click('btn-copy', () => self.copyJSON());
+      click('btn-view-json', () => self.showJSON());
       click('btn-play', () => self.openPlaytest());
-      click('btn-download', () => self.download());
-      click('btn-copy', () => self.copyText());
-      click('btn-view-text', () => self.showText());
-      click('btn-save-folder', () => self.saveToFolder());
-      click('btn-pick-folder', () => self.pickFolder());
-      click('btn-forget-folder', () => self.forgetFolder());
-      on('chk-autosave', 'change', () => {
-        self.autoSave = !!self.$('chk-autosave').checked;
-        self.say(self.autoSave ? '开着:改完 1.5 秒自动写进 levels/ 文件夹' : '关掉自动写入');
-        self.autoSaveTick();
-      });
       click('modal-close', () => self.closeModal());
       on('modal', 'click', (e) => { if (e.target === self.$('modal')) self.closeModal(); });
-      // 左上角「← 回游戏」:有没保存的改动会先问一句(见 leaveForGame)
       click('back-link', (e) => {
         if (e && e.preventDefault) e.preventDefault();
         self.leaveForGame();
@@ -731,7 +831,8 @@
         var b = globalThis.document.createElement('button');
         b.className = 'pitem';
         b.type = 'button';
-        b.title = item.name + (i < 10 ? '  [' + ((i + 1) % 10) + ']' : '');
+        b.title = item.name + (i < 10 ? '  [' + ((i + 1) % 10) + ']' : '') +
+          (item.implemented === 'none' ? '(行为在 T05 实现)' : '');
         var icon = globalThis.document.createElement('canvas');
         icon.width = 38;
         icon.height = 38;
@@ -755,7 +856,7 @@
       ctx.clearRect(0, 0, S, S);
       ctx.imageSmoothingEnabled = false;
       if (item.kind === 'tile') {
-        // 和游戏里同一个画法:贴图会被缩放到这一格(云板只画上面一截)
+        // 和游戏里同一个画法:贴图缩放到这一格(云板只画上面一截)
         RA.drawTile(ctx, item.ch, this.assets.image(item.image), 0, 0, S);
       } else if (item.kind === 'air') {
         for (var y = 0; y < 2; y++) {
@@ -773,8 +874,15 @@
         RA.rect(ctx, S * 0.30, S * 0.52, S * 0.40, S * 0.30, [236, 96, 72], 3);
         RA.text(ctx, 'P', Math.round(S * 0.24), [255, 255, 255], S / 2, S * 0.68,
           { bold: true, shadow: false });
-      } else if (item.kind === 'entity' && item.cls) {
-        item.cls.prototype.drawIcon(ctx, 0, 0, S);
+      } else if (item.kind === 'object') {
+        var cls = RA.BY_LETTER[item.ch];
+        if (cls) {
+          cls.prototype.drawIcon(ctx, 0, 0, S);
+        } else {
+          RA.rect(ctx, 0, 0, S, S, [30, 36, 54], 6);
+          RA.text(ctx, item.ch, Math.round(S * 0.5), [255, 255, 255], S / 2, S / 2,
+            { bold: true, shadow: false });
+        }
       }
     }
 
@@ -782,8 +890,7 @@
       var self = this;
       this.paletteItems.forEach(function (item) {
         if (!item.btn) return;
-        var on = item.ch === self.ch;
-        item.btn.className = 'pitem' + (on ? ' on' : '');
+        item.btn.className = 'pitem' + (item.ch === self.ch ? ' on' : '');
       });
     }
 
@@ -817,7 +924,6 @@
     buildSkySelect() {
       var sel = this.$('sky-select');
       if (!sel) return;
-      var n = C.SKY_COUNT || 8;
       sel.innerHTML = '';
       var add = function (value, label) {
         var op = globalThis.document.createElement('option');
@@ -826,7 +932,21 @@
         sel.appendChild(op);
       };
       add('', '自动(随层数循环)');
-      for (var i = 1; i <= n; i++) add(String(i), '天空 ' + i + ' · sky' + i + '.png');
+      RA.EntityRegistry.backgroundIds().forEach(function (id) {
+        add(id, id + ' · assets/sky/' + id + '.png');
+      });
+    }
+
+    buildDifficultySelect() {
+      var sel = this.$('difficulty-select');
+      if (!sel) return;
+      sel.innerHTML = '';
+      for (var i = 1; i <= 4; i++) {
+        var op = globalThis.document.createElement('option');
+        op.value = String(i);
+        op.textContent = i + ' 档' + (i === 1 ? '(最容易)' : '');
+        sel.appendChild(op);
+      }
     }
 
     setTool(id) {
@@ -852,320 +972,181 @@
     }
 
     // ================= 关卡操作 =================
-    newLevel(cols, rows, withGround) {
-      // 自动分配一个名字(跳过内置关卡和浏览器里已经存过的那些)
-      var name = autoLevelName(this.takenNames());
-      this.madeNames.push(name);
-      this.sourceId = '';                  // 新建的还没有对应的 txt 文件
-      this.model = new EditorModel(cols, rows, name);
-      // 注释头只留一行名字(和 levels/ 里的 txt 一个格式):
-      // 关卡名既是 // name: 也是文件名;字符表看编辑器左边的调色板,
-      // 或者 node tools/check_levels.mjs 会打印一份。
-      this.model.header = ['// name: ' + name];
-      if (withGround) {
-        var r0 = this.model.rows - 2;
-        for (var c = 0; c < this.model.cols; c++) {
-          this.model.set(c, r0, '^');
-          this.model.set(c, r0 + 1, '=');
-        }
-        this.model.set(1, r0 - 1, 'P');
-        // 顶上给一小块落脚的地方放出口,这样新建出来就是"能通"的一层
-        for (c = this.model.cols - 4; c < this.model.cols - 1; c++) this.model.set(c, 2, '^');
-        this.model.set(this.model.cols - 3, 1, 'G');
-      }
-      this.undoStack = [];
-      this.redoStack = [];
-      this.stroke = null;
-      this.fitView();
-      this.markDirty();
-      this.syncUI();
-      this.say(withGround ? '新建了一层(带地面、起点和出口)' : '新建了一层空的');
+    takenTitles() {
+      var out = [];
+      Object.keys(RA.LEVEL_TEXT || {}).forEach(function (id) {
+        out.push(RA.LevelPack.levelName(RA.LEVEL_TEXT[id], id));
+      });
+      if (this.model) out.push(this.model.title);
+      return out;
     }
 
-    openFromText(text, id) {
-      // 记住"这一层是从哪儿来的":保存时沿用它原来的文件名,
-      // 免得 levels/ 里出现 floor01.txt 和 起攀.txt 两份一样的东西。
-      // (浏览器里存的 custom_xxx 没有对应 txt,所以按关卡名另起一个文件名)
-      this.sourceId = (id && !RA.LevelPack.isCustomId(id)) ? String(id).trim() : '';
-      this.lastPoolId = '';                // 换了一层,上一次的 id 不再代表"这一层"
-      try {
-        this.model = EditorModel.fromText(text, id || '导入的楼层');
-      } catch (e) {
-        this.say('这份 txt 读不出来:' + (e && e.message), 'bad');
+    newLevel(cols, rows, withGround) {
+      this.model = EditorModel.create({
+        cols: cols, rows: rows, withGround: withGround,
+        title: autoTitle(this.takenTitles())
+      });
+      this.resetHistory();
+      this.dirty = false;
+      this.fitView();
+      this.syncUI();
+      this.say(withGround ? '新建了一层(带地面、出生点;接口留空)' : '新建了一层空的');
+    }
+
+    /** 打开 v2 JSON 文本;失败不替换当前图 */
+    openJSONText(text, sourceLabel) {
+      var res = EditorModel.fromJSON(text, { source: sourceLabel || '' });
+      if (!res.ok) {
+        this.say('这份 JSON 打不开:[' + res.error.code + '] ' + res.error.message, 'bad');
         return false;
       }
-      this.undoStack = [];
-      this.redoStack = [];
-      this.fitView();
-      this.markDirty();
-      this.syncUI();
-      this.say('已打开「' + this.model.name + '」(' + this.model.cols + '×' + this.model.rows + ')');
+      this.replaceModel(res.value);
+      this.say('已打开 JSON「' + (this.model.title || this.model.id) + '」(' +
+        this.model.cols + '×' + this.model.rows + ',' + this.model.objects.length + ' 个对象)');
       return true;
     }
 
-    /**
-     * 「打开选中的」:拿这一层**现在真正在用的**那份文本。
-     * 优先级和游戏那边完全一致(都走 RA.LevelPack):
-     *   custom_xxx      → 浏览器里存的那份;
-     *   有 overrides 的  → 覆盖的那份(这才是游戏里正在爬的!以前会打开旧的内嵌文本);
-     *   其余            → levels.js 里的内嵌文本。
-     */
-    textOfPoolId(id) {
-      if (RA.LevelPack.isCustomId(id)) return RA.LevelPack.readCustom()[id] || '';
-      var ov = RA.LevelPack.readOverrides()[id];
-      if (ov) return ov;
-      return (RA.LEVEL_TEXT || {})[id] || '';
+    /** 旧 TXT / 旧 JSON:显式迁移成未认证草稿 */
+    importLegacyText(text, opts) {
+      opts = opts || {};
+      var res = EditorModel.fromLegacy(text, {
+        id: opts.id, fallbackId: opts.fallbackId || opts.id,
+        source: opts.source || ''
+      });
+      if (!res.ok) {
+        this.say('旧图迁移失败:[' + res.error.code + '] ' + res.error.message, 'bad');
+        return false;
+      }
+      this.replaceModel(res.value);
+      this.say('已把旧图迁移成草稿「' + (this.model.title || this.model.id) +
+        '」—— 保留警告 ' + this.model.importWarnings.length +
+        ' 条,ports 留空,不能直接试玩/发布', 'warn');
+      return true;
     }
 
+    replaceModel(model) {
+      this.model = model;
+      this.resetHistory();
+      this.dirty = true;             // 导入的是工作副本,还没导出
+      this.fitView();
+      this.syncUI();
+    }
+
+    /** 打开下拉框里的内置旧关卡(只读复制,不回写 levels/) */
     openFromPool() {
       var sel = this.$('pool-select');
       var id = sel ? sel.value : '';
-      if (!id) { this.say('先在下拉框里选一层', 'bad'); return; }
-      var text = this.textOfPoolId(id);
-      if (!text) { this.say('读不到「' + id + '」的内容', 'bad'); return; }
-      this.openFromText(text, id);
+      if (!id) { this.say('先在下拉框里选一张内置关卡', 'bad'); return; }
+      var text = (RA.LEVEL_TEXT || {})[id];
+      if (!text) { this.say('读不到内置关卡「' + id + '」', 'bad'); return; }
+      this.importLegacyText(text, { id: id, fallbackId: id, source: '内置关卡 ' + id });
     }
 
-    openFiles(files) {
+    /** 文件输入:json = v2 直接读;legacy = 旧 TXT/旧 JSON 显式迁移 */
+    openFiles(files, kind) {
       var self = this;
       if (!files || !files.length) return;
       var f = files[0];
       if (!globalThis.FileReader) { self.say('这个浏览器读不了本地文件', 'bad'); return; }
       var r = new globalThis.FileReader();
       r.onload = function () {
-        self.openFromText(String(r.result || ''), String(f.name || '').replace(/\.txt$/i, ''));
+        var text = String(r.result || '');
+        var base = String(f.name || '').replace(/\.(txt|json)$/i, '');
+        if (kind === 'legacy') {
+          self.importLegacyText(text, { id: base, fallbackId: base, source: f.name });
+        } else {
+          self.openJSONText(text, f.name);
+        }
       };
       r.onerror = function () { self.say('文件读不出来', 'bad'); };
       r.readAsText(f, 'utf-8');
     }
 
-    exportText() {
-      return this.model.toText();
+    // ================= 导出 / 复制 / 查看 =================
+    exportJSON() {
+      return this.model.toJSON();
     }
 
-    /**
-     * 存盘用的文件名:
-     *   从关卡池 / txt 打开的 → 用原来的文件名(存回去,别多出一份);
-     *   新建的 → 用关卡名(所以"起名"就等于给它一个文件名)。
-     */
-    saveFileName() {
-      return this.sourceId ? this.sourceId + '.txt' : this.model.fileName();
-    }
-
-    /** 这一层在关卡池里的 id:从 txt 打开的就用它,新层用关卡名(= txt 文件名) */
-    poolId() {
-      return this.saveFileName().replace(/\.txt$/i, '');
-    }
-
-    /**
-     * 把这一层的文本放进**浏览器里的关卡池**(关卡内容这一半,不动文件):
-     *   · 从 levels/ 打开的那层 → 覆盖同一个 id(floor01 还是 floor01,塔里那层不会变成两层);
-     *   · 新建的层 → 用关卡名当 id 加进去(以后 sync 出来的也是这个名字,不会变成两份)。
-     * 这就是"改了 txt 但 file:// 下游戏还是旧地图"的解药:浏览器这份会兜住。
-     *
-     * 顺手清掉会变成"重复层"的旧副本 —— 不清的话塔结构表里会冒出两个同名的层。
-     * 判断"是同一层"用的是 poolOf 那套归一化名字(空格 / 斜杠都算同一个名字),
-     * 所以就算你中间换过别的层、或者把名字里的空格改来改去,也认得出来。
-     * 返回它在池子里的 id。
-     */
-    applyToGamePool() {
-      var id = this.poolId();
-      var name = String(this.model.name || '').trim();
-      var custom = RA.LevelPack.readCustom();
-      var overrides = RA.LevelPack.readOverrides();
-      // ① 上一轮写进去的 id 不算数了(改过名)
-      if (this.lastPoolId && this.lastPoolId !== id) {
-        RA.LevelPack.removeOverride(this.lastPoolId);
-        RA.LevelPack.removeCustom(RA.LevelPack.customId(this.lastPoolId));
+    downloadJSON() {
+      var res = this.model.toJSON();
+      if (!res.ok) {
+        this.say('导出失败:[' + res.error.code + '] ' + res.error.message +
+          (res.error.issues && res.error.issues[0] ? '(' + res.error.issues[0].path + ')' : ''), 'bad');
+        return false;
       }
-      // ② 从关卡池里"浏览器里存的那一份"打开的层:存成正式名字之后旧副本删掉
-      if (this.sourceId && RA.LevelPack.isCustomId(this.sourceId)) {
-        RA.LevelPack.removeCustom(this.sourceId);
+      var text = res.value;
+      var name = this.model.fileName();
+      try {
+        var blob = new globalThis.Blob([text], { type: 'application/json;charset=utf-8' });
+        var a = globalThis.document.createElement('a');
+        a.href = globalThis.URL.createObjectURL(blob);
+        a.download = name;
+        if (globalThis.document.body) globalThis.document.body.appendChild(a);
+        a.click();
+        if (globalThis.document.body && globalThis.document.body.removeChild) {
+          globalThis.document.body.removeChild(a);
+        }
+        globalThis.URL.revokeObjectURL(a.href);
+        this.say('已发起导出 ' + name + '(浏览器下载;没有写进 levels/,也没有清掉未持久状态)', 'ok');
+        return true;
+      } catch (e) {
+        this.showJSON();
+        this.say('这个浏览器不让直接下载,已经把 JSON 摊开给你手动复制', 'warn');
+        return false;
       }
-      if (name) {
-        // ③ customLevels / overrides 里和这一层同名的旧副本
-        //    (游戏设置里「导入关卡」是按关卡名存成 custom_xxx 的,最容易在这儿撞上)
-        Object.keys(custom).forEach(function (k) {
-          if (k === id || !RA.LevelPack.isCustomId(k)) return;
-          if (RA.LevelPack.sameLevelName(RA.LevelPack.levelName(custom[k], k), name)) {
-            RA.LevelPack.removeCustom(k);
-          }
+    }
+
+    copyJSON() {
+      var res = this.model.toJSON();
+      if (!res.ok) { this.say('导出失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
+      var nav = globalThis.navigator;
+      if (nav && nav.clipboard && nav.clipboard.writeText) {
+        nav.clipboard.writeText(res.value).then(() => {
+          this.say('已复制这一层的 JSON 到剪贴板(文件系统没有变化)', 'ok');
+        }).catch(() => {
+          this.showJSON();
+          this.say('复制不了,已经摊开给你手动复制', 'warn');
         });
-        Object.keys(overrides).forEach(function (k) {
-          if (k === id) return;
-          if (RA.LevelPack.sameLevelName(RA.LevelPack.levelName(overrides[k], k), name)) {
-            RA.LevelPack.removeOverride(k);
-          }
-        });
+      } else {
+        this.showJSON();
+        this.say('这个浏览器不支持直接复制,已经摊开给你手动复制', 'warn');
       }
-      RA.LevelPack.putOverride(id, this.exportText());
-      this.lastPoolId = id;
-      this.dirty = false;          // 这一层的内容已经进关卡池了,"未保存"到此为止
-      return id;
+      return true;
     }
 
-    /**
-     * 新层要写的文件名会不会盖掉**别的**关卡文件?
-     * (比如把一个新层命名成 floor01,就会盖掉 levels/floor01.txt —— 拦住)
-     */
-    fileNameClash() {
-      if (this.sourceId) return '';                 // 打开的那层本来就是覆盖它自己
-      var id = this.poolId();
-      var src = RA.LEVEL_TEXT || {};
-      if (!src[id]) return '';
-      var theirs = RA.LevelPack.levelName(src[id], id);
-      return (theirs === String(this.model.name || '').trim()) ? '' : id;
+    showJSON() {
+      var res = this.model.toJSON();
+      var box = this.$('modal-text');
+      if (box) box.value = res.ok ? res.value : ('导出失败:[' + res.error.code + '] ' + res.error.message);
+      var m = this.$('modal');
+      if (m) m.className = 'show';
     }
 
-    /** 导出前必须有个名字(没有就拦住,并把光标送回输入框) */
-    requireName(what) {
-      if (String(this.model.name || '').trim()) return true;
-      var el = this.$('name');
-      if (el) {
-        if (el.focus) el.focus();
-        if (el.select) el.select();
-      }
-      this.say('先给这一层起个名字,再' + what + ' —— 名字会写进 // name: 注释,也是 txt 文件名', 'bad');
+    closeModal() {
+      var m = this.$('modal');
+      if (m) m.className = '';
+    }
+
+    /** 新格式试玩要等 T03/T04 接通共用会话;不能转成旧 TXT 偷跑 */
+    openPlaytest() {
+      this.say('新格式试玩还没接入(需要 T03 共用会话 + T04 连续世界);' +
+        '现在不会把这一层转成旧 TXT 偷跑', 'warn');
       return false;
     }
 
-    /** 老关卡(从关卡池 / txt 打开的那层)把名字清空了:从原来的文本里把名字找回来 */
-    restoreOriginalName() {
-      if (String(this.model.name || '').trim()) return this.model.name;
-      if (!this.sourceId) return '';
-      var files = RA.LEVEL_TEXT || {};
-      var text = files[this.sourceId];
-      if (text === undefined) text = RA.LevelPack.readOverrides()[this.sourceId];
-      var raw = RA.LevelPack.levelName(text || '', this.sourceId);
-      var name = String(raw || this.sourceId).replace(/\s+/g, ' ').trim() || this.sourceId;
-      this.model.name = name;                  // 注释头也一起找回来(第一行就是它)
-      this.model.header = ['// name: ' + name];
-      this.syncUI();
-      return name;
-    }
-
-    /**
-     * 「保存到游戏」的名字规则:新建的层必须起名(名字就是 txt 文件名);
-     * 从关卡池 / txt 打开的老关卡沿用原来的名字,不用管输入框里是不是空的。
-     */
-    requireNameToSave() {
-      if (String(this.model.name || '').trim()) return true;
-      if (this.sourceId) { this.restoreOriginalName(); return true; }
-      return this.requireName('保存到游戏');
-    }
-
-    /** 现在已经用掉的楼层名(内置的 + 浏览器里存的 + 这次建过的) */
-    takenNames() {
-      var out = [];
-      var custom = RA.LevelPack.readCustom();
-      Object.keys(custom).forEach(function (id) {
-        out.push(RA.LevelPack.levelName(custom[id], id));
-      });
-      var src = RA.LEVEL_TEXT || {};
-      Object.keys(src).forEach(function (id) {
-        out.push(RA.LevelPack.levelName(src[id], id));
-      });
-      (this.madeNames || []).forEach(function (nm) { out.push(nm); });
-      return out;
-    }
-
-    /**
-     * 「保存到游戏」:写一个真的 txt 进 levels/(文件名 = 关卡名),
-     * 同时把浏览器里的关卡池也换成这一份(见 applyToGamePool)。
-     * 没授权过文件夹就先让用户选一次;浏览器不支持写文件夹就退回「下载 txt」。
-     *
-     * opts.quiet    —— 自动写入用:失败不弹提示
-     * opts.afterSave —— 存成功之后干什么(「回游戏」就是靠它:存完再离页)。
-     *                  只有真存成了才调;被拦住 / 用户取消都不调。
-     */
-    saveToFolder(opts) {
-      var self = this;
-      var quiet = !!(opts && opts.quiet);
-      var afterSave = (opts && opts.afterSave) || null;
-      var finish = function (ok) {
-        if (ok && afterSave) afterSave();
-        return ok;
-      };
-      if (!this.requireNameToSave()) return false;
-      var v = this.model.validate();
-      if (v.errors.length) {
-        if (!quiet) this.say('先修好检查里的问题,再保存到游戏:' + v.errors[0], 'bad');
-        return false;
-      }
-      var clash = this.fileNameClash();
-      if (clash) {
-        this.say('「' + clash + '」这个名字会盖掉 levels/' + clash +
-          '.txt(那一层现在叫「' + RA.LevelPack.levelName((RA.LEVEL_TEXT || {})[clash], clash) +
-          '」)—— 换个名字再存', 'bad');
-        return false;
-      }
-      // ① 关卡内容:先放进浏览器里的关卡池(这一步一定做得到)
-      this.applyToGamePool();
-      var text = this.exportText();
-      var file = this.saveFileName();
-      var folder = this.folder;
-      var done = function (res) {
-        self.say('已存进游戏:' + res.dir + '/' + res.file +
-          (res.removed ? '(顺手删掉了改名前的 ' + res.removed + ')' : '') +
-          ' —— 回游戏刷新一下:新的一份按 R 重构塔就有机会刷出来,' +
-          '塔里本来就有的那层刷新后就是新地图(想让内嵌副本也更新就跑 node tools/sync_levels.mjs)', 'ok');
-        self.syncFolderLabel();
-        self.syncPoolLabel();
-        return finish(true);
-      };
-      var fail = function (e) {
-        self.say('写不进去:' + ((e && e.message) || e) +
-          '(也可以用「下载 txt」,下载下来的文件名就是关卡名)', 'bad');
-        return false;
-      };
-      if (folder.handle) return folder.write(file, text).then(done).catch(fail);
-      if (!folder.supported()) {
-        if (!quiet) {
-          this.say('这个浏览器不给网页写文件夹(Chrome / Edge 支持),改成下载 txt —— ' +
-            '把它丢进 levels/ 一样是"存进游戏"。**浏览器里的关卡池已经换成新的了**,刷新就有效果',
-            'warn');
-        }
-        this.syncPoolLabel();
-        return finish(this.download({ quiet: true }));
-      }
-      if (quiet) return false;                    // 自动保存不去骚扰用户要权限
-      return folder.pick().then(function (ok) {
-        if (!ok) { self.say('没选文件夹,没存', 'warn'); return false; }
-        self.syncFolderLabel();
-        return folder.write(file, text).then(done).catch(fail);
-      });
-    }
-
-    // ================= 回游戏(离开编辑器之前先问要不要存) =================
-    /**
-     * 点左上角「← 回游戏」:
-     *   · 这一层**没改过** → 直接回(关掉这一页 / 回原来那一页);
-     *   · 有没保存的改动 → 先用 confirm 问一句"要不要先保存到游戏?";
-     *       选"是" = 走一遍「保存到游戏」(新层没名字会先让你起名;存失败就留在编辑器);
-     *       选"否" = 不保存,直接回。
-     *
-     * 用浏览器自带的 confirm 是故意的:它一句话就能问清楚,而且用户点"是"的这次手势
-     * 还能接着用于「选择 levels 文件夹…」的授权弹窗(async 弹窗会被拦)。
-     */
+    // ================= 回游戏 =================
     leaveForGame() {
-      var self = this;
-      var ask = globalThis.confirm;
       var dirty = !!this.dirty;
+      var ask = globalThis.confirm;
       if (dirty && typeof ask === 'function') {
-        var yes = ask('这一层有改动还没保存。\n\n要先把「' +
-          (this.model.name || '未命名楼层') + '」保存到游戏吗?\n' +
-          '(选「是」= 保存到游戏;新建的层还没起名的话会先让你起个名字)\n' +
-          '(选「否」= 不保存,直接回游戏)');
-        if (yes) {
-          this.saveToFolder({ afterSave: function () { self.leavePage(); } });
-          return true;
-        }
+        var yes = ask('这一层有改动还没导出 JSON。\n\n确定要离开编辑器吗?\n' +
+          '(选「否」= 留下继续;导出请用「导出 JSON」)');
+        if (!yes) return false;
       }
       this.leavePage();
       return true;
     }
 
-    /** 真的离开编辑器:能关标签页就关,关不掉就跳回 index.html */
     leavePage() {
       try {
         if (typeof globalThis.close === 'function') {
@@ -1180,192 +1161,115 @@
       return false;
     }
 
-    /** 点了「选择 levels 文件夹」 */
-    pickFolder() {
-      var self = this;
-      if (!this.folder.supported()) {
-        this.say('这个浏览器不支持"授权文件夹"(Chrome / Edge 支持),用「下载 txt」吧 —— ' +
-          '文件名就是关卡名,丢进 levels/ 一样用', 'warn');
+    // ================= 尺寸 =================
+    changeSize(cols, rows) {
+      if (isNaN(cols) || isNaN(rows)) { this.syncUI(); return false; }
+      var nc = capCols(cols);
+      var nr = capRows(rows);
+      var impact = this.model.resizeImpact(nc, nr);
+      var lossy = impact.total > 0;
+      if (lossy) {
+        var ask = globalThis.confirm;
+        var msg = '缩小到 ' + nc + '×' + nr + ' 会丢弃:\n' +
+          '· 地形 ' + impact.tiles + ' 格\n' +
+          '· 对象 ' + impact.objects + ' 个\n' +
+          '· 路径 ' + impact.paths + ' 条(共 ' + impact.pathPoints + ' 点)\n' +
+          '· 出生点 ' + impact.spawn + '\n' +
+          '· 装饰 ' + impact.decorations + '\n\n确定继续吗?(可以撤销)';
+        if (typeof ask === 'function' && !ask(msg)) {
+          this.syncUI();
+          this.say('已取消缩小,地图没有任何改动', 'warn');
+          return false;
+        }
+      }
+      this.pushUndo();
+      var res = this.model.resize(nc, nr, { allowLoss: true });
+      if (!res.ok) {
+        this.popUndo();
+        this.say('改尺寸失败:[' + res.error.code + '] ' + res.error.message, 'bad');
+        this.syncUI();
         return false;
       }
-      this.folder.pick().then(function (ok) {
-        self.syncFolderLabel();
-        if (ok) {
-          self.say('记住了文件夹「' + self.folder.label + '」—— 以后「保存到游戏」直接写进去', 'ok');
-        } else {
-          self.say('没选文件夹', 'warn');
-        }
-      });
-      return true;
-    }
-
-    forgetFolder() {
-      var self = this;
-      this.folder.forget().then(function () {
-        self.syncFolderLabel();
-        self.say('忘掉了那个文件夹,下次要重新选');
-      });
-    }
-
-    /** 右侧那行"关卡池里都有什么"的提示 */
-    syncPoolLabel() {
-      var el = this.$('pool-label');
-      if (!el) return;
-      var nBuilt = Object.keys(RA.LEVEL_TEXT || {}).length;
-      var nOv = Object.keys(RA.LevelPack.readOverrides()).length;
-      var nCus = 0;
-      Object.keys(RA.LevelPack.readCustom()).forEach(function (id) {
-        if (RA.LevelPack.isCustomId(id)) nCus++;
-      });
-      el.textContent = '关卡池:' + nBuilt + ' 个内置' +
-        (nOv ? ' + ' + nOv + ' 个存过 / 改过(✎)' : '') +
-        (nCus ? ' + ' + nCus + ' 个只在浏览器里(★)' : '') +
-        ' —— 下拉框里选一层,「打开选中的」就能接着改';
-    }
-
-    /** 右上角那行"目标文件夹"提示 */
-    syncFolderLabel() {
-      var el = this.$('folder-label');
-      if (!el) return;
-      var f = this.folder;
-      var want = this.saveFileName();
-      if (f.handle) {
-        el.textContent = '目标文件夹:' + (f.label || 'levels') + ' → 「保存到游戏」会写成 ' + want +
-          (f.lastFile && f.lastFile !== want ? '(上次写了 ' + f.lastFile + ')' : '');
-      } else if (f.supported()) {
-        el.textContent = '还没选文件夹 —— 点上面那个按钮授权一次,之后「保存到游戏」就直接写进 levels/(' +
-          want + ')。';
-      } else {
-        el.textContent = '这个浏览器不支持写文件夹,用「下载 txt」—— 文件名就是关卡名,丢进 levels/ 一样用。';
-      }
-    }
-
-    /** 开了"自动写入"就攒一下:改完 1.5 秒没再动就写进 levels/ */
-    autoSaveTick() {
-      var self = this;
-      if (!this.autoSave || !this.folder || !this.folder.handle || !globalThis.setTimeout) return;
-      if (this._saveTimer && globalThis.clearTimeout) globalThis.clearTimeout(this._saveTimer);
-      this._saveTimer = globalThis.setTimeout(function () {
-        self._saveTimer = null;
-        self.saveToFolder({ quiet: true });
-      }, this.autoSaveDelay === undefined ? 1500 : this.autoSaveDelay);
-    }
-
-    download(opts) {
-      var quiet = !!(opts && opts.quiet);
-      if (!String(this.model.name || '').trim()) this.restoreOriginalName();  // 老关卡:名字在文件里
-      if (!this.requireName('下载 txt')) return false;
-      var text = this.exportText();
-      var v = this.model.validate();
-      var name = this.saveFileName();
-      var doc = globalThis.document;
-      try {
-        var blob = new globalThis.Blob([text], { type: 'text/plain;charset=utf-8' });
-        var a = doc.createElement('a');
-        a.href = globalThis.URL.createObjectURL(blob);
-        a.download = name;
-        if (doc.body) doc.body.appendChild(a);
-        a.click();
-        if (doc.body && doc.body.removeChild) doc.body.removeChild(a);
-        globalThis.URL.revokeObjectURL(a.href);
-        if (quiet) return true;
-        this.say('已下载 ' + name + '(只动文件,游戏里的关卡池没变)—— 放进 levels/ 再跑 ' +
-          'node tools/sync_levels.mjs;想连游戏一起更新就点「保存到游戏」' +
-          (v.errors.length ? '(注意:检查里还有 ' + v.errors.length + ' 个问题)' : ''),
-          v.errors.length ? 'warn' : 'ok');
-      } catch (e) {
-        if (quiet) return false;
-        this.showText();
-        this.say('这个浏览器不让直接下载,已经把 txt 摊开给你手动复制了', 'warn');
-      }
-      return true;
-    }
-
-    copyText() {
-      if (!String(this.model.name || '').trim()) this.restoreOriginalName();  // 老关卡:名字在文件里
-      if (!this.requireName('复制')) return false;
-      var text = this.exportText();
-      var nav = globalThis.navigator;
-      if (nav && nav.clipboard && nav.clipboard.writeText) {
-        nav.clipboard.writeText(text).then(() => {
-          this.say('已复制这一层的 txt 到剪贴板', 'ok');
-        }).catch(() => {
-          this.showText();
-          this.say('复制不了,已经摊开给你手动复制', 'warn');
-        });
-      } else {
-        this.showText();
-        this.say('这个浏览器不支持直接复制,已经摊开给你手动复制', 'warn');
-      }
-    }
-
-    showText() {
-      var box = this.$('modal-text');
-      if (box) box.value = this.exportText();
-      var m = this.$('modal');
-      if (m) m.className = 'show';
-    }
-
-    closeModal() {
-      var m = this.$('modal');
-      if (m) m.className = '';
-    }
-
-    // ================= 尺寸 / 检查 =================
-    changeSize(cols, rows) {
-      if (isNaN(cols) || isNaN(rows)) { this.syncUI(); return; }
-      var capped = (cols > MAX_COLS || (MAX_ROWS > 0 && rows > MAX_ROWS));
-      this.pushUndo();
-      var changed = this.model.setSize(cols, rows);
-      if (changed) this.markDirty();
+      this.markDirty();
       this.fitView();
       this.syncUI();
       this.say('尺寸改成 ' + this.model.cols + ' × ' + this.model.rows +
-        (capped ? '(' + limitText() + ')' : ''));
+        (lossy ? '(已按确认丢弃界外内容,可撤销)' : ''));
+      return true;
     }
 
     // ================= 撤销 / 重做 =================
-    snapshot() {
-      return {
-        cols: this.model.cols, rows: this.model.rows, name: this.model.name,
-        header: this.model.header.slice(),
-        cells: this.model.cells.map(function (row) { return row.join(''); })
-      };
-    }
-
-    restore(s) {
-      this.model.cols = s.cols;
-      this.model.rows = s.rows;
-      this.model.name = s.name;
-      this.model.header = s.header.slice();
-      this.model.cells = s.cells.map(function (line) { return line.split(''); });
-      this.syncUI();
+    /**
+     * 快照保存整份 LevelData(不是只有地形)。预算:最多 100 步 / 32 MiB,
+     * 估算方式是真实 JSON 的 UTF-8 字节数;超出先淘汰最旧的。
+     */
+    snapshotJSON() {
+      return JSON.stringify(this.model.toData());
     }
 
     pushUndo() {
-      this.undoStack.push(this.snapshot());
-      if (this.undoStack.length > 80) this.undoStack.shift();
+      var json = this.snapshotJSON();
+      var bytes = byteLength(json);
+      this.undoStack.push({ json: json, bytes: bytes });
+      this.undoBytes += bytes;
       this.redoStack = [];
+      this.redoBytes = 0;
+      while (this.undoStack.length > HISTORY_STEPS ||
+        (this.undoBytes > HISTORY_BYTES && this.undoStack.length > 1)) {
+        var old = this.undoStack.shift();
+        this.undoBytes -= old.bytes;
+      }
+    }
+
+    popUndo() {
+      var old = this.undoStack.pop();
+      if (old) this.undoBytes -= old.bytes;
+    }
+
+    restoreSnapshot(json) {
+      var data = JSON.parse(json);
+      this.model = EditorModel.fromTrusted(data);
+      this.model.importWarnings = [];
+      // 首版保守策略:undo/redo 不恢复旧通关资格
+      this.model.invalidate();
       this.syncUI();
     }
 
     undo() {
       if (!this.undoStack.length) { this.say('没有可以撤销的了'); return; }
-      this.redoStack.push(this.snapshot());
-      this.restore(this.undoStack.pop());
+      var cur = this.snapshotJSON();
+      var bytes = byteLength(cur);
+      this.redoStack.push({ json: cur, bytes: bytes });
+      this.redoBytes += bytes;
+      var prev = this.undoStack.pop();
+      this.undoBytes -= prev.bytes;
+      this.restoreSnapshot(prev.json);
+      this.dirty = true;
       this.say('撤销');
     }
 
     redo() {
       if (!this.redoStack.length) { this.say('没有可以重做的了'); return; }
-      this.undoStack.push(this.snapshot());
-      this.restore(this.redoStack.pop());
+      var cur = this.snapshotJSON();
+      var bytes = byteLength(cur);
+      this.undoStack.push({ json: cur, bytes: bytes });
+      this.undoBytes += bytes;
+      var next = this.redoStack.pop();
+      this.redoBytes -= next.bytes;
+      this.restoreSnapshot(next.json);
+      this.dirty = true;
       this.say('重做');
+    }
+
+    resetHistory() {
+      this.undoStack = [];
+      this.redoStack = [];
+      this.undoBytes = 0;
+      this.redoBytes = 0;
     }
 
     markDirty() {
       this.dirty = true;
-      this.autoSaveTick();          // 开了自动写入的话,攒 1.5 秒再落盘
     }
 
     // ================= 坐标换算 / 视角 =================
@@ -1385,7 +1289,6 @@
       var before = this.cellAt(sx, sy);
       var z = RA.clamp(this.view.zoom * factor, 0.06, 3);
       if (z === this.view.zoom) return;
-      // 缩放前后鼠标指着同一格
       this.view.zoom = z;
       this.view.x = before.c * TS - sx / z;
       this.view.y = before.r * TS - sy / z;
@@ -1426,7 +1329,7 @@
       }
       if (this._needSync) {
         this._syncT = (this._syncT || 0) + dt;
-        if (this._syncT >= 0.15) this.syncUI();      // 一笔画完再刷面板,拖动时不卡
+        if (this._syncT >= 0.15) this.syncUI();
       }
 
       var mouse = inp.mouse || { x: 0, y: 0 };
@@ -1440,7 +1343,7 @@
 
       if (ctrl && just('KeyZ')) { inp.codes.ShiftLeft ? this.redo() : this.undo(); }
       else if (ctrl && just('KeyY')) this.redo();
-      else if (ctrl && just('KeyS')) this.download();
+      else if (ctrl && just('KeyS')) this.downloadJSON();
       else if (just('KeyP')) this.openPlaytest();
       else if (just('KeyB')) this.setTool('brush');
       else if (just('KeyE')) this.setTool('erase');
@@ -1484,7 +1387,6 @@
         }
         this.stroke = null;
       } else if (!inside) {
-        // 鼠标跑到画布外面了(拖出去 / 离开窗口):这一笔就收尾,别在看不见的地方乱画
         if (this.stroke) this.endStroke();
       } else if (inp.buttons[0]) {
         this.paintStep(mouse);
@@ -1499,18 +1401,16 @@
       if (this.msgT <= 0) this.updateStatus(mouse, inside);
     }
 
-    /**
-     * 需要时把地图撑大,返回坐标系的平移量 {dc,dr}(内容整体往右下挪了几格)。
-     * 自动扩展时视口跟着补偿,所以画面上不会跳;返回 false = 到上限了。
-     */
+    /** 需要时把地图撑大,返回坐标平移量 {dc,dr};false = 到上限 */
     growTo(c0, r0, c1, r1) {
       var left = c0 < 0 ? -c0 : 0;
       var top = r0 < 0 ? -r0 : 0;
       var right = Math.max(0, c1 + 1 - this.model.cols);
       var bottom = Math.max(0, r1 + 1 - this.model.rows);
       if (!left && !right && !top && !bottom) return null;
-      if (!this.model.grow(left, right, top, bottom)) {
-        this.say('画不下去了:' + limitText(), 'bad');
+      var res = this.model.grow(left, right, top, bottom);
+      if (!res.ok) {
+        this.say('画不下去了:' + res.error.message, 'bad');
         return false;
       }
       this.view.x += left * TS;
@@ -1518,7 +1418,6 @@
       return { dc: left, dr: top };
     }
 
-    /** 地图撑大之后,把这一笔里已经记下的格子一起挪过去 */
     shiftStroke(s) {
       if (!this.stroke) return;
       ['start', 'end', 'last'].forEach((k) => {
@@ -1535,8 +1434,13 @@
 
       if (!this.stroke) {
         if (tool === 'pick') {
-          var picked = this.model.get(cell.c, cell.r);
-          this.selectChar(picked);
+          var picked = this.model.getChar(cell.c, cell.r);
+          var obj = this.model.objectAt(cell.c, cell.r);
+          if (picked === null && obj) {
+            this.say('这一格是未注册对象 "' + obj.type + '",画笔不能取它(位置会保留)', 'warn');
+            return;
+          }
+          this.selectChar(picked === null ? AIR : picked);
           this.say('取到 ' + (picked === AIR ? '空气' : "'" + picked + "'"));
           return;
         }
@@ -1558,7 +1462,6 @@
         }
       }
 
-      // 自动扩展:把这一笔整段(上一次的点 → 这一次的点,含笔刷大小)都包进来
       if (this.autoGrow) {
         var half = Math.floor((this.brush - 1) / 2);
         var c0 = cell.c, c1 = cell.c, r0 = cell.r, r1 = cell.r;
@@ -1588,7 +1491,6 @@
     }
 
     paintLine(a, b, ch) {
-      // 两点之间按 Bresenham 补格,拖快了也不会断
       var dx = Math.abs(b.c - a.c), dy = Math.abs(b.r - a.r);
       var sx = a.c < b.c ? 1 : -1, sy = a.r < b.r ? 1 : -1;
       var err = dx - dy, x = a.c, y = a.r, guard = 0;
@@ -1602,13 +1504,12 @@
       this.afterEdit();
     }
 
-    /** 在 (c,r) 盖一个"笔刷大小"的方块(超出边界的部分自动忽略) */
     stamp(c, r, ch) {
       var n = this.brush;
       var half = Math.floor((n - 1) / 2);
       for (var dr = -half; dr < n - half; dr++) {
         for (var dc = -half; dc < n - half; dc++) {
-          this.model.set(c + dc, r + dr, ch);
+          this.model.applyChar(c + dc, r + dr, ch);
         }
       }
     }
@@ -1636,48 +1537,7 @@
 
     afterEdit() {
       this.markDirty();
-      this._needSync = true;      // 拖动时别每帧都去校验整张图,攒一下再刷面板
-    }
-
-    // ================= 试玩(开新标签页,见 play.html / js/playtest.js) =================
-    /**
-     * 点「▶ 试玩」/ 按 P:把这一层原样交给新标签页里的真引擎。
-     * 页面之间怎么传:① 直接把这份快照挂在 this.playTests[i] 上(试玩页问 opener 要);
-     *                 ② sessionStorage 兜底(外面那一页关掉了、或者刷新了也还在)。
-     * 为什么不在这一页里玩:编辑器这一页是原生控件 + 地图画布,塞不下全屏游戏;
-     * 新标签页玩完关掉就"回到编辑器",原来这一页的撤销栈、视角、光标全都没动。
-     */
-    openPlaytest() {
-      var v = this.model.validate();
-      if (v.errors.length) {
-        this.say('先修好:' + v.errors[0], 'bad');
-        return false;
-      }
-      var text = this.exportText();
-      var i = this.playTests.length;
-      var entry = { name: this.model.name, text: text };
-      this.playTests.push(entry);
-      this.lastPlaytest = entry;
-      // 兜底:存一份专门给试玩页用的(不碰关卡池那两把钥匙)
-      // 键名和 playtest.js 里共用同一个常量,别在这儿写死字符串
-      try {
-        var s = globalThis.sessionStorage;
-        if (s) s.setItem(RA.PLAYTEST_KEY || 'reverse_abyss.playtest', JSON.stringify(entry));
-      } catch (e) { /* 存不了也能靠 opener 传过去 */ }
-
-      var url = 'play.html?i=' + i;
-      var opened = null;
-      if (typeof globalThis.open === 'function') {
-        opened = globalThis.open(url, '_blank');
-      }
-      if (!opened) {
-        this.say('浏览器拦住了新标签页(允许弹窗后再点一次「▶ 试玩」)', 'warn');
-        return false;
-      }
-      this.won = false;                      // 这一页只记"刚开过一次试玩"
-      this.say('已在新标签页里试玩「' + (this.model.name || '未命名楼层') +
-        '」—— 通关或按 Esc 之后可以「重新开始」或「回编辑器」(关掉那一页)', 'ok');
-      return true;
+      this._needSync = true;
     }
 
     // ================= 绘制 =================
@@ -1693,7 +1553,6 @@
       var ts = TS * z;
       var B = { x: 0, y: 0, w: this.W, h: this.H };
 
-      // 关卡范围(外面那圈深一点,和"空气"区分开)
       var o = this.cellToScreen(0, 0);
       RA.rect(ctx, o.x, o.y, m.worldW() * z, m.worldH() * z, [22, 26, 40]);
 
@@ -1713,24 +1572,24 @@
         }
       }
 
-      // 小格子范围(算一次,地块 / 网格 / 地物都用)
       var vc0 = Math.max(0, Math.floor(this.view.x / TS));
       var vr0 = Math.max(0, Math.floor(this.view.y / TS));
       var vc1 = Math.min(m.cols - 1, Math.floor((this.view.x + B.w / z) / TS));
       var vr1 = Math.min(m.rows - 1, Math.floor((this.view.y + B.h / z) / TS));
 
-      // 地块
+      // 地块(直接读 LevelData.terrain.tiles,没有第二份字符地图)
       var tiny = ts < 8;
       for (r = vr0; r <= vr1; r++) {
         for (c = vc0; c <= vc1; c++) {
-          var ch = m.cells[r][c];
-          if (!RA.isTileChar(ch)) continue;      // 实心和单向云板都要画
+          var tileId = m.getTile(c, r);
+          if (!tileId) continue;
+          var ch = LD.charOf(tileId);
+          if (!ch) continue;
           var q = this.cellToScreen(c, r);
           if (tiny) {
             ctx.fillStyle = tileColor(ch);
             ctx.fillRect(q.x, q.y, ts + 0.5, ts + 0.5);
           } else {
-            // 贴图不一定是 45×45(现在用的是 16×16 像素画),交给引擎缩放到这一格
             RA.drawTile(ctx, ch, this.assets.image(RA.TILE_IMAGES[ch][0]), q.x, q.y, ts);
           }
         }
@@ -1753,44 +1612,72 @@
         ctx.restore();
       }
 
-      // 地物(出口 / 弹簧板 / 以后加的任何东西)
       if (this.showEntities) {
-        for (r = vr0; r <= vr1; r++) {
-          for (c = vc0; c <= vc1; c++) {
-            ch = m.cells[r][c];
-            var cls = RA.BY_LETTER[ch];
-            if (!cls) continue;
-            q = this.cellToScreen(c, r);
+        // 对象:注册类型画自己的图标;未注册类型画占位并标出来
+        var self = this;
+        m.data.objects.forEach(function (obj) {
+          if (obj.col < vc0 || obj.col > vc1 || obj.row < vr0 || obj.row > vr1) return;
+          var q2 = self.cellToScreen(obj.col, obj.row);
+          var reg = RA.EntityRegistry.get(obj.type);
+          var letter = reg && reg.letter;
+          var cls = letter ? RA.BY_LETTER[letter] : null;
+          if (cls && ts >= 12) {
+            cls.prototype.drawIcon(ctx, q2.x, q2.y, ts);
+          } else if (cls) {
+            ctx.fillStyle = hashColor(letter);
+            ctx.fillRect(q2.x, q2.y, ts + 0.5, ts + 0.5);
+          } else {
+            // 注册了但没有旧字符的机关(火球/地刺/齿轮)用蓝灰占位;
+            // 完全未注册的对象用紫色占位 —— 文件和画面里都不会消失
+            var knownNoLetter = !!reg;
+            RA.rect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2,
+              knownNoLetter ? [34, 48, 78] : [72, 40, 96], 4);
+            RA.strokeRect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2,
+              knownNoLetter ? [120, 176, 236] : [206, 130, 255], 2, 4);
             if (ts >= 12) {
-              cls.prototype.drawIcon(ctx, q.x, q.y, ts);
-            } else {
-              ctx.fillStyle = hashColor(ch);
-              ctx.fillRect(q.x, q.y, ts + 0.5, ts + 0.5);
-              RA.text(ctx, ch, Math.max(8, ts * 0.7), [255, 255, 255],
-                q.x + ts / 2, q.y + ts / 2, { bold: true, shadow: false });
+              var mark = knownNoLetter ? (obj.type || '?').slice(0, 2) : '?';
+              RA.text(ctx, mark, Math.max(7, ts * 0.3),
+                knownNoLetter ? [198, 224, 255] : [238, 214, 255],
+                q2.x + ts / 2, q2.y + ts / 2, { bold: true, shadow: false });
             }
+          }
+        });
+
+        // 出生点
+        var sp = m.data.spawn;
+        if (sp) {
+          var q3 = this.cellToScreen(sp.col, sp.row);
+          ctx.save();
+          ctx.globalAlpha = 0.9;
+          RA.strokeRect(ctx, q3.x + 1, q3.y + 1, ts - 2, ts - 2, [240, 150, 100], 2, 4);
+          ctx.restore();
+          RA.polygon(ctx, [[q3.x + ts / 2, q3.y + ts * 0.18],
+            [q3.x + ts * 0.28, q3.y + ts * 0.44],
+            [q3.x + ts * 0.72, q3.y + ts * 0.44]], [240, 150, 100]);
+          if (ts >= 14) {
+            RA.text(ctx, 'P', Math.round(ts * 0.34), [255, 210, 180],
+              q3.x + ts / 2, q3.y + ts * 0.68, { bold: true, shadow: false });
           }
         }
 
-        // 起点标记也归"地物"这一类(它不是地形,是个位置标记)
-        RA.SPAWN_CHARS.split('').forEach((ch) => {
-          m.findChar(ch).forEach((p) => {
-            var q2 = this.cellToScreen(p.c, p.r);
-            if (q2.x + ts < -40 || q2.x > this.W + 40 ||
-              q2.y + ts < -40 || q2.y > this.H + 40) return;
+        // 旧出口 G:只显示迁移信息,不是可编辑接口
+        var legacy = m.data.extensions && m.data.extensions.legacy;
+        if (legacy && legacy.exit) {
+          var g = legacy.exit;
+          if (!(g.col < vc0 || g.col > vc1 || g.row < vr0 || g.row > vr1)) {
+            var q4 = this.cellToScreen(g.col, g.row);
             ctx.save();
-            ctx.globalAlpha = 0.9;
-            RA.strokeRect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2, [240, 150, 100], 2, 4);
+            ctx.globalAlpha = 0.5;
+            if (ctx.setLineDash) ctx.setLineDash([5, 4]);
+            RA.strokeRect(ctx, q4.x + 2, q4.y + 2, ts - 4, ts - 4, [200, 160, 255], 2, 3);
+            if (ctx.setLineDash) ctx.setLineDash([]);
             ctx.restore();
-            RA.polygon(ctx, [[q2.x + ts / 2, q2.y + ts * 0.18],
-              [q2.x + ts * 0.28, q2.y + ts * 0.44],
-              [q2.x + ts * 0.72, q2.y + ts * 0.44]], [240, 150, 100]);
             if (ts >= 14) {
-              RA.text(ctx, 'P', Math.round(ts * 0.34), [255, 210, 180],
-                q2.x + ts / 2, q2.y + ts * 0.68, { bold: true, shadow: false });
+              RA.text(ctx, 'G旧', Math.round(ts * 0.26), [210, 180, 255],
+                q4.x + ts / 2, q4.y + ts / 2, { bold: true, shadow: false });
             }
-          });
-        });
+          }
+        }
       }
 
       // 矩形预览 / 悬停格
@@ -1813,7 +1700,6 @@
           [255, 205, 110], 2, 3);
       }
 
-      // 关卡外框
       RA.strokeRect(ctx, o.x, o.y, m.worldW() * z, m.worldH() * z, [120, 150, 200], 2, 0);
     }
 
@@ -1821,18 +1707,25 @@
     updateStatus(mouse, inside) {
       if (!inside) { this.announce('鼠标不在画布上'); return; }
       var cell = this.cellAt(mouse.x, mouse.y);
-      var ch = this.model.get(cell.c, cell.r);
       var what = '空气';
-      if (RA.isTileChar(ch)) what = RA.TILE_IMAGES[ch][1];
-      else if (RA.SPAWN_CHARS.indexOf(ch) >= 0) what = '出生点';
-      else if (RA.BY_LETTER[ch]) what = RA.BY_LETTER[ch].NAME || ch;
+      var tileId = this.model.getTile(cell.c, cell.r);
+      var obj = this.model.objectAt(cell.c, cell.r);
+      var sp = this.model.spawn;
+      if (tileId !== 0) {
+        var info = LD.tileInfo(tileId);
+        what = info ? info.name + '(地块 ' + tileId + ')' : '地块 ' + tileId;
+      } else if (sp && sp.col === cell.c && sp.row === cell.r) {
+        what = '出生点';
+      } else if (obj) {
+        var reg = RA.EntityRegistry.get(obj.type);
+        what = (reg ? reg.name : '未注册对象') + ' · ' + obj.type + ' · id ' + obj.id;
+      }
       var tool = TOOLS.filter((t) => t.id === this.tool)[0];
       this.announce('第 ' + (cell.r + 1) + ' 行 第 ' + (cell.c + 1) + ' 列 · ' +
         what + '   |   ' + (tool ? tool.name : '') + ' 笔刷 ' + this.brush +
         '   |   左键画 · 右键拖动平移 · 滚轮缩放 · Ctrl+Z 撤销');
     }
 
-    /** 状态栏文字(带一点颜色) */
     announce(text, kind) {
       if (text === this._lastStatus) return;
       this._lastStatus = text;
@@ -1846,7 +1739,7 @@
     say(text, kind) {
       this.msg = text;
       this.msgT = text ? 4 : 0;
-      this._lastStatus = null;          // 强制刷一次
+      this._lastStatus = null;
       this.announce(text, kind);
     }
 
@@ -1855,58 +1748,53 @@
       this._needSync = false;
       this._syncT = 0;
       var self = this;
-      this.syncFolderLabel();
-      this.syncPoolLabel();
-      var set = function (id, prop, val) {
+      var set = (id, prop, val) => {
         var el = self.$(id);
         if (el) el[prop] = val;
       };
-      set('name', 'value', this.model.name);
+      // 正在输入标题时不要回写输入框(否则光标会跳)
+      var active = globalThis.document.activeElement;
+      if (!(active && active.id === 'name')) set('name', 'value', this.model.title);
       set('w-input', 'value', this.model.cols);
       set('h-input', 'value', this.model.rows);
-      var skySel = this.$('sky-select');
-      if (skySel) skySel.value = this.model.getMeta('sky') || '';
-      set('brush-label', 'textContent', String(this.brush));
-      set('size-label', 'textContent',
-        this.model.cols + ' × ' + this.model.rows + ' 格');
+      set('size-label', 'textContent', this.model.cols + ' × ' + this.model.rows + ' 格');
+      set('id-label', 'textContent', 'id: ' + this.model.id);
       set('world-label', 'textContent',
         '世界 ' + this.model.worldW() + ' × ' + this.model.worldH() + ' px · 一格 ' + TS +
-        'px' + (MAX_ROWS > 0 ? '' : ' · 高度不限'));
-      // 勾选框的状态永远由内部状态说了算(免得勾选/画面反着来)
+        'px · ' + limitsText());
+      set('brush-label', 'textContent', String(this.brush));
       set('chk-grid', 'checked', this.grid);
       set('chk-entities', 'checked', this.showEntities);
       set('chk-autogrow', 'checked', this.autoGrow);
 
-      // 关卡下拉框:内嵌的 + 浏览器里存的 + 改过的覆盖
-      // 同一个"层"只列一条:内容一样的内嵌层和 custom_ 副本合成一条(见 primaryOf),
-      // 名字不同的才算两层不同的关卡。
+      var skySel = this.$('sky-select');
+      if (skySel) skySel.value = this.model.backgroundId || '';
+      var diffSel = this.$('difficulty-select');
+      if (diffSel) diffSel.value = String(this.model.difficulty === null ? 1 : this.model.difficulty);
+
+      // 内置关卡下拉框:只读副本
       var sel = this.$('pool-select');
       if (sel && sel.tagName !== undefined) {
-        var ovIds = Object.keys(RA.LevelPack.readOverrides());
-        var pool = RA.LevelPack.poolOf(RA.LevelPack.build(RA.LEVEL_TEXT || {})).list;
-        var want = pool.map(function (e) { return e.id; }).join(',') +
-          '|' + ovIds.sort().join(',');
+        var ids = Object.keys(RA.LEVEL_TEXT || {});
+        var want = ids.join(',');
         if (sel.__want !== want) {
           sel.__want = want;
           sel.innerHTML = '';
-          var add = function (id, label) {
+          ids.forEach(function (id) {
             var op = globalThis.document.createElement('option');
             op.value = id;
-            op.textContent = label;
+            op.textContent = id + ' · ' + RA.LevelPack.levelName(RA.LEVEL_TEXT[id], id);
             sel.appendChild(op);
-          };
-          RA.LevelPack.primaryOf(pool).forEach(function (e) {
-            var mark = e.overridden ? '✎ ' : (e.custom ? '★ ' : '');
-            var tail = e.overridden ? ' · 浏览器里存过/改过'
-              : (e.custom ? ' · 浏览器里存的' : '');
-            // 列出 id(文件名):同名但来源不同的层也分得清(custom_xxx 那种把名字放前面)
-            var label = e.custom ? (e.name + ' · ' + e.id) : (e.id + ' · ' + e.name);
-            add(e.id, mark + label + tail);
           });
         }
       }
+      var pl = this.$('pool-label');
+      if (pl) {
+        pl.textContent = '内置关卡 ' + Object.keys(RA.LEVEL_TEXT || {}).length +
+          ' 张:打开后是可编辑的迁移副本;导出为新的 JSON,不回写 levels/';
+      }
 
-      // 检查面板
+      // 检查面板:直接来自共用 LevelData.validate(draft)
       var v = this.model.validate();
       var html = [];
       v.errors.forEach(function (e) { html.push('<li class="bad">✖ ' + esc(e) + '</li>'); });
@@ -1926,8 +1814,6 @@
       if (bu) bu.disabled = !this.undoStack.length;
       var br = this.$('btn-redo');
       if (br) br.disabled = !this.redoStack.length;
-      var bs = this.$('btn-save-folder');
-      if (bs) bs.disabled = v.errors.length > 0;      // 先修好问题再「保存到游戏」
       this.highlightPalette();
       this.highlightTools();
       this._dirtyDoc = this.dirty;
@@ -1951,12 +1837,6 @@
     }
   }
 
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-  }
-
   RA.EditorModel = EditorModel;
   RA.EditorPalette = EditorPalette;
   RA.Editor = Editor;
@@ -1977,9 +1857,7 @@
   }
 
   // 自检页面不想自动起编辑器,可以设 window.RA_EDITOR_NO_BOOT = true
-  RA.EditorModel.autoName = autoLevelName;
-  RA.LevelFolder = LevelFolder;
-  RA.EditorBoot = boot;                 // 自检里也能手动走一遍页面加载时的这条路径
+  RA.EditorBoot = boot;
   if (!globalThis.RA_EDITOR_NO_BOOT) {
     if (globalThis.document.readyState === 'loading') {
       globalThis.document.addEventListener('DOMContentLoaded', boot);
