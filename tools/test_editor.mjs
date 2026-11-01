@@ -596,6 +596,252 @@ head('页面接线:editor.html 的 id / 脚本与 editor.js 对得上');
   })());
 }
 
+// ================= ⑫ T02A-R:画笔幂等 / 失败导入零替换 / 缩图接口 =================
+head('A1:机关画笔同格幂等,不堆叠、不重置已有对象');
+{
+  const m = RA.EditorModel.create({ cols: 10, rows: 8 });
+  m.applyChar(4, 4, 'S');
+  const first = m.objects[0];
+  first.params.bounceVel = -900;
+  first.note = 'author-data';
+  const firstId = first.id;
+  for (let i = 0; i < 60; i++) m.applyChar(4, 4, 'S');
+  check('同格画 S 60 次只有一个对象', m.objects.length === 1, String(m.objects.length));
+  check('同格重复画不换 id、不重置参数与未知字段',
+    m.objects[0].id === firstId && m.objects[0].params.bounceVel === -900 &&
+    m.objects[0].note === 'author-data');
+
+  for (let i = 0; i < 30; i++) { m.applyChar(2, 2, 'x'); m.applyChar(6, 2, 'y'); }
+  check('同格 x / y 重复采样也各只有一个',
+    m.objects.filter((o) => o.type === 'crumble_door').length === 1 &&
+    m.objects.filter((o) => o.type === 'blink_platform').length === 1);
+
+  m.applyChar(4, 4, 'x');
+  check('换成另一种机关是明确覆盖(同格仍一个对象)',
+    m.objects.length === 3 &&
+    m.objects.filter((o) => o.col === 4 && o.row === 4)[0].type === 'crumble_door');
+
+  const r = RA.EditorModel.create({ cols: 8, rows: 8 });
+  r.fillRect(1, 1, 3, 3, 'S');
+  check('矩形/大笔刷每格只放一个同类对象', r.objects.length === 9);
+  r.fillRect(1, 1, 3, 3, 'S');
+  check('同一块区域再刷一遍不增加对象', r.objects.length === 9);
+  r.floodFill(2, 2, 'x');
+  check('油漆桶把同类区域换成另一种机关,每格仍一个',
+    r.objects.length === 9 && r.objects.every((o) => o.type === 'crumble_door'));
+
+  const cap = RA.EditorModel.create({ cols: 30, rows: 30 });
+  for (let i = 0; i < 390; i++) cap.applyChar(i % 30, Math.floor(i / 30), 'S');
+  check('对象上限附近填充到 390', cap.objects.length === 390);
+  for (let i = 0; i < 60; i++) cap.applyChar(0, 0, 'S');
+  check('重复覆盖已占用的格子不消耗对象配额', cap.objects.length === 390);
+}
+
+head('A2:结构错误导入零替换,旧图 / 历史 / dirty / 视角不变');
+if (ed) {
+  ed.newLevel(10, 8, true);
+  ed.fitView();
+  ed.model.setTitle('保留中的工作');
+  ed.dirty = true;
+  ed.selectChar('^');
+  ed.pushUndo();
+  ed.model.setTile(2, 2, 1);              // 留下一笔历史与未导出改动
+  ed.dirty = true;
+  const beforeState = {
+    id: ed.model.id, title: ed.model.title,
+    json: LD.canonical(ed.model.toData()),
+    undo: ed.undoStack.length, redo: ed.redoStack.length,
+    dirty: ed.dirty, view: { x: ed.view.x, y: ed.view.y, zoom: ed.view.zoom }
+  };
+  const badPorts = [
+    ['缺 entry', { profile: 'vertical-v1', exit: { col: 3 } }],
+    ['缺 exit', { profile: 'vertical-v1', entry: { col: 2 } }],
+    ['col 不是整数', { profile: 'vertical-v1', entry: { col: '2' }, exit: { col: 3 } }],
+    ['col 越界', { profile: 'vertical-v1', entry: { col: 99 }, exit: { col: 3 } }]
+  ];
+  badPorts.forEach(([label, ports], idx) => {
+    const bad = clone(demoData);
+    bad.id = 'bad_ports_' + idx;
+    bad.contentHash = null;
+    bad.ports = ports;
+    let thrown = null, returned = null;
+    try { returned = ed.openJSONText(JSON.stringify(bad), 'bad.json'); }
+    catch (e) { thrown = e; }
+    const now = {
+      id: ed.model.id, title: ed.model.title,
+      json: LD.canonical(ed.model.toData()),
+      undo: ed.undoStack.length, redo: ed.redoStack.length,
+      dirty: ed.dirty, view: { x: ed.view.x, y: ed.view.y, zoom: ed.view.zoom }
+    };
+    check('坏接口(' + label + ')导入失败且不替换当前图',
+      thrown === null && returned === false && now.id === beforeState.id &&
+      now.json === beforeState.json, thrown ? thrown.message : '');
+    check('坏接口(' + label + ')失败不丢失历史 / dirty / 视角',
+      now.undo === beforeState.undo && now.dirty === beforeState.dirty &&
+      now.view.x === beforeState.view.x && now.view.y === beforeState.view.y &&
+      now.view.zoom === beforeState.view.zoom);
+    check('坏接口(' + label + ')的错误带 code 与 path',
+      ed.msg.indexOf('INVALID_PORT') >= 0 && ed.msg.indexOf('/ports') >= 0, ed.msg);
+  });
+
+  const badStructs = [
+    ['size 与地形不一致', (d) => { d.size.rows = 3; }],
+    ['非法地块编号', (d) => { d.terrain.tiles[0][0] = 9; }],
+    ['缺少 terrain', (d) => { delete d.terrain; }],
+    ['路径点结构损坏', (d) => { d.paths[0].points = [{ col: 1 }]; }],
+    ['装饰不是数组', (d) => { d.visuals.decorations = 'nope'; }]
+  ];
+  badStructs.forEach(([label, mutate]) => {
+    const bad = clone(demoData);
+    bad.contentHash = null;
+    mutate(bad);
+    let thrown = null, returned = null;
+    try { returned = ed.openJSONText(JSON.stringify(bad), 'bad-struct.json'); }
+    catch (e) { thrown = e; }
+    check('结构错误(' + label + ')导入失败且不抛异常',
+      thrown === null && returned === false && ed.model.title === '保留中的工作',
+      thrown ? thrown.message : ed.msg);
+    check('结构错误(' + label + ')后历史仍在', ed.undoStack.length === beforeState.undo);
+  });
+
+  const warnDraft = clone(demoData);
+  warnDraft.contentHash = null;
+  warnDraft.ports = null;
+  check('warning 级草稿(ports=null / 未知对象 / 断引用)仍能打开',
+    ed.openJSONText(JSON.stringify(warnDraft), 'draft.json') === true &&
+    ed.model.id === 't02a_demo' && ed.model.objects.length === 3);
+  check('打开合法草稿后仍能导出', ed.model.toJSON().ok);
+
+  // syncUI / validate 对直接塞进去的坏接口也不抛异常
+  const badModel = RA.EditorModel.fromTrusted(clone(demoData));
+  badModel.data.ports = { profile: 'vertical-v1' };
+  let synced = null;
+  try { ed.replaceModel(badModel); synced = true; } catch (e) { synced = e; }
+  check('检查面板遇到缺 entry/exit 的接口不抛异常', synced === true, String(synced));
+  check('坏接口在面板里由共享校验报告',
+    ed.$('check-list').innerHTML.indexOf('INVALID_PORT') >= 0);
+  check('坏接口导出的结果仍是明确失败,不伪造合格',
+    ed.model.toJSON().ok === false);
+  // 回到好图,避免影响后续
+  ed.openJSONText(demoText, 'demo.json');
+}
+
+head('A3:缩图影响包含接口,确认后保真备份且可撤销');
+{
+  const base = RA.EditorModel.create({ cols: 20, rows: 12, title: '接口缩图' });
+  base.data.ports = { profile: 'vertical-v1', entry: { col: 10 }, exit: { col: 10 } };
+  const before = LD.canonical(base.toData());
+  const impact = base.resizeImpact(8, 12);
+  check('缩图影响把接口算进去', impact.ports === 2 && impact.total >= 2,
+    JSON.stringify(impact));
+  const refused = base.resize(8, 12);
+  check('未确认的有损缩图被拒绝且零变更',
+    !refused.ok && refused.error.code === 'NEEDS_CONFIRM' &&
+    LD.canonical(base.toData()) === before);
+  const resized = base.resize(8, 12, { allowLoss: true });
+  check('确认后缩图成功', resized.ok && base.cols === 8);
+  check('失效接口不再留在 ports(不夹取 col)', base.data.ports === null);
+  const retired = base.data.extensions.retiredPorts;
+  check('原接口完整保存到 extensions.retiredPorts',
+    Array.isArray(retired) && retired.length === 1 &&
+    retired[0].ports.entry.col === 10 && retired[0].ports.exit.col === 10 &&
+    retired[0].before.cols === 20 && retired[0].profile === 'vertical-v1',
+    JSON.stringify(retired && retired[0]));
+  const enc = base.toJSON();
+  check('缩图后可以导出 JSON', enc.ok, enc.ok ? '' : enc.error.code);
+  const reopened = LD.decode(enc.value);
+  check('缩图后的文件能重开且保留退役记录',
+    reopened.ok && reopened.value.ports === null &&
+    reopened.value.extensions.retiredPorts.length === 1);
+
+  // 有效缩小:接口在范围内就不动
+  const valid = RA.EditorModel.create({ cols: 20, rows: 12 });
+  valid.data.ports = { profile: 'vertical-v1', entry: { col: 2 }, exit: { col: 3 } };
+  valid.resize(12, 12, { allowLoss: true });
+  check('接口仍有效时缩小不退役、不改 col',
+    valid.data.ports && valid.data.ports.entry.col === 2 &&
+    valid.data.ports.exit.col === 3 && !valid.data.extensions.retiredPorts);
+
+  // 扩展保持接口有效
+  const grow = RA.EditorModel.create({ cols: 10, rows: 10 });
+  grow.data.ports = { profile: 'vertical-v1', entry: { col: 2 }, exit: { col: 3 } };
+  grow.grow(5, 0, 2, 0);
+  check('向左/上扩展时接口 col 一起平移且仍有效',
+    grow.data.ports.entry.col === 7 && grow.data.ports.exit.col === 8);
+
+  // 已有退役记录只追加,不覆盖
+  const keep = RA.EditorModel.create({ cols: 20, rows: 12 });
+  keep.data.ports = { profile: 'vertical-v1', entry: { col: 10 }, exit: { col: 10 } };
+  keep.data.extensions.retiredPorts = [{ source: 'older', ports: { profile: 'vertical-v1' } }];
+  keep.resize(8, 12, { allowLoss: true });
+  check('已有 retiredPorts 时追加而不是覆盖',
+    keep.data.extensions.retiredPorts.length === 2 &&
+    keep.data.extensions.retiredPorts[0].source === 'older');
+
+  const blocked = RA.EditorModel.create({ cols: 20, rows: 12 });
+  blocked.data.ports = { profile: 'vertical-v1', entry: { col: 10 }, exit: { col: 10 } };
+  blocked.data.extensions.retiredPorts = 'not-an-array';
+  const blockedBefore = LD.canonical(blocked.toData());
+  const blockedRes = blocked.resize(8, 12, { allowLoss: true });
+  check('退役记录位置被占用时整次拒绝,不覆盖旧数据',
+    !blockedRes.ok && LD.canonical(blocked.toData()) === blockedBefore);
+}
+
+head('A3-UI:缩图确认文案 / 取消零变更 / 撤销还原接口');
+if (ed) {
+  const m = RA.EditorModel.create({ cols: 20, rows: 12, title: 'UI 缩图' });
+  m.data.ports = { profile: 'vertical-v1', entry: { col: 10 }, exit: { col: 10 } };
+  ed.replaceModel(m);
+  ed.pushUndo();
+  ed.dirty = true;
+  const before = LD.canonical(ed.model.toData());
+  const savedConfirm = globalThis.confirm;
+  let confirmText = '';
+  globalThis.confirm = (text) => { confirmText = String(text || ''); return false; };
+  check('缩图确认文案明确列出接口影响',
+    ed.changeSize(8, 12) === false && confirmText.indexOf('接口') >= 0 &&
+    confirmText.indexOf('retiredPorts') >= 0, confirmText.slice(0, 80));
+  check('取消缩图后模型 / 历史 / dirty 都不变',
+    LD.canonical(ed.model.toData()) === before && ed.undoStack.length === 1 &&
+    ed.dirty === true);
+  globalThis.confirm = () => true;
+  check('确认缩图成功', ed.changeSize(8, 12) === true &&
+    ed.model.cols === 8 && ed.model.data.ports === null);
+  ed.undo();
+  check('撤销还原原接口并移除退役记录',
+    ed.model.data.ports && ed.model.data.ports.entry.col === 10 &&
+    !ed.model.data.extensions.retiredPorts);
+  globalThis.confirm = savedConfirm;
+}
+
+head('A1-UI:按住机关画笔不会堆叠');
+if (ed) {
+  const step = (n) => {
+    for (let i = 0; i < (n || 1); i++) {
+      ed.update(1 / 60); ed.draw(); ed.input.endFrame();
+    }
+  };
+  const mouseAt = (c, r) => {
+    const p = ed.cellToScreen(c, r);
+    ed.input.mouse = { x: p.x + TS * ed.view.zoom / 2, y: p.y + TS * ed.view.zoom / 2, outside: false };
+  };
+  const press = () => { ed.input.buttons[0] = true; };
+  const release = () => { ed.input.buttons[0] = false; };
+  ed.newLevel(10, 8, false);
+  ed.fitView();
+  ed.selectChar('S');
+  ed.setBrush(1);
+  mouseAt(4, 4); press();
+  for (let i = 0; i < 60; i++) step();     // 等价于按住约 1 秒
+  release(); step();
+  check('按住 S 一秒只放一个弹簧', ed.model.objects.length === 1,
+    String(ed.model.objects.length));
+  check('这一笔仍是一次撤销', ed.undoStack.length === 1,
+    String(ed.undoStack.length));
+  ed.undo();
+  check('撤销能整笔收回', ed.model.objects.length === 0);
+}
+
 // ================= 收尾 =================
 export const result = { pass, fail, fails, name: '编辑器自检' };
 const IS_MAIN = process.argv[1] &&

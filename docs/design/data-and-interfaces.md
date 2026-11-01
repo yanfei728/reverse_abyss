@@ -201,6 +201,12 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 
 2026-10-31 T02A 编辑器接入：`EditorModel.data` 是完整 LevelData 的唯一真值（旧的字符 `cells` 已删除，字符只在画笔边界转换）；编辑器打开/导出分别调用 `LevelCodec.decode/encode`，旧 TXT/旧 JSON 只走 `LegacyImport`；编辑后立即清空 `contentHash` 与 `certification`。缩小时先用 `resizeImpact` 统计会丢失的地形/对象/路径/出生点/装饰，确认后才提交且可撤销；向左/上扩展把地形、对象、路径点、出生点、装饰与 `ports.entry/exit.col` 一起平移，**不改写 `extensions.legacy` 中记录的原文件坐标**。旧出口 G 只作为迁移信息显示，不能作为画笔生成新接口。编辑器不写 `levels/`、不改旧浏览器关卡池；导出只发起浏览器下载。`decode` 的 size/terrain 与传入对象不共享引用，调用方数据不会被模型编辑改坏。草稿仓库（IndexedDB）、正式试玩与发布仍留 T02B/T03/T06。
 
+2026-11-01 T02A-R 补充：
+
+- 普通机关画笔在同一格重复覆盖是幂等的：同类型保留原对象（id/参数/未知字段不变），换类型才明确覆盖并可撤销；矩形/油漆桶/多格笔刷同规则。显式 `placeObject` 仍表示“创建一条对象记录”，是否允许自动叠放留待对象工具决定。
+- 结构错误（含缺 `ports.entry/exit`、非法 col、size 与地形不一致、非法地块等）的导入不产生可提交模型，界面保留原图、历史与 dirty；warning 级草稿（ports=null、未知对象、断引用）仍可打开。
+- 缩图影响包含接口开口（`PORT.openingCols`）。确认有损缩图时，把原 `ports` 完整追加到 **`extensions.retiredPorts`**，再置 `ports=null`；不夹取 col、不覆盖已有记录。记录形状：`{source:'editor-resize', profile, ports:<原 ports>, before:{cols,rows}}`。该键属于 `extensions`（进入内容 hash、随文件往返），不是运行状态；修复入口留 T04。撤销会连同记录一起还原。
+
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。
 
 Actions：`leftHeld,rightHeld,jumpHeld,jumpPressed,skillPressed,interactPressed,pausePressed`。键盘与触控共用；外壳每个模拟步仅消费一次 pressed。旧 Player 通过适配读取 held，不改变其跳跃缓冲语义。

@@ -1,0 +1,23 @@
+﻿  PASS  本机 Chromium 已启动(headless)    Chrome/156.0.8078.74 @ C:\Program Files\Google\Chrome\Application\chrome.exe
+  PASS  editor.html 在真实浏览器里加载完成
+  PASS  打开演示 JSON
+  PASS  演示图 id / 对象数正确
+  PASS  真实鼠标画出一格
+  PASS  撤销按钮生效
+  PASS  重做按钮生效
+  PASS  真实滚轮改变缩放
+  PASS  导出 JSON 真的产生下载文件
+  PASS  下载文件是未认证完整 LevelData
+  PASS  下载文件保留未知字段与路线
+  PASS  下载文件能重新打开
+  PASS  坏接口导入返回 false 且不抛异常
+  PASS  坏接口导入后当前图 / 历史 / dirty / 视角完全不变
+  PASS  坏接口错误提示含 INVALID_PORT 与路径    这份 JSON 打不开:[INVALID_PORT] /ports/entry 这份草稿还有结构错误:/ports/entry 入口必须是 {col: 整数}(当前图不会被替换)
+  PASS  真实按住 S 约 1 秒后同格只有一个弹簧    {"at":1,"types":["spring"]}
+  PASS  按键拖动仍只占一步撤销
+  PASS  浏览器里取消缩图:零变更、端口不动    {"profile":"vertical-v1","entry":{"col":10},"exit":{"col":10}}
+  PASS  浏览器里确认缩图:ports 置空、原接口完整退休    {"source":"editor-resize","profile":"vertical-v1","ports":{"profile":"vertical-v1","entry":{"col":10},"exit":{"col":10}},"before":{"cols":20,"rows":12}}
+  PASS  浏览器里撤销缩图:接口还原、退役记录移除
+  PASS  页面仍然没有旧 TXT / 保存到游戏入口
+
+T02A-R 浏览器验收:21 PASS / 0 FAIL   用时 3.9s

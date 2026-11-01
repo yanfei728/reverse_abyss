@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**当前可玩内容仍是旧平台跳跃原型。** 2026-10-31 已完成 T02A：关卡编辑器改为以完整 LevelData 为唯一真值，可以打开/画图/撤销重做/导出/重新打开 JSON；但还没有草稿仓库（T02B）、正式试玩（T03/T04）与发布认证（T06）。游戏本体仍读取旧 `levels/levels.js`。下文“运行与操作”描述当前实际程序，后续目标见 [PROJECT.md](PROJECT.md)，进度见 [STATUS.md](STATUS.md)。
+**当前可玩内容仍是旧平台跳跃原型。** 2026-10-31 交付的 T02A 已将编辑器接到完整 LevelData，支持普通 JSON 打开/画图/撤销重做/导出重开；2026-11-01 独立验收发现 A1～A3，当前待修，尚未验收完成。草稿仓库（T02B）、正式试玩（T03/T04）与发布认证（T06）还没有实现。游戏本体仍读取旧 `levels/levels.js`；当前事实见 [STATUS.md](STATUS.md)。
 
 ## 获取与安装
 
@@ -82,10 +82,11 @@ node tools/test_assets.mjs
 node tools/test_leveldata.mjs
 node tools/test_t01r.mjs
 node tools/browser_t02a.mjs
+node tools/browser_t02a_r.mjs
 node tools/check_levels.mjs
 ```
 
-`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。`browser_t02a.mjs` 需要本机 Chrome（默认路径 `C:\Program Files\Google\Chrome\Application\chrome.exe`），会用 headless 模式和 DevTools 协议做真实鼠标画图、撤销/重做、缩放平移、导出下载与重新打开，并保存截图。
+`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。两个 `browser_t02a*.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`，失败再试 Edge），会用 headless 模式和 DevTools 协议做真实鼠标画图、撤销/重做、缩放平移、导出下载与重新打开，并保存截图；T02A-R 脚本另外验证机关长按、坏接口导入与缩图确认。
 
 2026-10-30 在本次会话实测的完整自检基线：
 
@@ -100,7 +101,9 @@ node tools/check_levels.mjs
 
 2026-10-31 独立复验（T01-R 修复后）：1188 PASS / 4 FAIL（引擎 587/4、编辑器 238/0、贴图 126/0、数据 139/0、修复自检 98/0），见 [T01-R 复验报告](docs/checks/review-T01R-2026-10-31.md)。随后 T02A 把编辑器测试改成新契约测试：旧 TXT 导出/保存到游戏/改池相关断言按目标替换，画图、撤销、缩放等回归保留。
 
-2026-10-31 T02A 完成后实测：`node tools/test_all.mjs` 为 **1089 PASS / 4 FAIL，退出码 1**（引擎 587/4、编辑器 139/0、贴图 126/0、数据 139/0、修复自检 98/0）；`node tools/browser_t02a.mjs` 为 **18 PASS / 0 FAIL**（本机 Chrome 156.0.8078.74 headless，真实鼠标/滚轮/下载）。编辑器 PASS 数从 238 降到 139 是测试范围变化，不是删断言凑数：旧 TXT/保存到游戏/旧池测试被替换成新契约测试，证据见 [T02A 交付记录](docs/checks/T02A-2026-10-31.md)。
+2026-10-31 T02A 完成后实测：`node tools/test_all.mjs` 为 1089 PASS / 4 FAIL；`node tools/browser_t02a.mjs` 为 18 PASS / 0 FAIL。编辑器 PASS 数从 238 降到 139 是测试范围变化，不是删断言凑数：旧 TXT/保存到游戏/旧池测试被替换成新契约测试，证据见 [T02A 交付记录](docs/checks/T02A-2026-10-31.md)。
+
+2026-11-01 T02A-R 修复后实测：`node tools/test_all.mjs` 为 **1143 PASS / 4 FAIL，退出码 1**（引擎 587/4、编辑器 193/0、贴图 126/0、数据 139/0、修复自检 98/0）；`node tools/browser_t02a_r.mjs` 为 **21 PASS / 0 FAIL**（Chrome 156 headless；真实按住机关画笔、坏接口导入、缩图取消/确认/撤销）。4 条失败仍是 floor09/floor11，未修、未跳过。证据见 [T02A-R 交付记录](docs/checks/T02A-R-2026-11-01.md)；验收方 2026-11-01 的 Chrome 启动失败记录与旧 18/0 证据都保留，新证据不覆盖旧证据。
 
 迁移工具 `tools/migrate_levels.mjs` 现在是“先规划后写入”：`--in` 与 `--out` 相同（含大小写/别名）、输出 id 碰撞、报告落到源文件上都会在写入前失败；内容不同的既有输出默认不覆盖，需显式 `--force`。报告必须放在输入目录之外，例如默认的 `docs/checks/`。本次没有重写已交付的 `levels/v2/`（12 张全部幂等跳过）。
 
@@ -119,13 +122,15 @@ T02A 的浏览器交互已经用真实 Chrome headless 跑过（截图与 JSON �
 
 [levels/demo/t02a-demo.json](levels/demo/t02a-demo.json) 是一份**未认证**的 T02A 演示草稿：难度 3、两个带参数对象（火球/齿轮）、一条 pingpong 路线、背景 `sky3`、装饰、extensions，以及一个未知对象（带额外 `behavior` 字段和待修复的 `pathId`）。它有意保持 `ports=null`，不能试玩/发布。用编辑器「打开 JSON…」即可载入、修改、导出。
 
-编辑器已经做到：完整 LevelData 为唯一真值（没有第二份字符地图）；S/x/y 机关、出生点、地块可画；撤销/重做保存整份数据（100 步 / 32 MiB 预算）；导入导出走同一 LevelCodec；未知对象和未知字段可见、可保留；缩小地图先列影响再确认。还没做：IndexedDB 草稿（T02B）、正式试玩（T03/T04）、端口编辑与保护区可视化（T04）、发布认证（T06）。
+编辑器已经做到：完整 LevelData 为唯一真值（没有第二份字符地图）；S/x/y 机关、出生点、地块可画；同一格重复画同类机关不会堆叠（保留原 id/参数/未知字段），换类型才覆盖；撤销/重做保存整份数据（100 步 / 32 MiB 预算）；导入导出走同一 LevelCodec，结构错误的导入不会被替换进来；未知对象和未知字段可见、可保留；缩小地图先列影响再确认，接口放不下时会把原 `ports` 完整存进 `extensions.retiredPorts` 再置空。还没做：IndexedDB 草稿（T02B）、正式试玩（T03/T04）、端口编辑与保护区可视化（T04）、发布认证（T06）。
 
 ## 当前重要限制
 
+- T02A-R 已修复 A1～A3（画笔堆叠、坏导入替换、缩图接口），等待复验；证据见 [T02A-R 交付记录](docs/checks/T02A-R-2026-11-01.md)。
 - 编辑器刷新页面不会恢复草稿；导出只发起浏览器下载，没有“已保存到磁盘”的确认（T02B 解决）。
 - 新格式不能试玩/发布：`play.html` 只认旧 TXT，正式会话与端口工具在 T03/T04；编辑器不会偷偷转成旧 TXT。
 - 编辑器的出口仍是 `ports=null`：旧 G 只作为迁移信息显示，不能画一个 G 伪造合格接口；完整接口编辑在 T04。
+- 缩图导致接口失效时只把原 `ports` 完整保存到 `extensions.retiredPorts` 并置空，编辑器暂不提供修复入口（T04）；撤销可以还原。
 - 对象只能摆 `S/x/y`（弹簧/门方块/浮石）；火球、地刺、齿轮还没有参数面板与路径绘制（T05/T06），演示 JSON 里的这些对象只作为数据保留并显示占位。
 - `verified` 未构成可靠发布门槛；当前随机抽选不排除未验证关卡；`monsters.js` 只是参数表雏形。
 - 当前种子依赖关卡池顺序与内容，不承诺修改池后仍重现旧塔。
@@ -142,6 +147,7 @@ T02A 的浏览器交互已经用真实 Chrome headless 跑过（截图与 JSON �
 | [世界与玩法](docs/design/world-and-gameplay.md) | 接缝、楼层生命周期、技能、Boss |
 | [数据与接口](docs/design/data-and-interfaces.md) | JSON、运行状态、模块契约 |
 | [开发任务](docs/tasks/README.md) | 顺序、任务卡和验收方法 |
+| [美术资产接入](docs/art/asset-integration.md) | 当前图片路径、替换规格、角色/图集接线、素材生成与测试注意项 |
 | `js/` | 当前引擎、游戏、编辑器、试玩代码 |
 | `levels/` | 当前 12 张内置 JSON、模板和生成副本 |
 | `levels/demo/t02a-demo.json` | T02A 未认证演示草稿（完整 LevelData，含未知对象） |

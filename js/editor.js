@@ -194,15 +194,32 @@
       return model;
     }
 
-    /** 从内存 LevelData 构造;深复制 + 共用 decode(含自报 hash 校验) */
+    /**
+     * 共享的"候选模型"闸门:decode 之后还要按 draft 用途做结构校验。
+     * 有 error 就不构造可提交模型(A2);warning(缺 ports、未知对象、断引用)允许,
+     * 这样不完整草稿仍能打开、编辑、备份。
+     */
+    static checkCandidate(data, opts, source) {
+      var issues = LD.validate(data, { purpose: 'draft' });
+      var errors = LD.errorsOf(issues);
+      if (errors.length) {
+        return LD.fail(errors[0].code,
+          '这份草稿还有结构错误:' + errors[0].path + ' ' + errors[0].message +
+          '(当前图不会被替换)', errors);
+      }
+      var model = new EditorModel(data);
+      model.importWarnings = ((opts && opts.warnings) || []).slice();
+      model.importSource = source || '';
+      return LD.ok(model);
+    }
+
+    /** 从内存 LevelData 构造;深复制 + 共用 decode(含自报 hash 校验)+ draft 结构校验 */
     static fromData(data, opts) {
       opts = opts || {};
       var dec = LD.decode(data, { verifyHash: opts.verifyHash !== false });
       if (!dec.ok) return dec;
-      var model = new EditorModel(dec.value);
-      model.importWarnings = (dec.warnings || []).slice();
-      model.importSource = opts.source || '';
-      return LD.ok(model);
+      return EditorModel.checkCandidate(dec.value,
+        { warnings: dec.warnings }, opts.source || '');
     }
 
     /** 从 v2 JSON 文本构造 */
@@ -210,10 +227,8 @@
       opts = opts || {};
       var dec = LD.decode(text, { verifyHash: opts.verifyHash !== false });
       if (!dec.ok) return dec;
-      var model = new EditorModel(dec.value);
-      model.importWarnings = (dec.warnings || []).slice();
-      model.importSource = opts.source || '';
-      return LD.ok(model);
+      return EditorModel.checkCandidate(dec.value,
+        { warnings: dec.warnings }, opts.source || '');
     }
 
     /** 旧 TXT / 旧 JSON:只走显式迁移,结果是未认证草稿 */
@@ -221,10 +236,8 @@
       opts = opts || {};
       var mig = RA.LegacyImport.migrate(input, opts);
       if (!mig.ok) return mig;
-      var model = new EditorModel(mig.value.draft);
-      model.importWarnings = (mig.value.warnings || []).slice();
-      model.importSource = opts.source || '';
-      return LD.ok(model);
+      return EditorModel.checkCandidate(mig.value.draft,
+        { warnings: mig.value.warnings }, opts.source || '');
     }
 
     /** 撤销/重做等内部恢复:数据来自本编辑器的快照,不再重复 decode */
@@ -346,11 +359,28 @@
       }
       if ('P'.indexOf(ch) >= 0) return this.setSpawn(c, r);
       var type = RA.EntityRegistry.typeOfLetter(ch);
-      if (type) {
-        var res = this.placeObject(type, c, r);
-        return !!res.ok;
-      }
+      if (type) return this.brushObject(type, c, r);
       return false;                  // G 与未知字符不再能画
+    }
+
+    /**
+     * 普通机关画笔(A1):同一格同类型是**幂等**的 —— 已有对象保持原 id、参数、
+     * 未知字段,不新增、不重置;换一种机关才覆盖,并且整次操作可撤销。
+     * 按住画笔每帧采样、拖动回访同一格、大笔刷重叠都走这里。
+     *
+     * 显式 placeObject() 仍保留"创建一个记录"的语义(未来对象工具可能允许叠放);
+     * 两者不要混用:画笔不能靠删掉旧对象再重建来假装只有一个。
+     */
+    brushObject(type, c, r) {
+      if (!this.inBounds(c, r)) return false;
+      var at = this.objectsAt(c, r);
+      for (var i = 0; i < at.length; i++) {
+        if (at[i].type === type) return false;   // 同格同类:保持原记录,不做任何修改
+      }
+      var replaced = at.length > 0;
+      if (replaced) this.removeObjectsAt(c, r);
+      var res = this.placeObject(type, c, r);
+      return !!res.ok || replaced;     // 替换本身也是一次变化(即使随后创建失败)
     }
 
     eraseCell(c, r) {
@@ -504,11 +534,30 @@
     }
 
     // ---------- 尺寸 / 平移 ----------
-    /** 缩小/平移会丢弃哪些内容(先给用户看,取消则零变更) */
+    /** 接口开口在当前宽度下是否仍然合法(A3);返回失效的端口数(0~2) */
+    portsInvalidAt(cols) {
+      var ports = this.data.ports;
+      if (!ports) return 0;
+      var opening = LD.PORT.openingCols;
+      var bad = 0;
+      ['entry', 'exit'].forEach(function (k) {
+        var end = ports[k];
+        if (!end || !isInt(end.col) || end.col < 0 || end.col + opening > cols) bad++;
+      });
+      return bad;
+    }
+
+    /**
+     * 缩小/平移会丢弃哪些内容(先给用户看,取消则零变更)。
+     * 接口开口也算影响:缩小到开口放不下时,端口会失效(A3)。
+     */
     resizeImpact(cols, rows) {
       cols = Math.max(1, Math.min(MAX_COLS, Math.round(cols) || 1));
       rows = Math.max(1, Math.min(MAX_ROWS, Math.round(rows) || 1));
-      var impact = { tiles: 0, objects: 0, paths: 0, pathPoints: 0, spawn: 0, decorations: 0, total: 0 };
+      var impact = {
+        tiles: 0, objects: 0, paths: 0, pathPoints: 0,
+        spawn: 0, decorations: 0, ports: 0, total: 0
+      };
       for (var r = rows; r < this.rows; r++) {
         for (var c = 0; c < this.cols; c++) if (this.getTile(c, r) !== 0) impact.tiles++;
       }
@@ -531,8 +580,47 @@
       (this.data.visuals.decorations || []).forEach(function (d) {
         if (d.col >= cols || d.row >= rows) impact.decorations++;
       });
-      impact.total = impact.tiles + impact.objects + impact.paths + impact.spawn + impact.decorations;
+      impact.ports = this.portsInvalidAt(cols);
+      impact.total = impact.tiles + impact.objects + impact.paths + impact.spawn +
+        impact.decorations + impact.ports;
       return impact;
+    }
+
+    /** 退役记录是否放得下(写入前检查,失败整次不改) */
+    retirePortsAllowed() {
+      var ext = this.data.extensions;
+      if (!ext || typeof ext !== 'object' || Array.isArray(ext)) {
+        return LD.fail('INVALID_FIELD', 'extensions 不是对象,无法保存退役接口记录', []);
+      }
+      if (ext.retiredPorts !== undefined && !Array.isArray(ext.retiredPorts)) {
+        return LD.fail('INVALID_FIELD',
+          'extensions.retiredPorts 已存在但不是数组,不能覆盖原记录;请先手工处理', []);
+      }
+      return LD.ok({ allowed: true });
+    }
+
+    /**
+     * 把失效的接口**完整**搬到待修复记录,再把 ports 置空(A3)。
+     * 不夹取 col、不假装接口还有效;原图已有 retiredPorts 时只追加,不覆盖。
+     */
+    retirePorts(originalPorts, beforeSize) {
+      var allowed = this.retirePortsAllowed();
+      if (!allowed.ok) return allowed;
+      if (!originalPorts) return LD.ok({ retired: false });
+      var ext = this.data.extensions;
+      if (!Array.isArray(ext.retiredPorts)) ext.retiredPorts = [];
+      ext.retiredPorts.push({
+        source: 'editor-resize',
+        profile: originalPorts.profile || null,
+        ports: LD.cloneJson(originalPorts, '/ports'),
+        before: {
+          cols: beforeSize && isInt(beforeSize.cols) ? beforeSize.cols : this.cols,
+          rows: beforeSize && isInt(beforeSize.rows) ? beforeSize.rows : this.rows
+        }
+      });
+      this.data.ports = null;
+      this.invalidate();
+      return LD.ok({ retired: true, count: ext.retiredPorts.length });
     }
 
     /** 显式改尺寸;会丢内容时必须 allowLoss(UI 先确认),否则整次不改 */
@@ -550,7 +638,16 @@
         return LD.fail('NEEDS_CONFIRM',
           '缩小会丢弃 ' + impact.total + ' 项内容(地形 ' + impact.tiles + ' 格、对象 ' +
           impact.objects + ' 个、路径 ' + impact.paths + ' 条、出生点 ' + impact.spawn +
-          '、装饰 ' + impact.decorations + ');需要确认', [], impact);
+          '、装饰 ' + impact.decorations + '、接口 ' + impact.ports +
+          ' 个);需要确认', [], impact);
+      }
+      // 写入前先确认退役接口有地方可放,失败就整次不改
+      var originalPorts = null;
+      var beforeSize = { cols: this.cols, rows: this.rows };
+      if (impact.ports > 0) {
+        var probe = this.retirePortsAllowed();
+        if (!probe.ok) return probe;
+        originalPorts = LD.cloneJson(this.data.ports, '/ports');
       }
       var next = blankTiles(cols, rows);
       for (var r = 0; r < Math.min(rows, this.rows); r++) {
@@ -571,8 +668,14 @@
       this.data.visuals.decorations = (this.data.visuals.decorations || []).filter(function (d) {
         return d.col < cols && d.row < rows;
       });
+      var retired = null;
+      if (impact.ports > 0 && originalPorts) {
+        var ret = this.retirePorts(originalPorts, beforeSize);
+        if (!ret.ok) return ret;          // 预检过,理论上不会失败;失败也不留半改状态
+        retired = { count: impact.ports, record: ret.value };
+      }
       this.invalidate();
-      return LD.ok({ changed: true, impact: impact });
+      return LD.ok({ changed: true, impact: impact, retired: retired });
     }
 
     /**
@@ -651,11 +754,23 @@
       if (!String(this.data.title || '').trim()) {
         warnings.push('标题为空:显示名不影响逻辑 id,导出后仍可读,但列表里不好认');
       }
-      if (this.data.ports) {
-        notes.push('接口:vertical-v1 · 入口 col ' + this.data.ports.entry.col +
-          ' / 出口 col ' + this.data.ports.exit.col + '(保护区与端口编辑留 T04)');
+      // 接口说明必须容错:即使数据里 ports 结构损坏,面板也不能抛异常(A2)
+      var ports = this.data.ports;
+      var entryCol = ports && ports.entry && isInt(ports.entry.col) ? ports.entry.col : null;
+      var exitCol = ports && ports.exit && isInt(ports.exit.col) ? ports.exit.col : null;
+      if (ports && entryCol !== null && exitCol !== null) {
+        notes.push('接口:vertical-v1 · 入口 col ' + entryCol +
+          ' / 出口 col ' + exitCol + '(保护区与端口编辑留 T04)');
+      } else if (ports) {
+        notes.push('接口结构与 vertical-v1 不一致(缺 entry/exit 或 col 不是整数):' +
+          '由共享校验报错,导出会被拒绝;可撤销回上一个版本或等 T04 端口工具');
       } else {
         notes.push('接口:未设置(ports=null)。草稿可编辑/导出;试玩与发布要等 T04 端口工具');
+      }
+      var retired = this.data.extensions && this.data.extensions.retiredPorts;
+      if (Array.isArray(retired) && retired.length) {
+        notes.push('有 ' + retired.length + ' 条因缩图退役的接口,完整保存在 ' +
+          'extensions.retiredPorts(修复入口留 T04;撤销可还原)');
       }
       var legacy = this.data.extensions && this.data.extensions.legacy;
       if (legacy && legacy.exit) {
@@ -993,14 +1108,22 @@
       this.say(withGround ? '新建了一层(带地面、出生点;接口留空)' : '新建了一层空的');
     }
 
-    /** 打开 v2 JSON 文本;失败不替换当前图 */
+    /** 打开 v2 JSON 文本;失败(解码或结构)不替换当前图、不清历史 */
     openJSONText(text, sourceLabel) {
-      var res = EditorModel.fromJSON(text, { source: sourceLabel || '' });
-      if (!res.ok) {
-        this.say('这份 JSON 打不开:[' + res.error.code + '] ' + res.error.message, 'bad');
+      var res;
+      try {
+        res = EditorModel.fromJSON(text, { source: sourceLabel || '' });
+      } catch (e) {
+        this.say('这份 JSON 打不开:' + (e && e.message) + '(当前图没有被替换)', 'bad');
         return false;
       }
-      this.replaceModel(res.value);
+      if (!res.ok) {
+        var at = res.error.issues && res.error.issues[0] ? res.error.issues[0].path : '';
+        this.say('这份 JSON 打不开:[' + res.error.code + ']' + (at ? ' ' + at : '') +
+          ' ' + res.error.message, 'bad');
+        return false;
+      }
+      if (!this.replaceModel(res.value)) return false;
       this.say('已打开 JSON「' + (this.model.title || this.model.id) + '」(' +
         this.model.cols + '×' + this.model.rows + ',' + this.model.objects.length + ' 个对象)');
       return true;
@@ -1009,27 +1132,60 @@
     /** 旧 TXT / 旧 JSON:显式迁移成未认证草稿 */
     importLegacyText(text, opts) {
       opts = opts || {};
-      var res = EditorModel.fromLegacy(text, {
-        id: opts.id, fallbackId: opts.fallbackId || opts.id,
-        source: opts.source || ''
-      });
-      if (!res.ok) {
-        this.say('旧图迁移失败:[' + res.error.code + '] ' + res.error.message, 'bad');
+      var res;
+      try {
+        res = EditorModel.fromLegacy(text, {
+          id: opts.id, fallbackId: opts.fallbackId || opts.id,
+          source: opts.source || ''
+        });
+      } catch (e) {
+        this.say('旧图迁移失败:' + (e && e.message) + '(当前图没有被替换)', 'bad');
         return false;
       }
-      this.replaceModel(res.value);
+      if (!res.ok) {
+        var at = res.error.issues && res.error.issues[0] ? res.error.issues[0].path : '';
+        this.say('旧图迁移失败:[' + res.error.code + ']' + (at ? ' ' + at : '') +
+          ' ' + res.error.message, 'bad');
+        return false;
+      }
+      if (!this.replaceModel(res.value)) return false;
       this.say('已把旧图迁移成草稿「' + (this.model.title || this.model.id) +
         '」—— 保留警告 ' + this.model.importWarnings.length +
         ' 条,ports 留空,不能直接试玩/发布', 'warn');
       return true;
     }
 
+    /**
+     * 提交候选模型:只有候选已经通过 decode + 结构校验才会进来。
+     * 万一 UI 渲染仍失败,完整回滚模型、历史、dirty 与视角,绝不留下替换了一半的状态(A2)。
+     */
     replaceModel(model) {
-      this.model = model;
-      this.resetHistory();
-      this.dirty = true;             // 导入的是工作副本,还没导出
-      this.fitView();
-      this.syncUI();
+      var prev = {
+        model: this.model,
+        undo: this.undoStack, redo: this.redoStack,
+        undoBytes: this.undoBytes, redoBytes: this.redoBytes,
+        dirty: this.dirty,
+        view: { x: this.view.x, y: this.view.y, zoom: this.view.zoom }
+      };
+      try {
+        this.model = model;
+        this.resetHistory();
+        this.dirty = true;             // 导入的是工作副本,还没导出
+        this.fitView();
+        this.syncUI();
+        return true;
+      } catch (e) {
+        this.model = prev.model;
+        this.undoStack = prev.undo;
+        this.redoStack = prev.redo;
+        this.undoBytes = prev.undoBytes;
+        this.redoBytes = prev.redoBytes;
+        this.dirty = prev.dirty;
+        this.view = prev.view;
+        try { this.syncUI(); } catch (e2) { /* 旧模型本来能显示 */ }
+        this.say('打开失败:模型无法显示(' + (e && e.message) + '),当前图没有被替换', 'bad');
+        return false;
+      }
     }
 
     /** 打开下拉框里的内置旧关卡(只读复制,不回写 levels/) */
@@ -1175,7 +1331,10 @@
           '· 对象 ' + impact.objects + ' 个\n' +
           '· 路径 ' + impact.paths + ' 条(共 ' + impact.pathPoints + ' 点)\n' +
           '· 出生点 ' + impact.spawn + '\n' +
-          '· 装饰 ' + impact.decorations + '\n\n确定继续吗?(可以撤销)';
+          '· 装饰 ' + impact.decorations + '\n' +
+          '· 接口 ' + impact.ports + ' 个' +
+          (impact.ports ? '(会完整存进 extensions.retiredPorts,再把 ports 置空)' : '') +
+          '\n\n确定继续吗?(可以撤销)';
         if (typeof ask === 'function' && !ask(msg)) {
           this.syncUI();
           this.say('已取消缩小,地图没有任何改动', 'warn');
@@ -1194,7 +1353,8 @@
       this.fitView();
       this.syncUI();
       this.say('尺寸改成 ' + this.model.cols + ' × ' + this.model.rows +
-        (lossy ? '(已按确认丢弃界外内容,可撤销)' : ''));
+        (lossy ? '(已按确认丢弃界外内容,可撤销)' : '') +
+        (res.value && res.value.retired ? ';失效接口已完整保存到 retiredPorts' : ''));
       return true;
     }
 

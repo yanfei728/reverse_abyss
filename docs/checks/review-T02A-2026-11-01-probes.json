@@ -1,0 +1,63 @@
+{
+  "reviewDate": "2026-11-01",
+  "results": [
+    {
+      "probe": "A1 repeated brush in same cell",
+      "paintCalls": 60,
+      "objectCount": 60,
+      "ids": [
+        "spring_1",
+        "spring_2",
+        "spring_3",
+        "spring_4"
+      ]
+    },
+    {
+      "probe": "A2 malformed ports import changes current model",
+      "returned": null,
+      "exception": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'col')"
+      },
+      "originalId": "level_mvxnd5kc_7r",
+      "currentId": "bad_ports",
+      "currentTitle": "T02A 演示关卡",
+      "oldWorkPreserved": false,
+      "dirty": true
+    },
+    {
+      "probe": "A3 shrink across ports without warning",
+      "impact": {
+        "tiles": 0,
+        "objects": 0,
+        "paths": 0,
+        "pathPoints": 0,
+        "spawn": 0,
+        "decorations": 0,
+        "total": 0
+      },
+      "resizeOk": true,
+      "remainingPorts": {
+        "profile": "vertical-v1",
+        "entry": {
+          "col": 10
+        },
+        "exit": {
+          "col": 10
+        }
+      },
+      "exportOk": false,
+      "exportCode": "INVALID_FIELD",
+      "issues": [
+        {
+          "code": "INVALID_PORT",
+          "path": "/ports/entry/col"
+        },
+        {
+          "code": "INVALID_PORT",
+          "path": "/ports/exit/col"
+        }
+      ]
+    }
+  ]
+}
