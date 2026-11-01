@@ -226,7 +226,7 @@ T02A 已细化为 [单独任务卡](docs/tasks/06-t02a-editor-model.md)：一份
 
 ### 2026-10-31 · T02A 交付（编辑器完整 LevelData 模型与 JSON 往返）
 
-按 [T02A 任务卡](docs/tasks/06-t02a-editor-model.md) 只做编辑器模型与文件往返；没有做 T02B、正式试玩、发布认证，也没有改玩法/原图/迁移输出。详细证据见 [T02A 交付记录](docs/checks/T02A-2026-10-31.md)。
+按 [T02A 任务卡](docs/tasks/06-t02a-editor-model.md) 只做编辑器模型与文件往返；没有做 T02B、正式试玩、发布认证，也没有改玩法/原图/迁移输出。T02A 交付提交 `f2a0e07`。详细证据见 [T02A 交付记录](docs/checks/T02A-2026-10-31.md)。
 
 - **唯一真值**：`EditorModel.data` 是完整 LevelData；旧的 `cells` 字符矩阵删除，字符只在 `getChar/applyChar` 边界转换。对象、出生点、难度、背景、路径、装饰、extensions 与未知字段都在同一份数据里。
 - **导入导出**：v2 JSON 走 `LevelCodec.decode/encode`（失败/未来 schema 不替换当前图）；旧 TXT/旧 JSON 只走 `LegacyImport`；导出只发起浏览器下载，不清 dirty、不写 `levels/`。旧 TXT 导出、「保存到游戏」改池、文件夹授权、自动写入、旧试玩入口整条移除。
