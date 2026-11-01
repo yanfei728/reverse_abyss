@@ -265,7 +265,7 @@ T02A 已细化为 [单独任务卡](docs/tasks/06-t02a-editor-model.md)：一份
 
 ### 2026-11-01 · T02A-R（A1～A3 修复，待复验）
 
-按 [T02A-R 任务卡](docs/tasks/07-t02a-review-fixes.md) 只修独立验收复现的 A1～A3，并补模型/UI/真实浏览器回归；没有做 T02B、玩法、素材或正式试玩。证据见 [T02A-R 交付记录](docs/checks/T02A-R-2026-11-01.md)。
+按 [T02A-R 任务卡](docs/tasks/07-t02a-review-fixes.md) 只修独立验收复现的 A1～A3，并补模型/UI/真实浏览器回归；没有做 T02B、玩法、素材或正式试玩。T02A-R 修复提交 `6f88127`。证据见 [T02A-R 交付记录](docs/checks/T02A-R-2026-11-01.md)。
 
 - **A1 画笔幂等**：机关画笔改走 `brushObject()`。同格同类型再画不新增、不换 id、不重置参数/未知字段；换类型才明确覆盖；矩形、油漆桶、多格笔刷同规则；仍按一次拖动一步撤销。按住 1 秒只产生 1 个对象，不消耗对象配额。
 - **A2 失败导入零替换**：`fromData/fromJSON/fromLegacy` 在 decode 后统一跑 `validate(draft)`，结构 error 不返回可提交模型；`replaceModel()` 在 UI 失败时回滚模型、撤销/重做栈、字节计数、dirty 与视角；检查面板对缺失 `ports.entry/exit` 等坏结构不再抛异常，由共享校验报 `INVALID_PORT`。允许 warning 级草稿（ports=null、未知对象、断引用）继续打开。
