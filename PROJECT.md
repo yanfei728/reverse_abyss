@@ -301,7 +301,7 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 ### 2026-11-04 · B1 交付：保存、会话、连续两层与开发试玩
 
-按 [B1 批次卡](docs/tasks/08-playable-milestones.md) 一次接通 A3-C + T02B + T03/T04 的 B1 子集。实现提交 `cc3df4a`（A3-C）与 `fffaee0`（主体）；详细证据见 [B1 交付记录](docs/checks/B1-2026-11-04.md)。
+按 [B1 批次卡](docs/tasks/08-playable-milestones.md) 一次接通 A3-C + T02B + T03/T04 的 B1 子集。实现提交 `cc3df4a`（A3-C）与 `fffaee0`（主体），文档/证据 `205d63c`；详细证据见 [B1 交付记录](docs/checks/B1-2026-11-04.md)。
 
 - **A3-C**：`resizeCandidate` 在完整副本上改尺寸、追加 `extensions.retiredPorts`、清派生字段并调用共享 `encode`；候选不能导出就返回 `LIMIT_EXCEEDED`，原模型/端口/extensions/历史/dirty/视角零变更，原文件仍可导出。UI 先预演再 `pushUndo`，失败不碰 redo。
 - **草稿**：新增 `ContentRepository`（IndexedDB 主、内存兜底），保存按发起时快照，revision 冲突/存储失败不覆盖、不清 dirty；编辑器有保存/打开/列表/状态，刷新后可找回。含未知对象/路线/extensions 的草稿保存后再读回 canonical 相等。

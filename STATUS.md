@@ -4,7 +4,7 @@
 
 ## 版本与回退基线
 
-- T00 原型基线：`f56cdce`；T01 实现：`6a7e712`；T01-R 修复：`c7c5490`；T02A 交付：`f2a0e07`；T02A-R 修复：`6f88127`；**B1/A3-C：`cc3df4a`；B1 主体：`fffaee0`**。
+- T00 原型基线：`f56cdce`；T01 实现：`6a7e712`；T01-R 修复：`c7c5490`；T02A 交付：`f2a0e07`；T02A-R 修复：`6f88127`；**B1/A3-C：`cc3df4a`；B1 主体：`fffaee0`；B1 文档/证据：`205d63c`**。
 - B1 实现/证据提交后工作区只保留无关 ZIP 与待提交文档；本轮没有再次初始化 Git、没有推送远程、没有改原图/素材/旧 game/playtest。
 - 已有本地 Git，origin 为 `git@github.com:yanfei728/reverse_abyss.git`；不要重复初始化，不丢弃他人未提交内容。
 - 原图、`levels/v2`、`levels/levels.js`、assets、旧 game/playtest 对照 B1 起点 `ebd5b80` 无差异；开发样例只新增在 `levels/dev/`。
