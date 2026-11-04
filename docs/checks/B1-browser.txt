@@ -1,0 +1,23 @@
+﻿  PASS  Chrome 已启动    Chrome/156.0.8078.74 headless
+  PASS  编辑器真实页面加载完成
+  PASS  编辑器使用 IndexedDB 草稿仓库    indexedDB
+  PASS  真实页面打开开发样例 A
+  PASS  点「保存草稿」写入 IndexedDB    1
+  PASS  刷新后编辑器重新加载
+  PASS  刷新后能从 IndexedDB 列出刚保存的草稿    ["dev_floor_a"]
+  PASS  点「打开草稿」恢复完整内容    开发样例 A(下层)
+  PASS  恢复的地形/接口/出生点/extensions 与保存前一致
+  PASS  试玩页加载新 GameSession
+  PASS  试玩使用两层(编辑层 + 开发样例 B)
+  PASS  初始在第 0 层,第 1 层预热
+  PASS  真实键盘二段跳穿过出口到第 1 层    floor=1
+  PASS  跨层后第 0 层地形快照仍在、第 1 层活动    [{"index":0,"state":"snapshot","activeTime":1.2000000000000006,"previewTime":0,"hasNext":true},{"index":1,"state":"active","activeTime":0.19999999999999998,"previewTime":1.2000000000000006,"hasNext":false}]
+  PASS  跨层没有把玩家重置回出生点(位置仍在接口附近)    y=-81.5
+  PASS  跨层后落回入口梯板也不会掉回第 0 层    floor=1 feet=0.0
+  PASS  P 能暂停模拟
+  PASS  暂停期间时间 / 位置不推进
+  PASS  暂停遮罩可见
+  PASS  点「继续」恢复模拟
+  PASS  恢复后不追算暂停的 0.8 秒    0.317s
+
+B1 浏览器验收:21 PASS / 0 FAIL   用时 6.1s

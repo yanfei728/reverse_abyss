@@ -1,33 +1,30 @@
 # 开发任务索引
 
-最新复验（2026-11-01）：A1/A2 与 A3 普通路径已通过，**当前只补 [A3-C](07-t02a-review-fixes.md)** 的接口备份容量检查，见 [本轮报告](../checks/review-T02AR-2026-11-01.md)。不重做全部 T02A-R；A3-C 通过后再 T02B。下方旧交接指令由修复卡末尾的当前指令取代。
+更新：2026-11-04。用户要求加快小项目进度。**B1 已交付，待集中复验**（[交付记录](../checks/B1-2026-11-04.md)）；旧任务号保留作追踪，历史修复卡不再要求逐项停止等验收。
 
-更新：2026-11-01。T00/T01/T01-R 已验收；T02A 主体交付但独立验收发现 A1～A3，见 [报告](../checks/review-T02A-2026-11-01.md)。**下一步只执行 [T02A-R](07-t02a-review-fixes.md)**，复验后再 T02B。一次给实现 agent 一张卡，不实施整条路线。
+| 当前批次 | 交付结果 | 对应旧任务 |
+|---|---|---|
+| **B1：已交付待复验** | 能编辑、保存、刷新恢复并开发试玩的连续两层 | A3-C + T02B + T03/T04 |
+| B2 | PC 短塔完整可玩，编辑与认证发布闭环 | T05～T08 |
+| B3 | 安卓短塔，触控、生命周期与 JSON 文件往返 | T09/T10 |
 
-| 卡 | 交付 | 前置 | 所在文件 |
-|---|---|---|---|
-| T00 | 可回退代码基线、环境与失败记录 | 无 | [01-foundation.md](01-foundation.md) |
-| T01 | 新 LevelData、校验、旧图迁移 | T00 | [01-foundation.md](01-foundation.md) |
-| T01-R | 修复验收发现的 R1～R5（已复验） | 已完成 | [05-review-followup.md](05-review-followup.md) |
-| T02 | 编辑器 JSON 无损保存与草稿仓库 | T01 | [01-foundation.md](01-foundation.md) |
-| T02A | 模型与 JSON 文件往返（已交付，待修） | 需 T02A-R 复验 | [06-t02a-editor-model.md](06-t02a-editor-model.md) |
-| T02A-R | 修复画笔幂等/失败导入/缩图接口（当前优先） | T02A 已交付、待修 | [07-t02a-review-fixes.md](07-t02a-review-fixes.md) |
-| T02B | 草稿仓库与保存 UI | T02A | [05-review-followup.md](05-review-followup.md) |
-| T03 | 共用会话、统一时间和输入 | T01 | [02-runtime-world.md](02-runtime-world.md) |
-| T04 | 可变尺寸的两层连续世界与生命周期 | T03 | [02-runtime-world.md](02-runtime-world.md) |
-| T05 | 生命、14/20 秒光环与代表对象运行 | T04 | [03-playable-slice.md](03-playable-slice.md) |
-| T06 | 参数/路径编辑、人工认证与发布 | T02、T05 | [03-playable-slice.md](03-playable-slice.md) |
-| T07 | 休整、Boss、短塔闭环 | T06 | [03-playable-slice.md](03-playable-slice.md) |
-| T08 | PC 短塔集成验收与交付 | T07 | [03-playable-slice.md](03-playable-slice.md) |
-| T09 | Android 工程、触控与生命周期 | T08 | [04-android.md](04-android.md) |
-| T10 | Android 文件往返、设置与真机交付 | T09 | [04-android.md](04-android.md) |
+A3-C 已在 B1 开头修完并补容量回归，不单独等待验收。已通过的 A1/A2 未重做。具体接口、主链路验收和取舍都在 B1 卡内；B1 复验前不开始 B2/B3。
 
-T01～T04 重点验证结构；T05～T08 才验收完整玩法。T04 的可玩两层不能写成“短塔完成”。T01 生成的新格式也不能直接替换尚未适配的旧运行入口。
+## 参考卡
 
-推荐发送给实现 agent 的任务文本：
+| 文件 | 用途 |
+|---|---|
+| [01-foundation.md](01-foundation.md) | 数据与旧 T02 基础要求；T00 不重复执行 |
+| [02-runtime-world.md](02-runtime-world.md) | 共用会话、连续世界细节，纳入 B1 |
+| [03-playable-slice.md](03-playable-slice.md) | 战斗、编辑发布、Boss 与 PC 验收，纳入 B2 |
+| [04-android.md](04-android.md) | 安卓范围，纳入 B3 |
+| [05-review-followup.md](05-review-followup.md) | T01-R 与草稿仓库参考 |
+| [06-t02a-editor-model.md](06-t02a-editor-model.md) | 已交付编辑模型的契约 |
+| [07-t02a-review-fixes.md](07-t02a-review-fixes.md) | A3-C 精确复现与必要回归，纳入 B1 |
+| [08-playable-milestones.md](08-playable-milestones.md) | **当前执行与验收依据** |
 
-> 阅读 AGENTS.md、STATUS.md、docs/checks/review-T02A-2026-11-01.md 和 docs/tasks/07-t02a-review-fixes.md。只修 T02A-R 的 A1～A3：机关画笔同格幂等、结构错误导入零替换、缩图接口影响确认及保真备份。补模型/UI/真实浏览器回归，报告实际结果，保留原图、证据与无关文件，不提前做 T02B 或美术接入。
+一次交付一批，内部保留可回退提交。对主链路故障自行修复后交付；低影响问题集中记录，不逐个升格为停工门槛。报告实际命令与结果、浏览器验证或环境限制、启动方法和简短已知问题；未执行的检查不声称完成。
 
-后续换为对应卡号和文件。若前置未完成，先报告具体缺口，不靠绕过契约或静默缩小范围完成当前卡。
+可直接交接：
 
-每张卡的交付统一包括：改动文件和行为、自动检查命令/退出码/差异、实际人工步骤、未完成项、文档更新、可回退方式。截图、录像或 APK 只有实际生成并验证后才能写“已提供”。状态表更新在根目录 STATUS，任务卡的验收条件不随意删改。
+> 阅读 AGENTS.md、STATUS.md 和 docs/tasks/08-playable-milestones.md，只完成 B1：A3-C 收尾、浏览器草稿保存、共用 GameSession、可变尺寸连续楼层、编辑器开发试玩一次接通。内部按可运行节点推进，不每完成一个旧任务号就停止等验收。保留原图与无关文件，不把开发草稿混入正式发布池。自行修复主流程故障，交付文件保真、保存恢复、连续跨层、暂停的验证和可操作演示。B2/B3 不在本批。

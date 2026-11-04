@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**当前可玩内容仍是旧平台跳跃原型。** T02A 编辑器已接完整 LevelData；2026-11-01 复验确认 A1/A2 和常规缩图已修，剩余 A3-C：接口备份容量须在提交缩图前检查。草稿仓库（T02B）、正式试玩（T03/T04）与发布认证（T06）还没有实现。游戏本体仍读取旧 `levels/levels.js`；当前事实见 [STATUS.md](STATUS.md)。
+**B1 已交付（2026-11-04，待复验）：编辑 → 浏览器草稿 → 刷新找回 → 开发试玩 → 两层连续攀爬 → 暂停。** 游戏主菜单仍是旧平台跳跃原型；B1 的试玩是开发入口，不是正式发布。B2 做完整 PC 短塔（战斗/休整/Boss/发布），B3 做安卓。当前事实见 [STATUS.md](STATUS.md)，批次安排见 [批次卡](docs/tasks/08-playable-milestones.md)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
@@ -16,9 +16,9 @@
 
 ### 最快启动
 
-双击根目录 `index.html` 打开游戏；双击 `editor.html` 打开编辑器。
+双击根目录 `index.html` 打开旧原型游戏；双击 `editor.html` 打开编辑器；双击 `devplay.html` 直接打开连续两层开发试玩。
 
-`file://` 模式主要读取 `levels/levels.js` 的内嵌关卡。编辑器的 JSON 导入导出走浏览器文件选择/下载，不依赖服务器；**导出只发起下载，不会写进 `levels/`**。刷新页面不会恢复草稿（T02B 才做草稿仓库），重要内容请自己保存 JSON 文件。
+`file://` 模式主要读取 `levels/levels.js` 与 `js/dev-samples.js` 的内嵌数据。编辑器的 JSON 导入导出走浏览器文件选择/下载；**导出只发起下载，不会写进 `levels/`**。编辑器「保存草稿」写浏览器 IndexedDB，刷新后可找回；草稿不发布、不改旧正式池。
 
 ### 本地 HTTP 启动（开发推荐）
 
@@ -31,8 +31,9 @@ python -m http.server 8000 --bind 127.0.0.1
 
 然后打开：
 
-- 游戏：<http://127.0.0.1:8000/index.html>
+- 旧原型游戏：<http://127.0.0.1:8000/index.html>
 - 编辑器：<http://127.0.0.1:8000/editor.html>
+- 开发试玩（两层）：<http://127.0.0.1:8000/devplay.html>
 - 浏览器检查：<http://127.0.0.1:8000/tests/browser.html>
 
 在服务器终端按 `Ctrl+C` 停止。若端口被占用，换端口并同步修改网址。也可使用已有的静态服务器，无需同时安装多个工具。本次环境中 `python` 命令不可用，上述是可选启动说明，不是本次实测成功记录。
@@ -61,9 +62,12 @@ node tools/sync_levels.mjs
 | 编辑器撤销 / 重做 | `Ctrl+Z` / `Ctrl+Shift+Z`（整份 LevelData,对象/路线/元信息一起） |
 | 编辑器导出 JSON | `Ctrl+S` 或「导出 JSON」；只发起浏览器下载 |
 | 编辑器打开 / 导入 | 「打开 JSON…」读 v2；「导入旧图…」把 TXT/旧 JSON 迁移成草稿 |
-| 编辑器试玩 | 暂不可用（T03/T04 接通前禁用,不会转成旧 TXT） |
+| 编辑器草稿 | 「保存草稿」写 IndexedDB；下拉选择后「打开草稿」；刷新后可找回 |
+| 编辑器开发试玩 | 「▶ 开发试玩(两层)」；先按 play 校验接口/出生点，保存草稿后进入新运行时 |
+| 开发试玩移动 / 跳跃 | `A`/`D` 或左右方向键；`Space`/`W`/上方向键(可二段跳) |
+| 开发试玩暂停 / 重开 | `P` 或 `Esc` 暂停；「继续」恢复(不追算暂停时间)；`R` 重开 |
 
-旧程序仍有 3～24 层、镜像、淡出换层、坠落回本层起点。这些属于待迁移的旧行为，不是后续产品规范。当前没有生命、光环技能和 Boss，不能使用文档中的未来按键来验证尚未实现的功能。编辑器现在的导出格式是 v2 JSON,旧 `play.html` 只认 TXT,所以编辑结果暂时不能直接进游戏试玩或发布。
+旧主菜单仍有 3～24 层、镜像、淡出换层、坠落回本层起点；这些是待迁移的旧行为。B1 的新运行时是 `devplay.html`：两层、可变宽高、接口对齐、同一玩家连续攀爬；没有伤害、敌人、技能或 Boss，也没有认证发布。编辑器的导出格式是 v2 JSON，旧 `play.html` 只认 TXT，所以不走旧试玩。
 
 ## 检查方法
 
@@ -81,12 +85,14 @@ node tools/test_editor.mjs
 node tools/test_assets.mjs
 node tools/test_leveldata.mjs
 node tools/test_t01r.mjs
+node tools/test_world_session.mjs
 node tools/browser_t02a.mjs
 node tools/browser_t02a_r.mjs
+node tools/browser_b1.mjs
 node tools/check_levels.mjs
 ```
 
-`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。两个 `browser_t02a*.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`，失败再试 Edge），会用 headless 模式和 DevTools 协议做真实鼠标画图、撤销/重做、缩放平移、导出下载与重新打开，并保存截图；T02A-R 脚本另外验证机关长按、坏接口导入与缩图确认。
+`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。`test_world_session.mjs` 用四层夹具验证 n−1/n/n+1 生命周期、跨层与暂停；`browser_t02a*.mjs`/`browser_b1.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`），用 headless + DevTools 做真实鼠标/键盘/下载；B1 脚本验证编辑保存→刷新恢复→试玩跨层→暂停恢复。
 
 2026-10-30 在本次会话实测的完整自检基线：
 
@@ -99,11 +105,9 @@ node tools/check_levels.mjs
 
 退出码为 `1`。失败是 `floor09`、`floor11` 各被两个入口报告，不能当作四个独立故障，也不能据此宣布两张地图人工不可通。Node 检查使用 DOM/Canvas 替身；贴图检查通过不等于已完成真实画面验收。
 
-2026-10-31 独立复验（T01-R 修复后）：1188 PASS / 4 FAIL（引擎 587/4、编辑器 238/0、贴图 126/0、数据 139/0、修复自检 98/0），见 [T01-R 复验报告](docs/checks/review-T01R-2026-10-31.md)。随后 T02A 把编辑器测试改成新契约测试：旧 TXT 导出/保存到游戏/改池相关断言按目标替换，画图、撤销、缩放等回归保留。
+2026-11-04 B1 实测：`node tools/test_all.mjs` 为 **1224 PASS / 4 FAIL，退出码 1**（引擎 595/4、编辑器 225/0、贴图 126/0、数据 139/0、修复自检 98/0、世界/会话 41/0）；`node tools/browser_b1.mjs` 为 **21 PASS / 0 FAIL**（Chrome 156.0.8078.74 headless，真实编辑保存→刷新恢复→键盘跨层→暂停恢复）。4 条失败仍是 floor09/floor11 的旧逐跳可达性诊断，本批未修、未跳过。证据见 [B1 交付记录](docs/checks/B1-2026-11-04.md)。
 
-2026-10-31 T02A 完成后实测：`node tools/test_all.mjs` 为 1089 PASS / 4 FAIL；`node tools/browser_t02a.mjs` 为 18 PASS / 0 FAIL。编辑器 PASS 数从 238 降到 139 是测试范围变化，不是删断言凑数：旧 TXT/保存到游戏/旧池测试被替换成新契约测试，证据见 [T02A 交付记录](docs/checks/T02A-2026-10-31.md)。
-
-2026-11-01 T02A-R 修复后实测：`node tools/test_all.mjs` 为 **1143 PASS / 4 FAIL，退出码 1**（引擎 587/4、编辑器 193/0、贴图 126/0、数据 139/0、修复自检 98/0）；`node tools/browser_t02a_r.mjs` 为 **21 PASS / 0 FAIL**（Chrome 156 headless；真实按住机关画笔、坏接口导入、缩图取消/确认/撤销）。4 条失败仍是 floor09/floor11，未修、未跳过。证据见 [T02A-R 交付记录](docs/checks/T02A-R-2026-11-01.md)；验收方 2026-11-01 的 Chrome 启动失败记录与旧 18/0 证据都保留，新证据不覆盖旧证据。
+历史：T01-R 复验为 1188/4；T02A 为 1089/4；T02A-R 为 1143/4。编辑器测试数变化来自旧 TXT/旧池断言被替换与新增草稿/试玩回归，不是删断言凑数。
 
 迁移工具 `tools/migrate_levels.mjs` 现在是“先规划后写入”：`--in` 与 `--out` 相同（含大小写/别名）、输出 id 碰撞、报告落到源文件上都会在写入前失败；内容不同的既有输出默认不覆盖，需显式 `--force`。报告必须放在输入目录之外，例如默认的 `docs/checks/`。本次没有重写已交付的 `levels/v2/`（12 张全部幂等跳过）。
 
@@ -113,28 +117,35 @@ node tools/check_levels.mjs
 
 1. 打开游戏，检查左右移动、短跳、二段跳、单向平台与弹簧。
 2. 通过出口，观察旧版淡出换层；坠落后观察回本层起点。
-3. 打开编辑器，用「打开 JSON…」载入 [演示关卡](levels/demo/t02a-demo.json)，画几格、撤销/重做、滚轮缩放、右键平移，再「导出 JSON」并重新打开导出的文件；确认对象、路线、背景、extensions 与未知字段都还在。
-4. 打开浏览器开发者工具，记录异常、复现步骤和所在关卡。
+3. 编辑器「打开 JSON…」载入 [开发样例 A](levels/dev/floor-a.json)，改一笔，点「保存草稿」；刷新页面，在草稿下拉里找回并「打开草稿」。
+4. 点「▶ 开发试玩(两层)」，用 `A/D` + `Space` 二段跳穿过顶部虚线开口；HUD 应变成第 2/2 层，再按 `P` 暂停、等几秒点「继续」，模拟时间不应跳一大段。
+5. 也可直接打开 `devplay.html`，玩内置样例 A+B。
+6. 打开浏览器开发者工具，记录异常、复现步骤和所在关卡。
 
-T02A 的浏览器交互已经用真实 Chrome headless 跑过（截图与 JSON 证据在 [T02A 交付记录](docs/checks/T02A-2026-10-31.md)）；文件选择对话框、真实手感与安卓仍未人工验证，见“当前重要限制”。
+B1 主链路已用真实 Chrome headless 跑过 21/21（截图与 JSON 在 [B1 交付记录](docs/checks/B1-2026-11-04.md)）；系统文件选择对话框、真实手感、安卓与性能仍未人工验证，见“当前重要限制”。
 
-## 演示 JSON 与编辑器现状
+## 开发样例与编辑器现状
 
-[levels/demo/t02a-demo.json](levels/demo/t02a-demo.json) 是一份**未认证**的 T02A 演示草稿：难度 3、两个带参数对象（火球/齿轮）、一条 pingpong 路线、背景 `sky3`、装饰、extensions，以及一个未知对象（带额外 `behavior` 字段和待修复的 `pathId`）。它有意保持 `ports=null`，不能试玩/发布。用编辑器「打开 JSON…」即可载入、修改、导出。
+- [levels/dev/floor-a.json](levels/dev/floor-a.json)：14×8，出生点在平台，出口 col=5；二段跳可穿过顶部开口。直接 `devplay.html` 时它是下层。
+- [levels/dev/floor-b.json](levels/dev/floor-b.json)：10×5，入口 col=2、出口 col=4；与 A 不同宽高、接口偏置。直接 `devplay.html` 时它是上层。
+- [levels/demo/t02a-demo.json](levels/demo/t02a-demo.json)：未认证 T02A 演示草稿，含未知对象/路线/extensions，`ports=null`，只能编辑，不能试玩/发布。
+- `js/dev-samples.js` 由 `node tools/sync_dev_levels.mjs` 从 `levels/dev/*.json` 生成；测试会检查同步。开发样例不进 `levels/levels.js`、不进正式池。
 
-编辑器已经做到：完整 LevelData 为唯一真值（没有第二份字符地图）；S/x/y 机关、出生点、地块可画；同一格重复画同类机关不会堆叠（保留原 id/参数/未知字段），换类型才覆盖；撤销/重做保存整份数据（100 步 / 32 MiB 预算）；导入导出走同一 LevelCodec，结构错误的导入不会被替换进来；未知对象和未知字段可见、可保留；缩小地图先列影响再确认，接口放不下时会把原 `ports` 完整存进 `extensions.retiredPorts` 再置空。还没做：IndexedDB 草稿（T02B）、正式试玩（T03/T04）、端口编辑与保护区可视化（T04）、发布认证（T06）。
+编辑器已经做到：完整 LevelData 为唯一真值；画地块/出生点/S·x·y 机关；同格同类机关幂等；撤销/重做整份数据（100 步 / 32 MiB）；结构错误导入零替换；IndexedDB 草稿保存/打开/刷新恢复/revision 冲突；缩图先算影响并在候选副本上做容量预检，失效接口完整存进 `extensions.retiredPorts`；「开发试玩(两层)」走新 GameSession。
+
+新运行时 `devplay.html`：两层不同宽高、接口对齐、同一玩家连续攀爬；当前层完整模拟，下一层预热（不攻击），上一层只保留地形快照到再上一层；脚底过线一次只提交一次；底边梯板防回落；`P/Esc` 暂停冻结、恢复不追算。**没有**伤害、敌人、技能、Boss、认证发布或安卓。
 
 ## 当前重要限制
 
-- T02A-R 的 A1/A2 和普通缩图已通过复验，剩余 A3-C：扩展信息接近上限时，确认缩图追加备份会导致无法导出。最新结论见 [独立复验](docs/checks/review-T02AR-2026-11-01.md)。
-- 编辑器刷新页面不会恢复草稿；导出只发起浏览器下载，没有“已保存到磁盘”的确认（T02B 解决）。
-- 新格式不能试玩/发布：`play.html` 只认旧 TXT，正式会话与端口工具在 T03/T04；编辑器不会偷偷转成旧 TXT。
-- 编辑器的出口仍是 `ports=null`：旧 G 只作为迁移信息显示，不能画一个 G 伪造合格接口；完整接口编辑在 T04。
-- 缩图导致接口失效时只把原 `ports` 完整保存到 `extensions.retiredPorts` 并置空，编辑器暂不提供修复入口（T04）；撤销可以还原。
-- 对象只能摆 `S/x/y`（弹簧/门方块/浮石）；火球、地刺、齿轮还没有参数面板与路径绘制（T05/T06），演示 JSON 里的这些对象只作为数据保留并显示占位。
-- `verified` 未构成可靠发布门槛；当前随机抽选不排除未验证关卡；`monsters.js` 只是参数表雏形。
+- B1 是开发试玩，不是正式发布：没有伤害/敌人/技能/Boss，没有认证/发布；开发样例未认证、不进正式池。
+- 没有端口编辑：编辑器不能改接口；没有接口的草稿试玩会被明确拒绝。缩图退役接口只保存到 `extensions.retiredPorts`，修复入口仍未做（T04 后续）。
+- 两层是默认样例；四层只用于 Node 生命周期夹具。编辑器试玩的下一层固定为开发样例 B，不是可配置塔。
+- 草稿冲突有 Node 双实例回归；真实浏览器只验证了保存→刷新恢复，没有自动双窗口冲突复现。
+- 刷新不会恢复**未保存**改动（保存草稿后才恢复）；导出只发起下载，没有“已写入磁盘”的确认。
+- 对象只能摆 `S/x/y`（弹簧/门方块/浮石）；火球、地刺、齿轮还没有参数面板/路径绘制/运行行为，演示 JSON 里的这些对象只是保留数据。
+- `verified` 未构成可靠发布门槛；旧正式池仍可能抽到未验证关卡；`monsters.js` 只是参数表雏形。
 - 当前种子依赖关卡池顺序与内容，不承诺修改池后仍重现旧塔。
-- 已有本地 Git 基线 `f56cdce`；T01 实现 `6a7e712`、T01-R 修复 `c7c5490`、T02A 交付 `f2a0e07`、T02A-R 修复 `6f88127`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
+- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
 
 ## 文档与目录
 
@@ -148,8 +159,11 @@ T02A 的浏览器交互已经用真实 Chrome headless 跑过（截图与 JSON �
 | [数据与接口](docs/design/data-and-interfaces.md) | JSON、运行状态、模块契约 |
 | [开发任务](docs/tasks/README.md) | 顺序、任务卡和验收方法 |
 | [美术资产接入](docs/art/asset-integration.md) | 当前图片路径、替换规格、角色/图集接线、素材生成与测试注意项 |
-| `js/` | 当前引擎、游戏、编辑器、试玩代码 |
+| [B1 交付记录](docs/checks/B1-2026-11-04.md) | 草稿/会话/连续楼层/A3-C 的证据与未测项 |
+| `js/` | 引擎、旧游戏、编辑器、草稿仓库、World/GameSession、开发试玩代码 |
+| `devplay.html` | 连续两层开发试玩入口（新 GameSession） |
 | `levels/` | 当前 12 张内置 JSON、模板和生成副本 |
+| `levels/dev/` | 两张开发样例（A/B，未认证，不进正式池） |
 | `levels/demo/t02a-demo.json` | T02A 未认证演示草稿（完整 LevelData，含未知对象） |
 | `levels/v2/` | 12 张旧图的未认证迁移草稿（ports=null） |
 | `assets/` | 当前贴图 |

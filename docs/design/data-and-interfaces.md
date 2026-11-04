@@ -207,6 +207,14 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - 结构错误（含缺 `ports.entry/exit`、非法 col、size 与地形不一致、非法地块等）的导入不产生可提交模型，界面保留原图、历史与 dirty；warning 级草稿（ports=null、未知对象、断引用）仍可打开。
 - 缩图影响包含接口开口（`PORT.openingCols`）。确认有损缩图时，把原 `ports` 完整追加到 **`extensions.retiredPorts`**，再置 `ports=null`；不夹取 col、不覆盖已有记录。记录形状：`{source:'editor-resize', profile, ports:<原 ports>, before:{cols,rows}}`。该键属于 `extensions`（进入内容 hash、随文件往返），不是运行状态；修复入口留 T04。撤销会连同记录一起还原。
 
+2026-11-04 B1 补充：
+
+- **缩图提交**：有损缩图先在完整候选副本上改尺寸/追加退役记录/清派生字段，再走共享 `encode`；候选不能序列化就整体失败（容量不足 `LIMIT_EXCEEDED`），原 LevelData、端口、extensions、历史、dirty、视角都不变。`changeSize` 先预演后 `pushUndo`。
+- **草稿仓库**：`ContentRepository` 使用 IndexedDB（`ra_drafts`）为主，无 IndexedDB 时内存兜底并明确 `persistent=false`。`saveDraft(draftId,data,expectedRevision)` 先按 draft 用途校验、encode 成规范 JSON，保存**发起时快照**；`revision` 由适配器原子递增，`expectedRevision` 不匹配返回 `CONFLICT`，存储失败返回 `STORAGE_FAILED`，两者都不清 dirty、不覆盖旧记录。`listDrafts/loadDraft/deleteDraft` 同样返回显式 Result。浏览器刷新后可从列表恢复；草稿不写入 `levels/`。
+- **GameSession/World（B1 子集）**：`GameSession.create({floors})` 对每层跑 `validate(play)`，拒绝结构错误；固定 `1/60` 步、最多 5 步/帧，暂停不推进、恢复不追算。`World` 按 `next.origin.x = cur.origin.x + (cur.exit.col - next.entry.col) * TS`、`next.origin.y = cur.origin.y - next.rows * TS` 对齐接口，并整体平移到 x≥0。同一 `Player` 跨层只切换 `FloorView`，不重建；脚底过线且身体完全在开口内才提交一次；底边是防回落的单向梯板；顶层无下一层时开口不放行。进入第 n+1 层时第 n 层变 snapshot、第 n+2 层变 preview，第 n−1 层释放；preview 只累计 `previewTime` 并跑非攻击环境运动，`activeTime` 保持 0。
+- **开发样例**：`levels/dev/floor-a.json`、`floor-b.json` 是开发模式数据，未认证、不进 `levels/levels.js`/正式池；`js/dev-samples.js` 由 `tools/sync_dev_levels.mjs` 生成。编辑器「开发试玩」按 play 校验当前草稿、保存草稿后把"当前层 + 样例 B"交给 `devplay.html`；直接打开 devplay 用 A+B。
+- 尚未实现：伤害/敌人/技能/Boss、认证发布、端口编辑；事件目前只有 `floorEntered/paused/resumed/respawn`，B2 再扩展战斗/胜利事件与 runId/sequence。
+
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。
 
 Actions：`leftHeld,rightHeld,jumpHeld,jumpPressed,skillPressed,interactPressed,pausePressed`。键盘与触控共用；外壳每个模拟步仅消费一次 pressed。旧 Player 通过适配读取 held，不改变其跳跃缓冲语义。

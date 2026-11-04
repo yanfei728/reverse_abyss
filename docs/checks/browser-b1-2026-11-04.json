@@ -1,0 +1,124 @@
+{
+  "date": "2026-11-04T02:00:54.848Z",
+  "browser": "Chrome/156.0.8078.74",
+  "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "durationMs": 5549,
+  "pass": 21,
+  "fail": 0,
+  "results": [
+    {
+      "name": "Chrome 已启动",
+      "ok": true,
+      "extra": "Chrome/156.0.8078.74 headless"
+    },
+    {
+      "name": "编辑器真实页面加载完成",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "编辑器使用 IndexedDB 草稿仓库",
+      "ok": true,
+      "extra": "indexedDB"
+    },
+    {
+      "name": "真实页面打开开发样例 A",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "点「保存草稿」写入 IndexedDB",
+      "ok": true,
+      "extra": "1"
+    },
+    {
+      "name": "刷新后编辑器重新加载",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "刷新后能从 IndexedDB 列出刚保存的草稿",
+      "ok": true,
+      "extra": "[\"dev_floor_a\"]"
+    },
+    {
+      "name": "点「打开草稿」恢复完整内容",
+      "ok": true,
+      "extra": "开发样例 A(下层)"
+    },
+    {
+      "name": "恢复的地形/接口/出生点/extensions 与保存前一致",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "试玩页加载新 GameSession",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "试玩使用两层(编辑层 + 开发样例 B)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "初始在第 0 层,第 1 层预热",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "真实键盘二段跳穿过出口到第 1 层",
+      "ok": true,
+      "extra": "floor=1"
+    },
+    {
+      "name": "跨层后第 0 层地形快照仍在、第 1 层活动",
+      "ok": true,
+      "extra": "[{\"index\":0,\"state\":\"snapshot\",\"activeTime\":1.2000000000000006,\"previewTime\":0,\"hasNext\":true},{\"index\":1,\"state\":\"active\",\"activeTime\":0.19999999999999998,\"previewTime\":1.2000000000000006,\"hasNext\":false}]"
+    },
+    {
+      "name": "跨层没有把玩家重置回出生点(位置仍在接口附近)",
+      "ok": true,
+      "extra": "y=-81.5"
+    },
+    {
+      "name": "跨层后落回入口梯板也不会掉回第 0 层",
+      "ok": true,
+      "extra": "floor=1 feet=0.0"
+    },
+    {
+      "name": "P 能暂停模拟",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "暂停期间时间 / 位置不推进",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "暂停遮罩可见",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "点「继续」恢复模拟",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "恢复后不追算暂停的 0.8 秒",
+      "ok": true,
+      "extra": "0.317s"
+    }
+  ],
+  "screenshots": [
+    "docs/checks/b1-browser-editor-saved.png",
+    "docs/checks/b1-browser-editor-restored.png",
+    "docs/checks/b1-browser-devplay-start.png",
+    "docs/checks/b1-browser-devplay-floor2.png",
+    "docs/checks/b1-browser-devplay-paused.png"
+  ],
+  "draftId": "dev_floor_a"
+}
