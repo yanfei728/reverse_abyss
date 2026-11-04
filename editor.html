@@ -13,8 +13,9 @@
   <aside id="left">
     <h1>关卡编辑器</h1>
     <p class="dim small">
-      T02A:编辑<b>完整 LevelData</b>(地形 / 对象 / 路线 / 出生点 / 背景 / 装饰 / extensions),
-      导出与重新打开都走同一份 JSON 契约。草稿仓库、正式试玩、发布还没有接入。
+      B1:编辑<b>完整 LevelData</b>(地形 / 对象 / 路线 / 出生点 / 背景 / 装饰 / extensions),
+      导出/打开都走同一份 JSON 契约;浏览器草稿存 IndexedDB,刷新后可找回。
+      开发试玩用新运行时,不再转旧 TXT。
     </p>
 
     <h2>地物 <span class="dim">(地块 + 已注册机关)</span></h2>
@@ -59,7 +60,7 @@
       <button id="btn-export" class="primary" title="导出完整 LevelData JSON(Ctrl+S)。只发起浏览器下载,不写 levels/">导出 JSON (Ctrl+S)</button>
       <button id="btn-copy" title="把导出的 JSON 放进剪贴板">复制 JSON</button>
       <button id="btn-view-json" title="把导出的 JSON 摊开看 / 手动复制">查看 JSON</button>
-      <button id="btn-play" disabled title="新格式试玩要等 T03 共用会话 / T04 连续世界;不会偷偷转成旧 TXT">▶ 试玩(待接入)</button>
+      <button id="btn-play" title="用新 GameSession 连续两层开发试玩;接口/出生点不合法会先报错">▶ 开发试玩(两层)</button>
       <a class="back" id="back-link" href="index.html" title="回游戏:有未导出的改动会先问一句">← 回游戏</a>
     </div>
     <div id="board-wrap">
@@ -126,13 +127,20 @@
       「自动」= null,爬塔时随层数循环。贴图在 <code>assets/sky/</code>。
     </p>
 
-    <h2>草稿 / 发布</h2>
+    <h2>浏览器草稿</h2>
     <div class="row">
-      <button id="btn-draft" disabled title="T02B 接 IndexedDB 草稿仓库">持久草稿(待接入)</button>
+      <select id="draft-select" title="IndexedDB 里的草稿;刷新后仍可找回"></select>
     </div>
+    <div class="row">
+      <button id="btn-draft" title="保存当前完整 LevelData 快照">保存草稿</button>
+      <button id="btn-draft-open" title="打开选中的草稿">打开草稿</button>
+      <button id="btn-draft-refresh" title="重新读取草稿列表">刷新列表</button>
+    </div>
+    <p class="dim small" id="draft-status">草稿:…</p>
     <p class="dim small">
-      T02A 只做文件往返:导出 JSON 由你自己保管;刷新页面不会恢复草稿(T02B)。
-      发布、正式试玩与旧正式池都不在本卡,导出不会被当成已发布。
+      草稿按发起保存时的快照写入;保存期间继续编辑,仍会显示"有未保存改动"。
+      另一窗口先保存时 revision 冲突,不会覆盖;导出 JSON 仍是独立备份。
+      草稿不会自动发布,也不改旧正式池。
     </p>
 
     <h2>检查</h2>
@@ -141,10 +149,11 @@
     <h2>怎么用</h2>
     <p class="dim small">
       1. 选地块/机关,在中间画。每层最多一个出生点 <b>P</b>;对象用 <b>S / x / y</b> 摆放。
-      出口 G 不再是画笔:新格式的出口是顶边接口,等 T04 的端口工具;<b>旧 G 只作为迁移信息显示</b>。<br>
+      出口 G 不再是画笔:新格式的出口是顶边接口,完整端口工具仍在 T04;<b>旧 G 只作为迁移信息显示</b>。<br>
       2. 撤销/重做保存整份 LevelData(对象、路线、元信息一起),最多 100 步 / 32 MiB;<br>
-      3. 编辑后认证立即失效。点「导出 JSON」只发起浏览器下载,不会清掉未持久状态;<br>
-      4. 打开一份 JSON 或旧图,失败不会替换当前图;未知对象与未知字段会保留并显示,不会被自动补成"可运行"。
+      3. 「保存草稿」写进浏览器 IndexedDB,刷新后可在列表里找回;「导出 JSON」仍是独立文件备份;<br>
+      4. 「开发试玩(两层)」先按 play 用途检查接口/出生点,保存草稿后进入新 GameSession;当前层 + 开发样例 B 连续攀爬,暂停用 P/Esc;<br>
+      5. 打开 JSON / 旧图失败不会替换当前图;未知对象与未知字段会保留并显示,不会被自动补成"可运行"。
     </p>
   </aside>
 </div>
@@ -179,11 +188,15 @@
 <script src="js/input.js"></script>
 <script src="js/tower.js"></script>
 <script src="js/levelpack.js"></script>
+<script src="js/content-repository.js"></script>
+<script src="js/world.js"></script>
+<script src="js/session.js"></script>
 <script src="js/reach.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>
 <script src="js/smoke.js"></script>
 <script src="levels/levels.js"></script>
+<script src="js/dev-samples.js"></script>
 <!-- 编辑器本体 -->
 <script src="js/editor.js"></script>
 </body>

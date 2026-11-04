@@ -452,10 +452,14 @@ if (ed) {
     typeof ed.saveToFolder === 'undefined' && typeof ed.applyToGamePool === 'undefined' &&
     typeof ed.download === 'undefined' && typeof ed.exportText === 'undefined' &&
     typeof ed.copyText === 'undefined');
-  check('试玩入口明确禁用并解释,不转旧 TXT',
-    ed.openPlaytest() === false && ed.msg.indexOf('T03') >= 0);
-  check('新格式试玩不会打开新标签页',
-    (() => { const n = globalThis.__OPENED__ ? globalThis.__OPENED__.length : 0; ed.openPlaytest(); return (globalThis.__OPENED__ ? globalThis.__OPENED__.length : 0) === n; })());
+  check('旧 TXT 试玩入口已移除(不会再打开 play.html)',
+    readFileSync(join(ROOT, 'js/editor.js'), 'utf8').indexOf("'play.html") < 0);
+  check('开发试玩按钮不再被禁用',
+    (() => {
+      const html = readFileSync(join(ROOT, 'editor.html'), 'utf8');
+      return html.indexOf('id="btn-play"') >= 0 &&
+        html.indexOf('id="btn-play" disabled') < 0;
+    })());
 }
 
 // ================= ⑨ 导入界面 / 失败不改图 =================
@@ -587,9 +591,11 @@ head('页面接线:editor.html 的 id / 脚本与 editor.js 对得上');
   check('代码里不再调用旧 TXT 导出/旧池',
     src.indexOf('applyToGamePool') < 0 && src.indexOf('toText(') < 0 &&
     src.indexOf('LevelFolder') < 0 && src.indexOf('putOverride') < 0);
-  check('导出入口与草稿占位都在页面上',
+  check('导出入口与草稿控件都在页面上',
     html.indexOf('id="btn-export"') >= 0 && html.indexOf('id="btn-import-legacy"') >= 0 &&
-    html.indexOf('id="btn-draft"') >= 0 && html.indexOf('disabled') >= 0);
+    html.indexOf('id="btn-draft"') >= 0 && html.indexOf('id="draft-select"') >= 0 &&
+    html.indexOf('id="btn-draft-open"') >= 0 && html.indexOf('id="btn-play"') >= 0 &&
+    html.indexOf('id="btn-play" disabled') < 0);
   check('演示 JSON 在文档目录里被引用', (() => {
     const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
     return readme.indexOf('levels/demo/t02a-demo.json') >= 0;
@@ -895,6 +901,175 @@ head('A3-C:缩图在候选副本上做容量预检,失败零变更');
     ed.view.y === uiBefore.view.y && ed.view.zoom === uiBefore.view.zoom);
   check('UI 容量失败提示 LIMIT_EXCEEDED', ed.msg.indexOf('LIMIT_EXCEEDED') >= 0, ed.msg);
   globalThis.confirm = savedConfirm;
+}
+
+head('T02B:草稿仓库保存 / 恢复 / revision 冲突 / 失败 / 保存期间编辑');
+{
+  const Memory = RA.ContentRepository.MemoryAdapter;
+  const repo = RA.ContentRepository.create({ adapter: new Memory(), storage: 'memory' });
+  const edA = new RA.Editor(makeCanvas(900, 600), { repo });
+  edA.newLevel(8, 6, true);
+  edA.model.setTitle('草稿 A');
+  edA.markDirty();
+  const saved1 = await edA.saveDraft();
+  check('保存草稿成功并拿到 revision 1', saved1 && edA.draftRevision === 1 &&
+    edA.dirty === false, String(edA.draftRevision));
+  check('保存后列表里能查到这份草稿', (await repo.listDrafts()).value.some(
+    (d) => d.draftId === edA.model.id && d.revision === 1 && d.title === '草稿 A'));
+
+  edA.model.setTile(1, 1, 1);
+  edA.markDirty();
+  const saved2 = await edA.saveDraft();
+  check('同一草稿再保存 revision 递增并清 dirty', saved2 && edA.draftRevision === 2 &&
+    edA.dirty === false);
+  const savedData = (await repo.loadDraft(edA.model.id)).value.data;
+
+  const edB = new RA.Editor(makeCanvas(900, 600), { repo });
+  await edB.refreshDrafts();
+  const opened = await edB.openDraftById(edA.model.id);
+  check('新编辑器能从浏览器草稿恢复完整内容',
+    opened && LD.canonical(edB.model.data) === LD.canonical(savedData) &&
+    edB.draftRevision === 2 && edB.dirty === false);
+
+  // 两个"窗口"基于同一 revision,先保存者赢,后保存者冲突且不覆盖
+  edB.model.setTile(2, 2, 1);
+  edB.markDirty();
+  edA.model.setTile(3, 3, 1);
+  edA.markDirty();
+  check('窗口 A 先保存成功', await edA.saveDraft() && edA.draftRevision === 3);
+  const recordAfterA = (await repo.loadDraft(edA.model.id)).value;
+  const conflict = await edB.saveDraft();
+  check('窗口 B 的旧 revision 保存被拒绝(CONFLICT)',
+    conflict === false && edB.msg.indexOf('CONFLICT') >= 0, edB.msg);
+  check('冲突后不覆盖对方内容,双方 dirty 保留',
+    (await repo.loadDraft(edA.model.id)).value.contentHash === recordAfterA.contentHash &&
+    edB.dirty === true && edB.draftRevision === 2);
+
+  // 存储失败:不报成功、不清 dirty、不改已有记录
+  const beforeFail = (await repo.loadDraft(edA.model.id)).value;
+  repo.adapter.failNextPut('磁盘满了');
+  edA.model.setTile(4, 4, 1);
+  edA.markDirty();
+  const failed = await edA.saveDraft();
+  check('存储失败返回 false 且保留 dirty / revision',
+    failed === false && edA.dirty === true && edA.draftRevision === 3);
+  check('存储失败不覆盖已有草稿',
+    (await repo.loadDraft(edA.model.id)).value.contentHash === beforeFail.contentHash);
+
+  const missing = await edB.openDraftById('does_not_exist');
+  check('打开不存在的草稿失败且不替换当前图', missing === false &&
+    edB.model.data.id === edA.model.id);
+
+  // 保存期间继续编辑:快照是发起时的,成功也不能清掉新 dirty
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const base = new Memory();
+  const slow = {
+    list: () => base.list(),
+    get: (id) => base.get(id),
+    put: async (rec, exp) => { await gate; return base.put(rec, exp); }
+  };
+  const slowRepo = RA.ContentRepository.create({ adapter: slow, storage: 'memory' });
+  const edC = new RA.Editor(makeCanvas(900, 600), { repo: slowRepo });
+  edC.newLevel(8, 6, true);
+  edC.dirty = true;
+  const pending = edC.saveDraft();
+  edC.model.setTile(5, 5, 1);
+  edC.markDirty();
+  release();
+  const pendingOk = await pending;
+  const slowRecord = (await slowRepo.loadDraft(edC.model.id)).value;
+  check('保存期间继续编辑:保存成功但 dirty 仍为 true',
+    pendingOk && edC.dirty === true && edC.draftRevision === 1);
+  check('保存的是发起时的快照,不是保存完成时的内容',
+    slowRecord.contentHash !== LD.hashSync(edC.model.toData()) &&
+    slowRecord.data.terrain.tiles[5][5] !== 1);
+  check('保存后状态明确提示"保存期间又有改动"',
+    edC.$('draft-status').textContent.indexOf('保存期间') >= 0,
+    edC.$('draft-status').textContent);
+
+  // 含未知对象/未知字段的草稿:保存再读回仍逐项保真
+  {
+    const demoRepo = RA.ContentRepository.create({
+      adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory'
+    });
+    const edD = new RA.Editor(makeCanvas(900, 600), { repo: demoRepo });
+    edD.replaceModel(RA.EditorModel.fromData(demoData).value);
+    edD.dirty = true;
+    check('未知内容草稿能保存', await edD.saveDraft());
+    const rec = (await demoRepo.loadDraft(edD.model.id)).value;
+    check('草稿保存/读回保留对象参数、路线、extensions 与未知字段',
+      LD.canonical(rec.data) === LD.canonical(edD.model.data) &&
+      rec.data.objects.some((o) => o.type === 'future_enemy' &&
+        o.behavior && o.behavior.keep === 'author-data') &&
+      rec.data.paths[0].label === '往返巡逻' &&
+      rec.data.extensions.note && rec.data.objects[1].pathId === 'p1');
+  }
+
+  // 新建/导入后不沿用旧 draftId,避免误覆盖
+  edC.newLevel(6, 5, false);
+  check('新建后清空 draftId / revision', edC.draftId === '' && edC.draftRevision === null);
+}
+
+head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
+{
+  const data = (() => {
+    const m = RA.EditorModel.create({ cols: 10, rows: 8, withGround: true, title: '试玩样例' });
+    m.data.ports = { profile: 'vertical-v1', entry: { col: 2 }, exit: { col: 2 } };
+    return m.toData();
+  })();
+  check('试玩样例按 play 用途校验通过',
+    LD.errorsOf(LD.validate(data, { purpose: 'play' })).length === 0);
+  const savedSamples = RA.DEV_SAMPLES;
+  RA.DEV_SAMPLES = { floorB: clone(data) };
+  try {
+    const repo = RA.ContentRepository.create({
+      adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory'
+    });
+    const edP = new RA.Editor(makeCanvas(900, 600), { repo });
+    edP.replaceModel(RA.EditorModel.fromData(data).value);
+    edP.dirty = true;
+    const oldHref = globalThis.location.href;
+    const ok = await edP.openPlaytest();
+    const handoff = globalThis.sessionStorage.getItem('RA_DEVPLAY_V1');
+    check('合法草稿能启动开发试玩', ok === true && !!handoff);
+    check('试玩前自动保存草稿,避免离开页面丢工作',
+      edP.draftRevision === 1 && edP.dirty === false);
+    check('交给试玩页的是当前层 + 下一层开发样例',
+      (() => {
+        const h = JSON.parse(handoff || '{}');
+        return h.version === 1 && h.template && h.template.id === data.id &&
+          h.next && h.next.id === data.id;
+      })());
+    check('跳转目标是新运行时 devplay.html(不是旧 play.html)',
+      globalThis.location.href.indexOf('devplay.html?from=editor') >= 0, globalThis.location.href);
+    globalThis.location.href = oldHref;
+
+    const bad = RA.EditorModel.create({ cols: 10, rows: 8, withGround: true });
+    const edBad = new RA.Editor(makeCanvas(900, 600), { repo });
+    edBad.replaceModel(bad);
+    edBad.dirty = true;
+    globalThis.sessionStorage.removeItem('RA_DEVPLAY_V1');
+    const refused = await edBad.openPlaytest();
+    check('多个接口错误时拒绝试玩并提示 INVALID_PORT',
+      refused === false && edBad.msg.indexOf('INVALID_PORT') >= 0 &&
+      edBad.msg.indexOf('/ports') >= 0, edBad.msg);
+    check('被拒绝时不写试玩数据、不跳转', !globalThis.sessionStorage.getItem('RA_DEVPLAY_V1') &&
+      globalThis.location.href.indexOf('devplay.html') < 0);
+
+    const failRepo = RA.ContentRepository.create({
+      adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory'
+    });
+    failRepo.adapter.failNextPut('写入失败');
+    const edF = new RA.Editor(makeCanvas(900, 600), { repo: failRepo });
+    edF.replaceModel(RA.EditorModel.fromData(data).value);
+    edF.dirty = true;
+    const failOk = await edF.openPlaytest();
+    check('草稿保存失败时不启动试玩', failOk === false &&
+      globalThis.location.href.indexOf('devplay.html') < 0);
+  } finally {
+    RA.DEV_SAMPLES = savedSamples;
+  }
 }
 
 // ================= 收尾 =================

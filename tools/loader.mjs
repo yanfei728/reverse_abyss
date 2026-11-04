@@ -39,11 +39,15 @@ export const ENGINE = [
   'js/input.js',
   'js/tower.js',
   'js/levelpack.js',
+  'js/content-repository.js',
+  'js/world.js',
+  'js/session.js',
   'js/reach.js',
   'js/ui.js',
   'js/game.js',
   'js/smoke.js',
-  'levels/levels.js'
+  'levels/levels.js',
+  'js/dev-samples.js'
 ];
 
 // ---------------- canvas / DOM 替身 ----------------
@@ -188,7 +192,7 @@ function installDom() {
     } catch (e) { return false; }
   };
 
-  // localStorage:一个内存版,自检里能验证"存进游戏关卡池"
+  // localStorage / sessionStorage:内存版
   const store = {};
   defineGlobal('localStorage', {
     getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
@@ -196,6 +200,14 @@ function installDom() {
     removeItem(k) { delete store[k]; },
     clear() { Object.keys(store).forEach((k) => delete store[k]); },
     __data: store
+  });
+  const sstore = {};
+  defineGlobal('sessionStorage', {
+    getItem(k) { return Object.prototype.hasOwnProperty.call(sstore, k) ? sstore[k] : null; },
+    setItem(k, v) { sstore[k] = String(v); },
+    removeItem(k) { delete sstore[k]; },
+    clear() { Object.keys(sstore).forEach((k) => delete sstore[k]); },
+    __data: sstore
   });
   // Blob / URL.createObjectURL:把"下载"的内容记下来,自检里能看
   g.__RA_BLOBS__ = [];
@@ -260,6 +272,9 @@ export const EDITOR_SCRIPTS = ENGINE.concat(['js/editor.js']);
 
 /** 试玩页面的脚本 = 引擎 + js/playtest.js(顺序和 play.html 里一致) */
 export const PLAYTEST_SCRIPTS = ENGINE.concat(['js/playtest.js']);
+
+/** 开发试玩页 = 引擎 + js/devplay.js(顺序和 devplay.html 一致) */
+export const DEVPLAY_SCRIPTS = ENGINE.concat(['js/devplay.js']);
 
 /**
  * 额外把关卡编辑器也装进来(自检编辑器用)。

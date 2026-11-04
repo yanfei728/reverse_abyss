@@ -841,7 +841,8 @@
 
   // ===================== 编辑器界面 =====================
   class Editor {
-    constructor(canvas) {
+    constructor(canvas, opts) {
+      opts = opts || {};
       this.canvas = canvas || globalThis.document.getElementById('board');
       if (!this.canvas) throw new Error('找不到 <canvas id="board">');
       this.ctx = this.canvas.getContext('2d');
@@ -875,6 +876,13 @@
       this.msgT = 0;
       this.dirty = false;
 
+      // 浏览器草稿仓库(IndexedDB;不可用时内存兜底)
+      this.repo = opts.repo || (RA.ContentRepository ? RA.ContentRepository.create() : null);
+      this.draftId = '';
+      this.draftRevision = null;
+      this.lastSavedHash = '';
+      this._saving = false;
+
       this.W = this.canvas.width || 800;
       this.H = this.canvas.height || 600;
 
@@ -889,6 +897,7 @@
       this.fitView();
       this.syncUI();
       this.assets.loadAll(() => { this.buildPalette(); });
+      this.refreshDrafts(true);
       this.loop();
     }
 
@@ -965,7 +974,11 @@
       click('btn-export', () => self.downloadJSON());
       click('btn-copy', () => self.copyJSON());
       click('btn-view-json', () => self.showJSON());
-      click('btn-play', () => self.openPlaytest());
+      click('btn-play', () => { self.openPlaytest(); });
+      click('btn-draft', () => { self.saveDraft(); });
+      click('btn-draft-open', () => self.openSelectedDraft());
+      click('btn-draft-refresh', () => self.refreshDrafts());
+      on('draft-select', 'change', () => self.syncDraftStatus());
       click('modal-close', () => self.closeModal());
       on('modal', 'click', (e) => { if (e.target === self.$('modal')) self.closeModal(); });
       click('back-link', (e) => {
@@ -1141,6 +1154,9 @@
         cols: cols, rows: rows, withGround: withGround,
         title: autoTitle(this.takenTitles())
       });
+      this.draftId = '';
+      this.draftRevision = null;
+      this.lastSavedHash = '';
       this.resetHistory();
       this.dirty = false;
       this.fitView();
@@ -1209,6 +1225,9 @@
       };
       try {
         this.model = model;
+        this.draftId = '';
+        this.draftRevision = null;
+        this.lastSavedHash = '';
         this.resetHistory();
         this.dirty = true;             // 导入的是工作副本,还没导出
         this.fitView();
@@ -1226,6 +1245,159 @@
         this.say('打开失败:模型无法显示(' + (e && e.message) + '),当前图没有被替换', 'bad');
         return false;
       }
+    }
+
+    // ================= 浏览器草稿(T02B) =================
+    setDraftStatus(text, kind) {
+      var el = this.$('draft-status');
+      if (el) {
+        el.textContent = text;
+        el.className = 'draft-status ' + (kind || '');
+      }
+    }
+
+    syncDraftStatus() {
+      if (!this.repo) {
+        this.setDraftStatus('草稿仓库不可用;请用「导出 JSON」保存文件', 'bad');
+        return;
+      }
+      var mode = this.repo.persistent ? 'IndexedDB' : '内存(刷新会丢)';
+      var bits = ['存储:' + mode];
+      if (this.draftId) bits.push('草稿 ' + this.draftId);
+      if (this.draftRevision) bits.push('revision ' + this.draftRevision);
+      bits.push(this.dirty ? '有未保存改动' : '与上次保存一致');
+      this.setDraftStatus(bits.join(' · '), this.repo.persistent ? 'dim' : 'warn');
+    }
+
+    /** 刷新草稿列表;开了界面就按 updatedAt 倒序显示 */
+    async refreshDrafts(initial, keepStatus) {
+      if (!this.repo) { this.syncDraftStatus(); return []; }
+      if (this._listing) return [];
+      this._listing = true;
+      try {
+        var res = await this.repo.listDrafts();
+        if (!res.ok) {
+          this.setDraftStatus('读取草稿列表失败:[' + res.error.code + '] ' +
+            res.error.message, 'bad');
+          return [];
+        }
+        var sel = this.$('draft-select');
+        var keep = sel ? sel.value : '';
+        if (sel) {
+          sel.innerHTML = '';
+          var opt0 = globalThis.document.createElement('option');
+          opt0.value = '';
+          opt0.textContent = res.value.length ? '(选择草稿,共 ' + res.value.length + ' 份)'
+            : '(还没有浏览器草稿)';
+          sel.appendChild(opt0);
+          res.value.forEach(function (d) {
+            var op = globalThis.document.createElement('option');
+            op.value = d.draftId;
+            op.textContent = (d.title || '(无标题)') + ' · rev ' + d.revision +
+              ' · ' + String(d.updatedAt || '').replace('T', ' ').slice(0, 16);
+            sel.appendChild(op);
+          });
+          if (keep && res.value.some(function (d) { return d.draftId === keep; })) {
+            sel.value = keep;
+          }
+        }
+        this._drafts = res.value;
+        if (!keepStatus) this.syncDraftStatus();
+        if (initial && res.value.length) {
+          this.setDraftStatus('浏览器里有 ' + res.value.length +
+            ' 份草稿;选一份再点「打开草稿」', 'dim');
+        }
+        return res.value;
+      } finally {
+        this._listing = false;
+      }
+    }
+
+    /**
+     * 保存发起时的快照;成功且当前内容没再变才清 dirty。
+     * 失败/冲突保留 dirty 与 revision,不覆盖别人。
+     */
+    async saveDraft(opts) {
+      opts = opts || {};
+      if (!this.repo) { this.say('这个环境没有草稿仓库;请导出 JSON', 'bad'); return false; }
+      if (this._saving) { this.say('正在保存上一份草稿,请稍候', 'warn'); return false; }
+      var snapshot = this.model.toData();
+      var snapshotHash = LD.hashSync(snapshot);
+      var draftId = this.draftId || this.model.data.id;
+      this._saving = true;
+      var btn = this.$('btn-draft');
+      if (btn) btn.disabled = true;
+      this.setDraftStatus('保存中…', 'warn');
+      try {
+        var res = await this.repo.saveDraft(draftId, snapshot, this.draftRevision || 0);
+        if (!res.ok) {
+          this.setDraftStatus('保存失败:[' + res.error.code + '] ' + res.error.message, 'bad');
+          if (!opts.silent) this.say('草稿没有保存:[' + res.error.code + '] ' + res.error.message, 'bad');
+          return false;
+        }
+        this.draftId = draftId;
+        this.draftRevision = res.value.revision;
+        this.lastSavedHash = snapshotHash;
+        var currentHash = LD.hashSync(this.model.toData());
+        if (currentHash === snapshotHash) {
+          this.dirty = false;
+          this.setDraftStatus('已保存草稿 revision ' + res.value.revision, 'ok');
+        } else {
+          this.dirty = true;
+          this.setDraftStatus('已保存 revision ' + res.value.revision +
+            ';保存期间又有改动,当前仍未保存', 'warn');
+        }
+        this.refreshDrafts(false, true);
+        if (!opts.silent) {
+          this.say('草稿已保存(revision ' + res.value.revision +
+            (currentHash === snapshotHash ? ')' : ';但保存期间又改了,记得再存一次)'));
+        }
+        return true;
+      } finally {
+        this._saving = false;
+        if (btn) btn.disabled = false;
+        this.syncUI();
+      }
+    }
+
+    async openSelectedDraft() {
+      var sel = this.$('draft-select');
+      var id = sel ? sel.value : '';
+      if (!id) { this.say('先在草稿列表里选一份', 'bad'); return false; }
+      return this.openDraftById(id);
+    }
+
+    async openDraftById(id) {
+      if (!this.repo) { this.say('这个环境没有草稿仓库', 'bad'); return false; }
+      if (this.dirty) {
+        var ask = globalThis.confirm;
+        if (typeof ask === 'function' &&
+          !ask('当前有未保存改动,打开草稿会丢掉它们,继续吗?')) {
+          this.say('已取消打开草稿', 'warn');
+          return false;
+        }
+      }
+      var res = await this.repo.loadDraft(id);
+      if (!res.ok) {
+        this.say('打开草稿失败:[' + res.error.code + '] ' + res.error.message, 'bad');
+        return false;
+      }
+      if (!res.value) { this.say('找不到草稿「' + id + '」', 'bad'); return false; }
+      var model = EditorModel.fromData(res.value.data);
+      if (!model.ok) {
+        this.say('草稿内容打不开:[' + model.error.code + '] ' + model.error.message, 'bad');
+        return false;
+      }
+      if (!this.replaceModel(model.value)) return false;
+      this.draftId = id;
+      this.draftRevision = res.value.revision;
+      this.lastSavedHash = LD.hashSync(this.model.toData());
+      this.dirty = false;
+      this.syncDraftStatus();
+      this.refreshDrafts();
+      this.say('已打开草稿「' + (this.model.title || id) + '」revision ' +
+        res.value.revision + ';之后保存会检查这个 revision');
+      return true;
     }
 
     /** 打开下拉框里的内置旧关卡(只读复制,不回写 levels/) */
@@ -1323,11 +1495,50 @@
       if (m) m.className = '';
     }
 
-    /** 新格式试玩要等 T03/T04 接通共用会话;不能转成旧 TXT 偷跑 */
-    openPlaytest() {
-      this.say('新格式试玩还没接入(需要 T03 共用会话 + T04 连续世界);' +
-        '现在不会把这一层转成旧 TXT 偷跑', 'warn');
-      return false;
+    /**
+     * 开发试玩:先按 play 用途校验(接口/出生点/未知对象等),再保存草稿快照,
+     * 最后把"当前层 + 下一层开发样例"交给 devplay.html 的新运行时。
+     * 不合法接口在这里明确提示,不会降级成旧 TXT。
+     */
+    async openPlaytest() {
+      var issues = LD.validate(this.model.data, { purpose: 'play' });
+      var errors = LD.errorsOf(issues);
+      if (errors.length) {
+        var first = errors[0];
+        this.say('现在不能试玩:[' + first.code + '] ' + first.path + ' ' + first.message +
+          '(共 ' + errors.length + ' 个结构错误;修好后会打开新运行时,不是旧 TXT)', 'bad');
+        return false;
+      }
+      var next = RA.DEV_SAMPLES && RA.DEV_SAMPLES.floorB;
+      if (!next) {
+        this.say('缺少开发样例的下一层(RA.DEV_SAMPLES.floorB);不能启动连续试玩', 'bad');
+        return false;
+      }
+      // 试玩会离开当前页面:先把发起时的快照写进草稿,避免未保存工作丢失
+      var saved = await this.saveDraft({ silent: true });
+      if (!saved) {
+        this.say('草稿保存失败,没有离开编辑器;先解决保存问题再试玩', 'bad');
+        return false;
+      }
+      var handoff = {
+        version: 1,
+        from: 'editor',
+        template: this.model.toData(),
+        next: next,
+        sourceDraft: this.draftId,
+        revision: this.draftRevision
+      };
+      try {
+        globalThis.sessionStorage.setItem('RA_DEVPLAY_V1', JSON.stringify(handoff));
+      } catch (e) {
+        this.say('浏览器不允许暂存试玩数据(' + (e && e.message) +
+          ');请检查隐私模式后重试', 'bad');
+        return false;
+      }
+      this.say('已保存草稿 revision ' + this.draftRevision + ',正在打开开发试玩…');
+      var loc = globalThis.location;
+      if (loc) loc.href = 'devplay.html?from=editor';
+      return true;
     }
 
     // ================= 回游戏 =================

@@ -143,3 +143,10 @@ main { display: flex; flex-direction: column; min-width: 0; }
   background: #0a0d16; color: #dfe7f5; border: 1px solid #2c3752; border-radius: 8px;
   font: 12px/1.5 Consolas, "Courier New", monospace; padding: 8px;
 }
+
+/* ---------- 浏览器草稿状态 ---------- */
+.draft-status { font-size: 11.5px; line-height: 1.5; margin: 4px 0; color: #8fa0c0; }
+.draft-status.ok { color: #8fe6b4; }
+.draft-status.warn { color: #ffd98a; }
+.draft-status.bad { color: #ff9c8a; }
+.draft-status.dim { color: #7787a6; }
