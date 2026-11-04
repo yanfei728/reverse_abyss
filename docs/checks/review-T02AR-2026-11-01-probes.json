@@ -1,0 +1,49 @@
+{
+  "reviewDate": "2026-11-01",
+  "results": [
+    {
+      "probe": "A1 repeated brush in same cell",
+      "paintCalls": 60,
+      "objectCount": 1,
+      "ids": [
+        "spring_1"
+      ]
+    },
+    {
+      "probe": "A2 malformed ports import changes current model",
+      "returned": false,
+      "exception": null,
+      "originalId": "level_mvxnzd5q_9u",
+      "currentId": "level_mvxnzd5q_9u",
+      "currentTitle": "keep-current-work",
+      "oldWorkPreserved": true,
+      "dirty": true
+    },
+    {
+      "probe": "A3 shrink across ports without warning",
+      "impact": {
+        "tiles": 0,
+        "objects": 0,
+        "paths": 0,
+        "pathPoints": 0,
+        "spawn": 0,
+        "decorations": 0,
+        "ports": 2,
+        "total": 2
+      },
+      "resizeOk": false,
+      "remainingPorts": {
+        "profile": "vertical-v1",
+        "entry": {
+          "col": 10
+        },
+        "exit": {
+          "col": 10
+        }
+      },
+      "exportOk": true,
+      "exportCode": null,
+      "issues": []
+    }
+  ]
+}
