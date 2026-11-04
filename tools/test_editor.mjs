@@ -842,6 +842,61 @@ if (ed) {
   check('撤销能整笔收回', ed.model.objects.length === 0);
 }
 
+head('A3-C:缩图在候选副本上做容量预检,失败零变更');
+{
+  const near = RA.EditorModel.create({ cols: 20, rows: 12, title: '容量临界' });
+  near.data.ports = { profile: 'vertical-v1', entry: { col: 10 }, exit: { col: 10 } };
+  near.data.extensions.note = 'x'.repeat(LD.LIMITS.EXT - 64);
+  near.data.extensions.作者备注 = '保留的中文作者信息';
+  const beforeJson = near.toJSON();
+  check('容量临界输入本身可导出', beforeJson.ok);
+  const before = LD.canonical(near.toData());
+  const res = near.resize(8, 12, { allowLoss: true });
+  check('追加备份会超限时缩图返回明确错误',
+    !res.ok && res.error.code === 'LIMIT_EXCEEDED' &&
+    JSON.stringify(res.error.issues).indexOf('/extensions') >= 0,
+    res.ok ? 'unexpected ok' : res.error.code + ' ' + res.error.message);
+  check('失败后模型 / 端口 / 扩展 / 尺寸零变更',
+    LD.canonical(near.toData()) === before && near.cols === 20 &&
+    near.data.ports.entry.col === 10 && near.data.extensions.note.length > 0 &&
+    near.data.extensions.作者备注 === '保留的中文作者信息');
+  check('失败后原文件仍可导出', near.toJSON().ok);
+
+  // 已有退役记录 + 临界容量:也只追加一次,超限就失败
+  const withOld = RA.EditorModel.create({ cols: 20, rows: 12 });
+  withOld.data.ports = { profile: 'vertical-v1', entry: { col: 10 }, exit: { col: 10 } };
+  withOld.data.extensions.retiredPorts = [{ source: 'older', ports: { profile: 'vertical-v1' } }];
+  withOld.data.extensions.note = 'y'.repeat(LD.LIMITS.EXT - 200);
+  const oldBefore = LD.canonical(withOld.toData());
+  const oldRes = withOld.resize(8, 12, { allowLoss: true });
+  check('已有退役记录时容量不足也不覆盖旧记录',
+    !oldRes.ok && withOld.data.extensions.retiredPorts.length === 1 &&
+    LD.canonical(withOld.toData()) === oldBefore);
+
+  // UI:预检失败不 pushUndo、不清 redo、不改 dirty / 视角
+  const m = RA.EditorModel.create({ cols: 20, rows: 12, title: 'UI 容量临界' });
+  m.data.ports = { profile: 'vertical-v1', entry: { col: 10 }, exit: { col: 10 } };
+  m.data.extensions.note = 'z'.repeat(LD.LIMITS.EXT - 64);
+  ed.replaceModel(m);
+  ed.pushUndo();
+  ed.dirty = true;
+  const uiBefore = {
+    json: LD.canonical(ed.model.toData()), undo: ed.undoStack.length,
+    redo: ed.redoStack.length, dirty: ed.dirty,
+    view: { x: ed.view.x, y: ed.view.y, zoom: ed.view.zoom }
+  };
+  const savedConfirm = globalThis.confirm;
+  globalThis.confirm = () => true;
+  check('UI 容量失败时返回 false', ed.changeSize(8, 12) === false);
+  check('UI 容量失败不碰历史 / redo / dirty / 视角',
+    LD.canonical(ed.model.toData()) === uiBefore.json &&
+    ed.undoStack.length === uiBefore.undo && ed.redoStack.length === uiBefore.redo &&
+    ed.dirty === uiBefore.dirty && ed.view.x === uiBefore.view.x &&
+    ed.view.y === uiBefore.view.y && ed.view.zoom === uiBefore.view.zoom);
+  check('UI 容量失败提示 LIMIT_EXCEEDED', ed.msg.indexOf('LIMIT_EXCEEDED') >= 0, ed.msg);
+  globalThis.confirm = savedConfirm;
+}
+
 // ================= 收尾 =================
 export const result = { pass, fail, fails, name: '编辑器自检' };
 const IS_MAIN = process.argv[1] &&

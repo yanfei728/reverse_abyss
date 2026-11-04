@@ -623,8 +623,48 @@
       return LD.ok({ retired: true, count: ext.retiredPorts.length });
     }
 
-    /** 显式改尺寸;会丢内容时必须 allowLoss(UI 先确认),否则整次不改 */
+    /**
+     * 在完整候选副本上做有损缩图(A3-C):
+     * 改变尺寸 → 追加退役接口 → 清派生字段 → 共享 encode。
+     * 只有候选本身能导出才返回;原模型、历史、dirty、视角都不动。
+     * 容量/结构失败返回原错误(如 LIMIT_EXCEEDED),不截断作者信息。
+     */
+    resizeCandidate(cols, rows, opts) {
+      opts = opts || {};
+      cols = Math.max(1, Math.min(MAX_COLS, Math.round(cols) || 1));
+      rows = Math.max(1, Math.min(MAX_ROWS, Math.round(rows) || 1));
+      if (cols === this.cols && rows === this.rows) {
+        return LD.ok({ changed: false, impact: null, model: null });
+      }
+      var candidate = EditorModel.fromTrusted(this.toData());
+      var res = candidate._resizeInPlace(cols, rows, opts);
+      if (!res.ok) return res;
+      var enc = candidate.toJSON();
+      if (!enc.ok) {
+        var issues = enc.error.issues || [];
+        var code = (issues[0] && issues[0].code) || enc.error.code;
+        return LD.fail(code,
+          '缩图后的草稿无法导出,已保持原图:' + enc.error.message, issues);
+      }
+      return LD.ok({
+        changed: true, impact: res.value.impact,
+        retired: res.value.retired, model: candidate
+      });
+    }
+
+    /** 显式改尺寸;会丢内容时必须 allowLoss(UI 先确认),否则整次不改。原子提交候选。 */
     resize(cols, rows, opts) {
+      var built = this.resizeCandidate(cols, rows, opts);
+      if (!built.ok) return built;
+      if (!built.value.changed) return LD.ok({ changed: false, impact: null });
+      this.data = built.value.model.data;
+      return LD.ok({
+        changed: true, impact: built.value.impact, retired: built.value.retired
+      });
+    }
+
+    /** 旧实现:原地改;只允许经 resizeCandidate 在副本上调用 */
+    _resizeInPlace(cols, rows, opts) {
       opts = opts || {};
       cols = Math.max(1, Math.min(MAX_COLS, Math.round(cols) || 1));
       rows = Math.max(1, Math.min(MAX_ROWS, Math.round(rows) || 1));
@@ -1341,14 +1381,18 @@
           return false;
         }
       }
-      this.pushUndo();
-      var res = this.model.resize(nc, nr, { allowLoss: true });
-      if (!res.ok) {
-        this.popUndo();
-        this.say('改尺寸失败:[' + res.error.code + '] ' + res.error.message, 'bad');
+      // 先完整预演候选(含退役接口与容量编码),失败不碰历史 / dirty / 视角(A3-C)
+      var built = this.model.resizeCandidate(nc, nr, { allowLoss: true });
+      if (!built.ok) {
         this.syncUI();
+        this.say('改尺寸失败:[' + built.error.code + '] ' + built.error.message, 'bad');
         return false;
       }
+      this.pushUndo();
+      if (built.value.changed) {
+        this.model.data = built.value.model.data;
+      }
+      var res = built;
       this.markDirty();
       this.fitView();
       this.syncUI();
