@@ -438,6 +438,8 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 ### 2026-11-06 · B3-R2：安卓启动/视口裁切修复
 
+实现提交：`61a0b2d`。
+
 按 [B3-R2 卡](docs/tasks/14-b3-android-viewport-fix.md) 完成，证据见 [B3-R2 记录](docs/checks/B3-R2-2026-11-06.md)。保留 B3-R1 R1～R3 与用户数据；不扩玩法/表现。
 
 - **原因**：旧 overlay 仅 `inset:0`、wrap 仅 `aspect-ratio/min()`，无基础回退；不支持 `inset` 的 WebView 将菜单/设置放到静态底部。实际 WebView 版本未知，不写成已确证根因。
