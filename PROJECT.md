@@ -345,7 +345,7 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 ### 2026-11-06 · B2 交付：PC 短塔/战斗/Boss/编辑发布
 
-按 [B2 批次卡](docs/tasks/10-b2-pc-short-tower.md) 连续完成短塔与编辑发布。证据见 [B2 交付记录](docs/checks/B2-2026-11-06.md)。
+按 [B2 批次卡](docs/tasks/10-b2-pc-short-tower.md) 连续完成短塔与编辑发布;实现提交 `9a17f99`。证据见 [B2 交付记录](docs/checks/B2-2026-11-06.md)。
 
 - **运行时**：新增 `rules.js`（b2-1 数值/指纹/profile）、RunState（生命/无敌/光环/castId/休整/Boss/事件序号）；`GameSession` 在 B1 固定步/暂停/World 上增加受伤、死亡、胜利、Boss 与六类对象驱动。
 - **战斗**：100 血、接触 20、1 秒无敌、同一步最多一次；光环 `K` 14 秒/冷却 20 秒/开局可用/跨层/暂停冻结；命中 Boss 消耗本次光环不重置冷却；火球可被光环消灭，地刺/齿轮不可击败；preview 不攻击。
