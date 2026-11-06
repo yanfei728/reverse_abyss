@@ -1,0 +1,9 @@
+List of devices attached
+
+adb.exe : adb.exe: no devices/emulators found
+At line:1 char:352
++ ... oding utf8; & "$sdk\platform-tools\adb.exe" install -r docs\checks\B3 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (adb.exe: no devices/emulators found:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
