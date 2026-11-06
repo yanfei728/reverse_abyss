@@ -192,17 +192,21 @@
       });
       // 接触/伤害:同一模拟步最多一次受伤由 session 保证
       var player = session.player;
+      // 对象框/路径都在实例局部坐标;Player 是世界坐标,比较前统一到局部
+      var px = player.x - this.origin.x;
+      var py = player.y - this.origin.y;
+      var pfeet = player.feet - this.origin.y;
       this.objects.forEach(function (o) {
         if (!o.alive) return;
         var box = self.objectBox(o);
-        var pr = { x: player.x, y: player.y, w: player.w, h: player.h };
+        var pr = { x: px, y: py, w: player.w, h: player.h };
         var touched = { x: pr.x - 6, y: pr.y - 6, w: pr.w + 12, h: pr.h + 12 };
         var hit = overlap(pr, box);
         var near = overlap(touched, box);
-        var feetOnTop = player.feet >= box.y - 8 && player.feet <= box.y + 10 &&
+        var feetOnTop = pfeet >= box.y - 8 && pfeet <= box.y + 10 &&
           pr.x + pr.w > box.x && pr.x < box.x + box.w;
         if (o.type === 'spring') {
-          if (hit && player.vy >= 0 && player.feet >= box.y - 10) {
+          if (hit && player.vy >= 0 && pfeet >= box.y - 10) {
             player.vy = (o.params && Number(o.params.bounceVel)) || -1180;
             player.onGround = false;
             session.events.push({ type: 'springBounce', simTime: session.time });
@@ -233,7 +237,10 @@
     }
 
     playerOverlap(o, player) {
-      return overlap({ x: player.x, y: player.y, w: player.w, h: player.h }, this.objectBox(o));
+      return overlap({
+        x: player.x - this.origin.x, y: player.y - this.origin.y,
+        w: player.w, h: player.h
+      }, this.objectBox(o));
     }
   }
 

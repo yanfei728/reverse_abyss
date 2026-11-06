@@ -64,7 +64,7 @@
       "id": "o_gear3",
       "type": "gear",
       "col": 2,
-      "row": 4,
+      "row": 5,
       "params": {
         "speedTilesPerSecond": 2.5,
         "radiusTiles": 0.5,
@@ -80,11 +80,11 @@
       "points": [
         {
           "col": 2,
-          "row": 4
+          "row": 5
         },
         {
           "col": 13,
-          "row": 4
+          "row": 5
         }
       ]
     }
@@ -98,7 +98,7 @@
     "template": true
   },
   "portsNote": null,
-  "contentHash": "sha256:daf49ca38b6d1f59e63f0527ca2865d67d57f7b44ecdf1fda592cfc9ffdebbc8",
+  "contentHash": "sha256:d504a342a4e17125ba2d14d7b42335e32879d4d5648819746ab0f0d15157550d",
   "certification": null
 }
 

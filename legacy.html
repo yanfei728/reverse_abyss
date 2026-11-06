@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>reverse_abyss · 向上爬塔</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="960" height="540" tabindex="0"
+            aria-label="reverse_abyss 向上爬塔小游戏"></canvas>
+  </div>
+
+  <p class="hint">
+    方向键 / A D 移动 · Space 跳跃(空中再按 = 二段跳)· 走到「上一层」出口就往上升一层
+  </p>
+
+  <!-- 引擎:与"这一层长什么样"无关。加载顺序就是依赖顺序。 -->
+  <script src="js/config.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/text.js"></script>
+  <script src="js/level.js"></script>
+  <script src="js/entity-registry.js"></script>
+  <script src="js/level-data.js"></script>
+  <script src="js/legacy-import.js"></script>
+  <script src="js/entities/base.js"></script>
+  <script src="js/entities/player.js"></script>
+  <script src="js/entities/goal.js"></script>
+  <script src="js/entities/spring.js"></script>
+  <script src="js/entities/ghost.js"></script>
+  <script src="js/entities/blink.js"></script>
+  <script src="js/monsters.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/tower.js"></script>
+  <script src="js/levelpack.js"></script>
+<script src="js/content-repository.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/world.js"></script>
+<script src="js/session.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/tower-planner.js"></script>
+  <script src="js/reach.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/smoke.js"></script>
+
+  <!-- 内容:一个 json = 一层关卡(asc 地图 + 元信息)。改完 json 跑 node tools/sync_levels.mjs 重新打包。 -->
+  <script src="levels/levels.js"></script>
+<script src="js/dev-samples.js"></script>
+<script src="js/b2-samples.js"></script>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

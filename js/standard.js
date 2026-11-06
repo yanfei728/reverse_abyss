@@ -117,6 +117,11 @@
       });
     });
     var p = s.player;
+    if (s.snapshot().haloActiveRemaining > 0) {
+      ctx.strokeStyle = 'rgba(126,224,168,.75)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x + p.w / 2 - cam.x, p.y + p.h / 2 - cam.y,
+        (RA.RULES.tuning.haloRadiusTiles || 1.5) * TS, 0, Math.PI * 2); ctx.stroke();
+    }
     if (Object.keys(p.frames || {}).length) p.draw(ctx, { ox: cam.x, oy: cam.y }, state.assets);
     else { ctx.fillStyle = '#ffcd6e'; ctx.fillRect(p.x - cam.x, p.y - cam.y, p.w, p.h); }
   }
@@ -127,7 +132,8 @@
     var el = $('std-hud');
     if (el) el.textContent = '标准试玩 · 第 ' + (snap.floorIndex + 1) + '/' + snap.floorCount +
       ' 层 · 生命 ' + Math.max(0, snap.hp) + '/' + snap.maxHp +
-      ' · 技能冷却 ' + snap.haloCooldownRemaining.toFixed(1) + 's(无光环)';
+      ' · ' + (snap.haloActiveRemaining > 0 ? '光环 ' + snap.haloActiveRemaining.toFixed(1) + 's'
+        : (snap.haloCooldownRemaining > 0 ? '技能冷却 ' + snap.haloCooldownRemaining.toFixed(1) + 's' : '光环就绪(K)'));
   }
 
   function complete() {
@@ -212,6 +218,7 @@
     if (KEY_LEFT[e.code]) { state.held.left = true; e.preventDefault(); }
     if (KEY_RIGHT[e.code]) { state.held.right = true; e.preventDefault(); }
     if (KEY_JUMP[e.code]) { state.held.jump = true; e.preventDefault(); }
+    if (e.code === 'KeyK') { e.preventDefault(); if (state.session) state.session.pressSkill(); return; }
     if (e.code === 'KeyP' || e.code === 'Escape') { e.preventDefault(); if (state.session) { if (state.session.paused) state.session.resume(); else state.session.pause(); } }
   });
   globalThis.addEventListener('keyup', function (e) {

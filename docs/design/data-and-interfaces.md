@@ -1,6 +1,6 @@
 # 数据结构与模块接口 v1
 
-这是待实现的技术契约，不是现有 API。设计提案依据见 [decisions.md](decisions.md)。新代码仍使用原生 JS 与 `RA`；下列类型写法仅用于说明，不要求迁移 TypeScript。
+这是目标技术契约，不是所有 API 均已实现；当前状态见 [STATUS](../../STATUS.md)。设计提案依据见 [decisions.md](decisions.md)。新代码仍使用原生 JS 与 `RA`；下列类型写法仅用于说明，不要求迁移 TypeScript。
 
 ## 1. 数据所有权
 
@@ -218,7 +218,7 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 
 2026-11-06 B2 实现补充：
 
-- **规则**：`RA.RULES` 固定 `rulesVersion=b2-1` 与 `rulesFingerprint`(物理/生命/光环/Boss/对象键);改行为需升版本。`run-v1` 开局光环可用;标准 `standard-v1` 无光环、冷却 20 秒、无休整。
+- **规则**：交付代码 `RA.RULES.rulesVersion=b2-2`；改行为需升版本并更新 fingerprint。`run-v1` 开局技能可用；标准 `standard-v1` 初始无活动光环、初始冷却 20 秒、无休整，CD 后 `allowSkill:true` 可正常施放；页面 K 接同一 Session。旧 b2-1 认证因版本升级失效,需重新实际通关。
 - **RunState**：会话唯一可变真值,含 hp/maxHp、invulnerableRemaining、haloActiveRemaining/haloCooldownRemaining/castId、visited/claimedRest、elapsed、status(running/dead/won);Player 不另存生命/冷却。事件带 runId + 单调 sequence。
 - **伤害/死亡**：同一模拟步最多一次受伤;1 秒无敌;hp≤0 死亡;异常越界(掉出当前层/横向越界)判死亡并记录 `outOfBounds`;死亡/中断不再无伤 respawn,页面回大厅/重试同一 manifest。死亡优先于胜利。
 - **光环**：K 施放,14 秒/从施放起 20 秒冷却;跨层保留、暂停冻结;命中 Boss 消耗本次光环但不重置冷却;一次 castId 最多打掉一个阶段;preview 不参与。
@@ -230,6 +230,13 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **编辑器工具**：接口 col、六类对象参数、路径点/loop/pingpong、引用保护;删除被引用路径被拒绝;所有编辑进入整份 LevelData 撤销;未知内容仍保真但阻止 play/publish。
 - **页面**：short.html/standard.html 通过适配器提供键盘/画布/HUD;不单独结算伤害/Boss/胜利。
 - **事件**：floorEntered、playerDamaged、skillCast、fireballDestroyed、bossEntered、bossPhaseChanged、haloHitBoss、restHealed、dead、won、outOfBounds 等;仍保留 paused/resumed。
+
+2026-11-06 B2-R1 已实现契约（原独立验收发现，见 [B2-R1 记录](../checks/B2-R1-2026-11-06.md)）：
+
+- **坐标输入/输出**：模板 row/col/path.points 是局部格；实例 rx/ry 是局部像素；Player x/y/feet 是世界像素。World/FloorInstance 在统一边界转换，碰撞/接触/伤害/恢复占位/渲染不得直接比较两种坐标，也不得把 origin 累加写回局部数据。`objectBox` 类 helper 的名称或注释应声明返回坐标，调整时同步所有调用方。
+- **接触结果**：门在物理解碰撞后仍能识别四方向接触，本局 broken 后显示与实心一起移除；浮石 warning 期间承重、计时不因持续站立重置，gone 期间可穿过；占位时延后恢复。默认预警/消失 0.5/1.6 秒来自共享注册参数。相同规则应在原点与非零原点上层成立。
+- **标准配置**：standard-v1 初始 activeRemaining=0、cooldownRemaining=20，正常技能权限保留；页面只转交动作与渲染，同一 GameSession 结算。修复后规则版本/指纹变化使旧认证不再适用于当前发布/抽选，保留旧草稿与内容，不自动重认证。
+- **默认入口**：`index.html` 只做同目录自动进入 `short.html` 的入口；旧原型完整保存在 `legacy.html`，明确标注历史。编辑器/devplay 返回路径落到当前短塔。
 - **未实现**：安卓、40 层、遗物/NPC/联网、完整美术;旧 floor09/floor11 诊断仍在。
 
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。

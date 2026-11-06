@@ -2,7 +2,7 @@
 
 日期：2026-11-06。前置 [B1 复验通过](../checks/review-B1R1-2026-11-06.md)，HEAD `cdd7b54`。本卡把 T05～T08 与 B1 留下的接口工具一起交付；参考 [原玩法卡](03-playable-slice.md)、[世界规则](../design/world-and-gameplay.md)、[数据接口](../design/data-and-interfaces.md)、[决定](../design/decisions.md)。
 
-状态：**B2 已交付（`9a17f99`），待集中复验 + 人工认证**；证据见 [B2 交付记录](../checks/B2-2026-11-06.md)。标准试玩实际通关/发布抽选必须由作者完成。
+状态：**B2 主体 `9a17f99`；B2-R1 已交付 R1～R3，待集中复验 + 作者人工认证。** 见 [B2 交付记录](../checks/B2-2026-11-06.md)、[独立验收](../checks/review-B2-2026-11-06.md)、[B2-R1 记录](../checks/B2-R1-2026-11-06.md)。本卡保留总范围，不重做主体；标准试玩实际通关/发布抽选必须由作者完成。
 
 ## 可玩结果与边界
 
@@ -56,7 +56,7 @@ GameSession 新事件至少覆盖 floorEntered、playerDamaged、skillCast、bos
 
 - 对象选择/新增/删除/注册参数编辑、路径点/loop/pingpong 工具、端口编辑纳入整份 LevelData 撤销重做；删除被引用路线有明确处理，不静默丢引用。未知内容继续保真草稿，阻止 play/publish。
 - 开发试玩仍可用，但明确 debug，不生成标准认证。标准试玩用独立不可变快照、同一 Session 和真实接缝；从生成的入口支撑开始，通过真实出口跨线判定，不能用作者靠近出口的 spawn 跳过关卡。
-- 标准 profile `standard-v1` 按既有 B07：100 血、无遗物、无光环、技能剩余冷却 20 秒、无作弊、预热从零。它与正式开局技能可用是不同 profile 的明确规则，不能混淆。
+- 标准 profile `standard-v1` 按既有 B07：100 血、无遗物、初始无活动光环、技能初始剩余冷却 20 秒、无作弊、预热从零。CD 结束后可正常施法，不是永久禁技能；正式开局 CD 为 0。
 - 通关 Certification/Receipt 使用既有 schema，绑定内容 hash、规则版本/指纹、profile 与 revision；任何内容或规则变化失效。实际采用的物理/技能/攻击/接口/标准配置进入 rulesFingerprint，行为代码改变同步升 rulesVersion。
 - 认证不自动发布；明确点击“发布”才事务入池。导入已认证文件校验内容与规则，来源显示 imported-declaration；无匹配认证只保存草稿。继续保留 B1-R1 的异步上下文核对。
 - 无可用正式模板时给出明确空池提示和制作入口，不能抽未经认证旧图。可另有清楚标注的开发短塔，供未认证模板调试；不向它发 passed 或把开发状态当正式可发布版本。

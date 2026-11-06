@@ -2,57 +2,24 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url=short.html">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>reverse_abyss · 向上爬塔</title>
-<link rel="stylesheet" href="css/style.css">
+<title>reverse_abyss · PC 短塔</title>
+<style>
+  html,body{margin:0;height:100%;background:#05060c;color:#cfd8ea;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+  body{display:flex;align-items:center;justify-content:center}
+  .box{max-width:560px;padding:22px 26px;border:1px solid #2c3752;border-radius:14px;background:#10131f}
+  h1{margin:0 0 8px;font-size:22px}
+  p{color:#9fb0cc;font-size:13px;line-height:1.7}
+  a{display:inline-block;margin:6px 8px 0 0;padding:8px 13px;border:1px solid #40557f;border-radius:9px;background:#1d283d;color:#e8eefb;text-decoration:none}
+  a:hover{border-color:#7ea7e8}
+</style>
 </head>
 <body>
-  <div id="stage">
-    <canvas id="game" width="960" height="540" tabindex="0"
-            aria-label="reverse_abyss 向上爬塔小游戏"></canvas>
-  </div>
-
-  <p class="hint">
-    方向键 / A D 移动 · Space 跳跃(空中再按 = 二段跳)· 走到「上一层」出口就往上升一层
-  </p>
-
-  <!-- 引擎:与"这一层长什么样"无关。加载顺序就是依赖顺序。 -->
-  <script src="js/config.js"></script>
-  <script src="js/util.js"></script>
-  <script src="js/text.js"></script>
-  <script src="js/level.js"></script>
-  <script src="js/entity-registry.js"></script>
-  <script src="js/level-data.js"></script>
-  <script src="js/legacy-import.js"></script>
-  <script src="js/entities/base.js"></script>
-  <script src="js/entities/player.js"></script>
-  <script src="js/entities/goal.js"></script>
-  <script src="js/entities/spring.js"></script>
-  <script src="js/entities/ghost.js"></script>
-  <script src="js/entities/blink.js"></script>
-  <script src="js/monsters.js"></script>
-  <script src="js/camera.js"></script>
-  <script src="js/assets.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/input.js"></script>
-  <script src="js/tower.js"></script>
-  <script src="js/levelpack.js"></script>
-<script src="js/content-repository.js"></script>
-<script src="js/rules.js"></script>
-<script src="js/world.js"></script>
-<script src="js/session.js"></script>
-<script src="js/boss.js"></script>
-<script src="js/tower-planner.js"></script>
-  <script src="js/reach.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/game.js"></script>
-  <script src="js/smoke.js"></script>
-
-  <!-- 内容:一个 json = 一层关卡(asc 地图 + 元信息)。改完 json 跑 node tools/sync_levels.mjs 重新打包。 -->
-  <script src="levels/levels.js"></script>
-<script src="js/dev-samples.js"></script>
-<script src="js/b2-samples.js"></script>
-
-  <script src="js/main.js"></script>
+<div class="box">
+  <h1>reverse_abyss · PC 短塔</h1>
+  <p>正在进入当前短塔。若浏览器没有自动跳转,点下面入口。</p>
+  <p><a href="short.html">进入 PC 短塔</a><a href="editor.html">关卡编辑器</a><a href="legacy.html">旧原型(历史,不再默认)</a></p>
+</div>
 </body>
 </html>

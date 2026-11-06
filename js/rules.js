@@ -8,7 +8,7 @@
 (function (RA) {
   'use strict';
   var C = RA.C;
-  var RULES_VERSION = 'b2-1';
+  var RULES_VERSION = 'b2-2';
   var PROFILE = 'standard-v1';
   var TUNING = {
     hp: 100,
@@ -51,7 +51,7 @@
           haloActive: 0,
           haloCooldown: TUNING.haloCooldown,
           allowRest: false,
-          allowSkill: false,
+          allowSkill: true,
           allowCheat: false
         };
       }

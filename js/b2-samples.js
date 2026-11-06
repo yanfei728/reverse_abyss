@@ -533,7 +533,7 @@
           1,
           1,
           1,
-          1,
+          0,
           0,
           0,
           0,
@@ -685,7 +685,7 @@
       "template": true
     },
     "portsNote": null,
-    "contentHash": "sha256:32704e8dd72d699915f0820c6d42180e155768fec24c5b7eab854f7987abedbf",
+    "contentHash": "sha256:0ca2e0a46d920b6afa20b9589b63950d9187018f4d1601d23542e35a0a859b2e",
     "certification": null
   },
   "normal2": {
@@ -789,7 +789,7 @@
           0,
           0,
           1,
-          1,
+          0,
           1,
           1,
           0,
@@ -943,7 +943,7 @@
       "template": true
     },
     "portsNote": null,
-    "contentHash": "sha256:f08740f6245244ad63ea7df397e8b34a055bbf7820cc34a41c7b5e6aeec9efc8",
+    "contentHash": "sha256:b12b51854bde88b444c09e582f4889101c9888bdabc1ff3795906ff190c4ecc4",
     "certification": null
   },
   "normal3": {
@@ -1182,7 +1182,7 @@
         "id": "o_gear3",
         "type": "gear",
         "col": 2,
-        "row": 4,
+        "row": 5,
         "params": {
           "speedTilesPerSecond": 2.5,
           "radiusTiles": 0.5,
@@ -1198,11 +1198,11 @@
         "points": [
           {
             "col": 2,
-            "row": 4
+            "row": 5
           },
           {
             "col": 13,
-            "row": 4
+            "row": 5
           }
         ]
       }
@@ -1216,7 +1216,7 @@
       "template": true
     },
     "portsNote": null,
-    "contentHash": "sha256:daf49ca38b6d1f59e63f0527ca2865d67d57f7b44ecdf1fda592cfc9ffdebbc8",
+    "contentHash": "sha256:d504a342a4e17125ba2d14d7b42335e32879d4d5648819746ab0f0d15157550d",
     "certification": null
   },
   "rest": {

@@ -74,15 +74,22 @@ head('页面引用的脚本:路径对不对、顺序和引擎清单一致吗');
     while ((m = re.exec(html))) out.push(m[1].replace(prefix, ''));
     return out;
   };
-  const idx = scripts('index.html', '');
-  check('index.html 引用了全部引擎脚本(顺序和 loader.mjs 一致)',
+  const idx = scripts('legacy.html', '');
+  check('legacy.html 引用了全部引擎脚本(顺序和 loader.mjs 一致)',
     idx.slice(0, -1).join(',') === ENGINE.join(','),
     idx.length + ' 个 / 期望 ' + (ENGINE.length + 1));
-  check('index.html 最后引的是 main.js', idx[idx.length - 1] === 'js/main.js');
-  idx.forEach((s) => check('index.html 里 ' + s + ' 这个文件存在', existsSync(join(ROOT, s))));
+  check('legacy.html 最后引的是 main.js', idx[idx.length - 1] === 'js/main.js');
+  idx.forEach((s) => check('legacy.html 里 ' + s + ' 这个文件存在', existsSync(join(ROOT, s))));
+  const indexHtml = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  check('index.html 默认指向当前短塔', indexHtml.indexOf('short.html') >= 0 &&
+    indexHtml.indexOf('http-equiv="refresh"') >= 0);
+  check('index.html 不再启动旧 main.js', indexHtml.indexOf('js/main.js') < 0 &&
+    indexHtml.indexOf('js/game.js') < 0);
+  check('旧原型有明确历史入口', indexHtml.indexOf('legacy.html') >= 0 &&
+    existsSync(join(ROOT, 'legacy.html')));
 
   const br = scripts('tests/browser.html', '../');
-  check('tests/browser.html 引用的脚本和 index.html 一样',
+  check('tests/browser.html 引用的脚本和引擎清单一样',
     br.slice(0, -1).join(',') === ENGINE.join(','), br.length + ' 个');
   br.forEach((s) => check('tests/browser.html 里 ' + s + ' 这个文件存在', existsSync(join(ROOT, s))));
 

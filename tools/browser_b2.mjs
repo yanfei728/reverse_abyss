@@ -58,7 +58,7 @@ async function main() {
     const child = spawn(exe, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
       '--no-sandbox', '--disable-dev-shm-usage', '--window-size=1440,900',
       '--user-data-dir=' + profile, '--remote-debugging-port=' + port,
-      'file:///' + join(ROOT, 'short.html').replace(/\\/g, '/')], { stdio: 'ignore', windowsHide: true });
+      'file:///' + join(ROOT, 'index.html').replace(/\\/g, '/')], { stdio: 'ignore', windowsHide: true });
     try {
       let version = null;
       for (let i = 0; i < 100 && !version; i++) {
@@ -68,7 +68,7 @@ async function main() {
       let target = null;
       for (let i = 0; i < 60 && !target; i++) {
         const list = await fetchJson('http://127.0.0.1:' + port + '/json/list');
-        target = list.find((t) => t.type === 'page' && t.url.indexOf('short.html') >= 0);
+        target = list.find((t) => t.type === 'page' && t.url.indexOf('index.html') >= 0);
         if (!target) await sleep(100);
       }
       if (!target) throw new Error('找不到 short.html');
@@ -103,7 +103,8 @@ async function main() {
     }
 
     check('Chrome 已启动', true, browser.version.Browser + ' headless');
-    check('short.html 加载完成', await waitFor('!!RA.short && !!RA.B2_SAMPLES && !!RA.TowerPlanner', 15000));
+    check('双击 index.html 自动进入 short.html', await waitFor('!!RA.short && !!RA.B2_SAMPLES && !!RA.TowerPlanner', 15000) &&
+      (await evaluate('location.pathname.indexOf("short.html") >= 0')));
     check('菜单默认可见', await evaluate('getComputedStyle(document.getElementById("menu")).display') === 'flex');
     await evaluate('document.getElementById("btn-formal").click()');
     await sleep(300);
@@ -113,7 +114,7 @@ async function main() {
     check('开发短塔启动', await waitFor('!!RA.short.state.session', 8000));
     check('从大厅开始、生命 100', await evaluate('(function(){var s=RA.short.state.session.snapshot();return s.floor.kind==="lobby"&&s.hp===100&&s.floorCount===6;})()'));
     check('HUD 显示生命与技能', await evaluate('document.getElementById("hp-text").textContent.indexOf("100")>=0'));
-    await shot('b2-browser-short-start.png');
+    await shot('b2r1-browser-short-start.png');
 
     await key('rawKeyDown', 'KeyK', 'k', 75); await key('keyUp', 'KeyK', 'k', 75);
     await sleep(150);
@@ -136,7 +137,7 @@ async function main() {
     const crossed = await waitFor('RA.short.state.session.floorIndex === 1', 3000);
     check('真实输入越过大堂接口进入普通层', crossed);
     check('HUD/会话保留生命与光环', await evaluate('(function(){var s=RA.short.state.session.snapshot();return s.hp===100 && s.castId===1;})()'));
-    await shot('b2-browser-short-floor2.png');
+    await shot('b2r1-browser-short-floor2.png');
 
     // 死亡 → 重试同一塔(不重新抽选)
     const oldManifest = await evaluate('RA.short.state.manifest.manifestId');
@@ -147,7 +148,7 @@ async function main() {
     check('重试回到大厅且仍是同一 manifest',
       await evaluate('RA.short.state.session.snapshot().floorIndex === 0') &&
       await evaluate('RA.short.state.manifest.manifestId') === oldManifest);
-    await shot('b2-browser-short-retry.png');
+    await shot('b2r1-browser-short-retry.png');
 
     // 编辑器 B2 工具:接口/对象/路径面板
     await send('Page.navigate', { url: 'file:///' + join(ROOT, 'editor.html').replace(/\\/g, '/') });
@@ -177,7 +178,7 @@ async function main() {
       document.getElementById('btn-obj-apply').click();
     })()`);
     check('对象参数工具新增对象', await evaluate('RA.editor.model.data.objects.some(function(o){return o.type==="fireball_static"})'));
-    await shot('b2-browser-editor-tools.png');
+    await shot('b2r1-browser-editor-tools.png');
 
     // 标准试玩页:只验证真实 standard-v1 页面/入口/无光环,不伪造通关认证
     const n1 = JSON.parse(readFileSync(join(ROOT, 'levels/b2/normal-1.json'), 'utf8'));
@@ -192,22 +193,31 @@ async function main() {
     await sleep(700);
     check('标准试玩页加载', await waitFor('!!RA.standard && !!RA.standard.session', 15000));
     const stdSnap = await evaluate('(function(){var s=RA.standard.session;return {floors:s.world.floorCount,allow:s.profile.allowSkill,cd:s.snapshot().haloCooldownRemaining,err:document.getElementById("std-error").textContent};})()');
-    check('标准会话三层(入口/作者层/出口)且无光环',
-      stdSnap && stdSnap.floors === 3 && stdSnap.allow === false &&
-      stdSnap.cd > 18 && stdSnap.cd <= 20,
-      JSON.stringify(stdSnap));
-    check('标准页 HUD 显示无光环/冷却', (await evaluate('document.getElementById("std-hud").textContent')).indexOf('无光环') >= 0);
-    await shot('b2-browser-standard-start.png');
+    check('标准会话三层(入口/作者层/出口)且初始无活动光环',
+      stdSnap && stdSnap.floors === 3 && stdSnap.allow === true &&
+      stdSnap.cd > 18 && stdSnap.cd <= 20, JSON.stringify(stdSnap));
+    const stdHud = await evaluate('document.getElementById("std-hud").textContent');
+    check('标准页 HUD 显示初始冷却、不是永久禁用', stdHud.indexOf('技能冷却') >= 0 &&
+      stdHud.indexOf('无光环') < 0, stdHud);
+    await evaluate('RA.standard.session.run.haloCooldownRemaining = 0');
+    await key('rawKeyDown', 'KeyK', 'k', 75); await key('keyUp', 'KeyK', 'k', 75);
+    await sleep(150);
+    check('标准页 CD 归零后按 K 真正施放光环',
+      await evaluate('RA.standard.session.run.castId === 1') &&
+      await evaluate('RA.standard.session.run.haloActiveRemaining > 13'));
+    check('标准页光环 HUD/可见状态更新',
+      (await evaluate('document.getElementById("std-hud").textContent')).indexOf('光环') >= 0);
+    await shot('b2r1-browser-standard-start.png');
 
     const evidence = {
       date: new Date().toISOString(), browser: browser.version.Browser,
       executable: browser.exe, userAgent: await evaluate('navigator.userAgent'),
       durationMs: Date.now() - t0, pass, fail, results,
-      screenshots: ['docs/checks/b2-browser-short-start.png', 'docs/checks/b2-browser-short-floor2.png',
-        'docs/checks/b2-browser-short-retry.png', 'docs/checks/b2-browser-editor-tools.png', 'docs/checks/b2-browser-standard-start.png'],
+      screenshots: ['docs/checks/b2r1-browser-short-start.png', 'docs/checks/b2r1-browser-short-floor2.png',
+        'docs/checks/b2r1-browser-short-retry.png', 'docs/checks/b2r1-browser-editor-tools.png', 'docs/checks/b2r1-browser-standard-start.png'],
       note: '标准试玩/人工通关认证未由自动化伪造;正式池此时为空。'
     };
-    writeFileSync(join(OUT, 'browser-b2-2026-11-06.json'), JSON.stringify(evidence, null, 2) + '\n', 'utf8');
+    writeFileSync(join(OUT, 'browser-b2r1-2026-11-06.json'), JSON.stringify(evidence, null, 2) + '\n', 'utf8');
   } finally {
     browser.ws.close(); killTree(browser.child); await sleep(300);
     try { rmSync(browser.profile, { recursive: true, force: true }); } catch (e) {}

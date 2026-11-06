@@ -61,7 +61,19 @@ head('规则/模板:数值、指纹、开发短塔可启动');
   check('正式 profile 开局技能可用', RA.RULES.profile('run-v1').allowSkill === true &&
     RA.RULES.profile('run-v1').haloCooldown === 0);
   const std = RA.RULES.profile('standard-v1');
-  check('standard-v1 无光环且冷却 20 秒', std.allowSkill === false && std.haloCooldown === 20);
+  check('standard-v1 初始无活动光环、冷却 20 秒且保留技能', std.allowSkill === true &&
+    std.haloActive === 0 && std.haloCooldown === 20);
+  const ss = newSession([lobby], 'standard-v1');
+  check('标准开局 K 因 20 秒 CD 施放失败', ss.castSkill() === false && ss.run.haloCooldownRemaining === 20);
+  for (let i = 0; i < 600; i++) ss.stepOnce();
+  ss.pause();
+  const pausedCd = ss.run.haloCooldownRemaining;
+  ss.update(2);
+  check('标准暂停不减 CD', ss.run.haloCooldownRemaining === pausedCd);
+  ss.resume();
+  for (let i = 0; i < 610; i++) ss.stepOnce();
+  check('标准冷却归零后可以实际施放', ss.castSkill() === true && ss.run.haloActiveRemaining === 14 &&
+    ss.run.haloCooldownRemaining === 20);
   check('6 层开发短塔都是合法 play 数据',
     tower.every((f) => LD.errorsOf(LD.validate(f, { purpose: 'play' })).length === 0));
   const s = newSession();
@@ -194,6 +206,88 @@ head('休整:首次进入回复 40、封顶 100、按实例只一次');
   s2.run.hp = 90;
   s2._onFloorEntered({ from: -1, to: 0 });
   check('回复封顶 100', s2.run.hp === 100);
+}
+
+head('上层非零原点:正常固定步跨层后的对象接触与权限');
+{
+  const s = newSession([lobby, n2]);
+  check('正常跨线进入有 x/y 偏移的普通层', cross(s) && s.world.currentFloor.origin.x !== 0 &&
+    s.world.currentFloor.origin.y !== 0, JSON.stringify(s.world.currentFloor.origin));
+  const inst = s.world.currentFloor;
+  const door = inst.objects.filter((o) => o.type === 'crumble_door')[0];
+  const platformTop = inst.origin.y + 8 * TS;
+  s.player.x = inst.origin.x + door.rx - s.player.w - 8;
+  s.player.y = platformTop - s.player.h;
+  s.player.vx = 180; s.player.vy = 0; s.player.onGround = true;
+  s.stepOnce();
+  check('上层正常侧碰门消失一次', door.broken === true && inst.solidAt(door.row, door.col) === false);
+  check('门消失事件一次', s.drainEvents().filter((e) => e.type === 'doorBroken').length === 1);
+
+  const blink = inst.objects.filter((o) => o.type === 'blink_platform')[0];
+  s.player.x = inst.origin.x + blink.rx - s.player.w / 2;
+  s.player.y = inst.origin.y + blink.row * TS - s.player.h;
+  s.player.vx = 0; s.player.vy = 80; s.player.onGround = false;
+  s.stepOnce();
+  check('上层落到浮石开始预警且仍承重', blink.state === 'warning' &&
+    inst.solidAt(blink.row, blink.col) === true);
+  s.pause();
+  const timer = blink.timer;
+  s.update(2);
+  check('暂停冻结浮石预警计时', blink.timer === timer);
+  s.resume();
+  for (let i = 0; i < 40; i++) s.stepOnce();
+  check('上层预警结束浮石消失', blink.state === 'gone');
+  // 玩家占位时恢复延后
+  blink.timer = 0.01;
+  s.player.x = inst.origin.x + blink.rx - s.player.w / 2;
+  s.player.y = inst.origin.y + blink.row * TS - s.player.h;
+  s.stepOnce();
+  check('玩家仍占位时浮石恢复延后', blink.state === 'gone');
+  s.player.x = 0; s.player.y = 0;
+  blink.timer = 0.01;
+  s.stepOnce();
+  check('离开后浮石恢复且重新实心', blink.state === 'idle' && inst.solidAt(blink.row, blink.col) === true);
+}
+
+{
+  const s = newSession([lobby, n1]);
+  check('进入普通层 1(非零原点)', cross(s) && s.world.currentFloor.origin.y !== 0);
+  const inst = s.world.currentFloor;
+  const spring = inst.objects.filter((o) => o.type === 'spring')[0];
+  s.player.x = inst.origin.x + spring.rx - s.player.w / 2;
+  s.player.y = inst.origin.y + spring.ry - s.player.h + 8; s.player.vy = 100;
+  s.stepOnce();
+  check('上层弹簧正常弹起', s.player.vy < 0);
+  const fire = inst.objects.filter((o) => o.type === 'fireball_static')[0];
+  s.player.x = inst.origin.x + fire.rx - s.player.w / 2;
+  s.player.y = inst.origin.y + fire.ry - s.player.h / 2;
+  const hp0 = s.run.hp;
+  s.stepOnce();
+  check('上层火球接触伤害', s.run.hp === hp0 - 20, String(s.run.hp));
+  s.run.invulnerableRemaining = 0;
+  s.player.x = inst.origin.x + fire.rx - s.player.w / 2; s.player.y = inst.origin.y + fire.ry - s.player.h / 2;
+  s.run.haloCooldownRemaining = 0; s.castSkill(); s.stepOnce();
+  check('上层光环可消灭火球', fire.alive === false);
+}
+
+{
+  const s = newSession([lobby, n3]);
+  check('进入普通层 3(非零原点)', cross(s));
+  const inst = s.world.currentFloor;
+  const spike = inst.objects.filter((o) => o.type === 'spike')[0];
+  s.player.x = inst.origin.x + spike.rx - s.player.w / 2;
+  s.player.y = inst.origin.y + spike.row * TS - s.player.h;
+  s.player.vy = 0; s.player.onGround = true;
+  spike.cycle = (spike.params.warningSeconds || 0.5) + 0.05;
+  const hp0 = s.run.hp;
+  s.stepOnce();
+  check('上层地刺伸出伤害', s.run.hp < hp0);
+  const gear = inst.objects.filter((o) => o.type === 'gear')[0];
+  s.run.invulnerableRemaining = 0;
+  s.player.x = inst.origin.x + gear.rx - s.player.w / 2; s.player.y = inst.origin.y + gear.ry - s.player.h / 2;
+  const hp1 = s.run.hp;
+  s.stepOnce();
+  check('上层齿轮接触伤害', s.run.hp < hp1);
 }
 
 head('Boss:两阶段、攻击/停攻清场、单次光环只掉一阶段、胜利/出口');
