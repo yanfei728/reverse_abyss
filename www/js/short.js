@@ -60,6 +60,7 @@
     state.session = null;
     state.overlay = '';
     if (state.input) state.input.clearAll();
+    clearTouchInput();
     closeSettings(true);
     document.body.classList.add('menu');
     document.body.classList.remove('playing');
@@ -95,6 +96,7 @@
     state.paused = false;
     state.held = { left: false, right: false, jump: false };
     if (state.input) state.input.clearAll();
+    clearTouchInput();
     state.lastT = 0;
     state.cam.x = state.session.player.x - state.cw / 2;
     state.cam.y = state.session.player.y - state.ch / 2;
@@ -166,6 +168,7 @@
   function setPaused(paused, reason) {
     if (!state.session) return;
     if (state.input) state.input.clearAll();
+    if (paused) clearTouchInput();
     if (paused) { state.session.pause(); state.paused = true; }
     else { state.paused = false; state.session.resume(); }
     var ov = $('pause-overlay');
@@ -254,10 +257,18 @@
     applyLayout(); selectLayoutAction(state.selectedAction || 'left');
   }
 
+  var touchControllers = [];
+
+  /** 清空所有按钮的触点追踪和视觉;后台/暂停/菜单/重开必须一起清 */
+  function clearTouchInput() {
+    touchControllers.forEach(function (c) { c.clear(); });
+  }
+
   function setupTouchButtons() {
     var host = $('touch-controls');
     if (!host) return;
     var labels = { left: '◀', right: '▶', jump: '跳', skill: 'K' };
+    touchControllers = [];
     RA.ControlLayout.ACTIONS.forEach(function (action) {
       var btn = document.createElement('button');
       btn.className = 'tbtn';
@@ -265,23 +276,37 @@
       btn.dataset.action = action;
       btn.textContent = labels[action] || action;
       btn.setAttribute('aria-label', action);
-      var source = '';
-      var dragging = false;
-      function release() {
+      // 每个按钮维护 pointerId -> source 的实际活动触点,避免后来的触点覆盖旧来源
+      var sources = new Map();
+      var dragPointer = null;
+      function release(pointerId) {
+        var id = pointerId === undefined ? '' : String(pointerId);
+        var source = sources.get(id);
         if (source && state.input) state.input.releaseSource(source);
-        source = '';
-        btn.classList.remove('active');
-        dragging = false;
+        sources.delete(id);
+        if (!sources.size) btn.classList.remove('active');
       }
+      function clear() {
+        sources.forEach(function (source) { if (state.input) state.input.releaseSource(source); });
+        sources.clear();
+        dragPointer = null;
+        btn.classList.remove('active');
+      }
+      touchControllers.push({ clear: clear });
       btn.addEventListener('pointerdown', function (e) {
         e.preventDefault();
         if (state.layoutEdit) {
-          dragging = true;
+          // 拖动锁定实际 pointerId;第二个触点不能劫持/提前结束拖动
+          if (dragPointer !== null && dragPointer !== e.pointerId) return;
+          dragPointer = e.pointerId;
           selectLayoutAction(action);
           try { btn.setPointerCapture(e.pointerId); } catch (err) {}
           return;
         }
-        source = 'pointer:' + e.pointerId;
+        var id = String(e.pointerId);
+        if (sources.has(id)) release(id);
+        var source = 'pointer:' + id;
+        sources.set(id, source);
         if (action === 'skill') {
           if (state.input) state.input.press('skill');
         } else if (state.input) {
@@ -291,16 +316,19 @@
         try { btn.setPointerCapture(e.pointerId); } catch (err) {}
       });
       btn.addEventListener('pointermove', function (e) {
-        if (!dragging || !state.layoutEdit) return;
+        if (!state.layoutEdit || dragPointer !== e.pointerId) return;
         var rect = host.getBoundingClientRect();
         state.layout = RA.ControlLayout.moveTo(state.layout, action,
           e.clientX - rect.left, e.clientY - rect.top, { width: rect.width, height: rect.height });
         applyLayout();
       });
       ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (ev) {
-        btn.addEventListener(ev, function () { release(); });
+        btn.addEventListener(ev, function (e) {
+          if (dragPointer === e.pointerId) dragPointer = null;
+          release(e.pointerId);
+        });
       });
-      btn.addEventListener('pointerleave', function () { release(); });
+      btn.addEventListener('pointerleave', function (e) { release(e.pointerId); });
       host.appendChild(btn);
     });
     selectLayoutAction(state.selectedAction || 'left');
@@ -355,12 +383,14 @@
       document: document,
       subscribe: native ? bridge.App : null,
       onBackground: function () {
+        clearTouchInput();
         if (state.session && state.session.status === 'running' && !state.session.paused) {
           setPaused(true, '切到后台/锁屏,模拟已暂停');
         }
       },
       onForeground: function () {
         // 保持暂停;由用户明确点继续,不按现实时间补算
+        clearTouchInput();
         if (state.input) state.input.clearAll();
       },
       onBack: handleBack
@@ -384,8 +414,11 @@
     }
     state.imported = res.value;
     try { state.importedData = JSON.parse(picked.value.text); } catch (e) { state.importedData = null; }
-    var extra = res.value.eligible ? '已通过当前内容/规则校验,可明确加入正式池' :
-      ('仅保存为不可选草稿:' + (res.value.issues && res.value.issues[0] || '未认证'));
+    var extra;
+    if (res.value.eligible) extra = '已通过当前内容/规则校验,可明确加入正式池';
+    else if (res.value.runnable === false) extra = '已保存为不可运行草稿:' +
+      ((res.value.issues || []).slice(0, 2).join(';') || '存在不支持内容');
+    else extra = '仅保存为不可选草稿:' + (res.value.issues && res.value.issues[0] || '未认证');
     setMenuNote('已导入 ' + picked.value.name + ';' + extra);
     var add = $('btn-add-import');
     if (add) add.style.display = res.value.eligible ? 'inline-block' : 'none';

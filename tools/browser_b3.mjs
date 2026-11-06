@@ -126,12 +126,59 @@ async function main() {
     check('触控模式与四个按钮', await evaluate('document.body.classList.contains("touch")') &&
       await evaluate('document.querySelectorAll(".tbtn").length === 4'));
     check('设置按钮可用', await evaluate('!!document.getElementById("btn-settings")'));
-    await shot('b3-browser-touch-menu.png');
+    await shot('b3r1-browser-touch-menu.png');
 
     await evaluate('document.getElementById("btn-dev").click()');
     check('开发短塔启动', await waitFor('!!RA.short.state.session', 8000));
     const c = await centers();
     check('触控按钮有可见位置', c.left && c.jump && c.skill && c.left.x > 0 && c.jump.x > 0);
+
+    async function ptr(type, action, id) {
+      return await evaluate('(function(){var b=document.querySelector(\'[data-action="' + action + '"]\');' +
+        'b.dispatchEvent(new PointerEvent("' + type + '",{pointerId:' + id + ',bubbles:true,cancelable:true,clientX:1,clientY:1}));' +
+        'return {sources:RA.short.state.input.snapshot().sources,held:RA.short.state.input.snapshot().held,' +
+        'active:b.classList.contains("active")};})()');
+    }
+    // 同一按钮两指:后按的 pointer 不能覆盖先按来源
+    await ptr('pointerdown', 'left', 11);
+    await ptr('pointerdown', 'left', 12);
+    let same = await evaluate('RA.short.state.input.snapshot()');
+    check('同按钮两指同时按住', same.sources >= 2 && same.held.left === true,
+      JSON.stringify({ sources: same.sources, held: same.held }));
+    await ptr('pointerup', 'left', 11);
+    same = await evaluate('RA.short.state.input.snapshot()');
+    check('先抬一指后另一指仍按住', same.sources === 1 && same.held.left === true,
+      JSON.stringify({ sources: same.sources, held: same.held }));
+    await ptr('pointerup', 'left', 12);
+    same = await evaluate('RA.short.state.input.snapshot()');
+    check('同按钮全抬起后没有粘键', same.sources === 0 && same.held.left === false);
+    // 反向抬起顺序
+    await ptr('pointerdown', 'left', 21);
+    await ptr('pointerdown', 'left', 22);
+    await ptr('pointerup', 'left', 22);
+    same = await evaluate('RA.short.state.input.snapshot()');
+    check('反向抬指保留先按来源', same.sources === 1 && same.held.left === true);
+    await ptr('pointerup', 'left', 21);
+    // cancel / lostcapture / 无关 id
+    await ptr('pointerdown', 'jump', 31);
+    await ptr('pointerdown', 'jump', 32);
+    await ptr('pointercancel', 'jump', 31);
+    same = await evaluate('RA.short.state.input.snapshot()');
+    check('cancel 只清对应触点', same.sources === 1 && same.held.jumpHeld === true);
+    await ptr('lostpointercapture', 'jump', 32);
+    await ptr('pointerdown', 'jump', 33);
+    await ptr('pointerup', 'jump', 99);
+    same = await evaluate('RA.short.state.input.snapshot()');
+    check('无关 pointerId 不释放按住来源', same.sources === 1 && same.held.jumpHeld === true);
+    await ptr('pointerup', 'jump', 33);
+    // 后台清按钮视觉与来源
+    await ptr('pointerdown', 'left', 41);
+    const activeBefore = await evaluate('document.querySelector(\'[data-action="left"]\').classList.contains("active")');
+    await evaluate('RA.short.state.lifecycle.triggerBackground()');
+    const afterBg = await evaluate('RA.short.state.input.snapshot()');
+    check('后台清输入和按钮视觉', afterBg.sources === 0 && !(await evaluate('document.querySelector(\'[data-action="left"]\').classList.contains("active")')) && activeBefore);
+    await evaluate('document.getElementById("btn-resume").click()');
+    await sleep(100);
 
     // 两指:左 + 跳;移动/跳跃同时
     await touchStart([
@@ -142,8 +189,11 @@ async function main() {
     const two = await evaluate('RA.short.state.input.snapshot()');
     check('两个触点同时按住左/跳', two && two.held.left === true && two.held.jumpHeld === true,
       JSON.stringify(two && two.held));
-    // CDP 不能单独抬起一个触点;用同一 button 上的 pointerup 验证来源独立释放
-    await evaluate('document.querySelector(\'[data-action="left"]\').dispatchEvent(new PointerEvent("pointerup",{pointerId:1,bubbles:true}))');
+    // CDP 不能单独抬起一个触点;读取真实来源 id,在同一 button 上派发 pointerup
+    const keys = await evaluate('Array.from(RA.short.state.input.sources.keys())');
+    const leftKey = (keys || []).filter(function (k) { return k.indexOf('pointer:') === 0; })[0];
+    const leftPid = Number(String(leftKey || '').split(':')[1]);
+    await evaluate('document.querySelector(\'[data-action="left"]\').dispatchEvent(new PointerEvent("pointerup",{pointerId:' + leftPid + ',bubbles:true}))');
     await sleep(120);
     const one = await evaluate('RA.short.state.input.snapshot()');
     check('抬起一只手指不释放另一指', one && one.held.jumpHeld === true && one.held.left === false,
@@ -212,8 +262,31 @@ async function main() {
     await evaluate('document.getElementById("btn-layout-reset").click()');
     await evaluate('document.getElementById("btn-layout-save").click()');
     check('恢复默认布局', await evaluate('RA.short.state.layout.buttons.left.x === 0.10'));
+    await shot('b3r1-browser-touch-layout.png');
     await evaluate('document.getElementById("btn-layout-close").click()');
-    await shot('b3-browser-touch-layout.png');
+
+    // 实际 IndexedDB:旧声明→当前声明重导入后读回,验证 revision/认证持久化
+    const n1 = JSON.parse(readFileSync(join(ROOT, 'levels/b2/normal-1.json'), 'utf8'));
+    const rules = await evaluate('({v:RA.RULES.rulesVersion,f:RA.RULES.rulesFingerprint})');
+    const n1Hash = await evaluate('RA.LevelData.hashSync(' + JSON.stringify(n1) + ')');
+    const oldData = Object.assign({}, n1, { contentHash: null, certification: {
+      contentHash: n1Hash, rulesVersion: 'old-browser-fixture', rulesFingerprint: rules.f,
+      profileId: 'standard-v1', status: 'passed', completedAt: '2026-11-06T00:00:00Z', source: 'local-playtest'
+    }});
+    const curData = Object.assign({}, n1, { contentHash: null, certification: {
+      contentHash: n1Hash, rulesVersion: rules.v, rulesFingerprint: rules.f,
+      profileId: 'standard-v1', status: 'passed', completedAt: '2026-11-06T00:00:00Z', source: 'local-playtest'
+    }});
+    const oldImp = await evaluate('RA.short.repo.importLevel(' + JSON.stringify(JSON.stringify(oldData)) + ')');
+    const curImp = await evaluate('RA.short.repo.importLevel(' + JSON.stringify(JSON.stringify(curData)) + ')');
+    check('实际 IndexedDB 旧认证→当前认证更新 revision', oldImp.ok && curImp.ok &&
+      curImp.value.revision === oldImp.value.revision + 1 && curImp.value.eligible === true);
+    await send('Page.reload');
+    await waitFor('!!RA.short && !!RA.short.repo', 10000);
+    const persisted = await evaluate('RA.short.repo.loadDraft(' + JSON.stringify(curImp.value.draftId) + ')');
+    check('重启读回当前认证持久化', persisted.ok && persisted.value.data.certification.rulesVersion === rules.v);
+    const repeat = await evaluate('RA.short.repo.importLevel(' + JSON.stringify(JSON.stringify(curData)) + ')');
+    check('实际 IndexedDB 同有效声明重复导入幂等', repeat.ok && repeat.value.revision === curImp.value.revision);
 
     // 离线 www 包(不含编辑器/测试)也要能独立加载并启动开发短塔
     await send('Page.navigate', { url: 'file:///' + join(ROOT, 'www/index.html').replace(/\\/g, '/') + '?touch=1' });
@@ -223,15 +296,15 @@ async function main() {
       await evaluate('document.querySelectorAll(".tbtn").length === 4'));
     await evaluate('document.getElementById("btn-dev").click()');
     check('离线 www 包能启动开发短塔', await waitFor('!!RA.short.state.session', 8000));
-    await shot('b3-browser-offline-package.png');
+    await shot('b3r1-browser-offline-package.png');
 
     const evidence = {
       date: new Date().toISOString(), browser: browser.version.Browser, executable: browser.exe,
       viewport: { width: 900, height: 500, mobile: true }, pass, fail, results,
-      screenshots: ['docs/checks/b3-browser-touch-menu.png', 'docs/checks/b3-browser-touch-layout.png', 'docs/checks/b3-browser-offline-package.png'],
+      screenshots: ['docs/checks/b3r1-browser-touch-menu.png', 'docs/checks/b3r1-browser-touch-layout.png', 'docs/checks/b3r1-browser-offline-package.png'],
       note: '桌面模拟触控/生命周期;真机锁屏、系统文件选择/分享、性能未由本脚本证明。'
     };
-    writeFileSync(join(OUT, 'browser-b3-2026-11-06.json'), JSON.stringify(evidence, null, 2) + '\n', 'utf8');
+    writeFileSync(join(OUT, 'browser-b3r1-2026-11-06.json'), JSON.stringify(evidence, null, 2) + '\n', 'utf8');
   } finally {
     browser.ws.close(); killTree(browser.child); await sleep(300);
     try { rmSync(browser.profile, { recursive: true, force: true }); } catch (e) {}

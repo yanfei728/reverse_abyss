@@ -246,7 +246,7 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **ControlLayout**：`{schemaVersion:1,buttons:{left|right|jump|skill:{x,y,size}}}`，x/y 为安全区域内归一化中心，size 为短边比例；`resolve` 夹回可见范围。存储失败返回 `LAYOUT_SAVE_FAILED`，页面保留旧值，不冒充保存。
 - **PlatformLifecycle**：平台事件转 background/foreground/back，订阅可 dispose；后台先 clearAll 再暂停；前台仍暂停；back 由页面按面板→暂停→退出处理，不重建 Session、不补现实时间。
 - **PlatformFiles**：`pickJSON()` 返回 name/text 或 CANCELLED；`exportJSON` 返回 download-started / written / share-opened。Web 下载不声称写入磁盘；Android 写入 Documents 才报 written，Share 打开只附 shareOpened。
-- **导入边界**：`ContentRepository.importLevel(text,{rules})` 先 decode/play 校验/hash，保存不可自动发布草稿；认证只有 profile/hash/rules/发布校验都匹配才 eligible。`publishImported` 需用户明确操作，记录 source=imported-declaration，不生成 local-playtest 回执。未知/不支持内容阻止运行/入池；取消/失败不改池。
+- **导入边界**：`ContentRepository.importLevel(text,{rules})` 先 decode + draft 校验/编码/hash，保存不可自动发布的保真草稿；play/publish 校验单独决定 `runnable`/`eligible`，未知对象/参数/断引用/ports=null 原样保留但返回明确 issues，不能运行/入池；坏 JSON/结构错误/容量/schema 拒绝。认证需 profile/hash/rules/发布校验完整匹配；同 hash 当前有效声明可原子更新旧/坏声明，旧/无效声明不能覆盖有效认证，返回实际 revision/eligible。`publishImported` 需用户明确操作，记录 source=imported-declaration，不生成 local-playtest 回执。取消/失败不改池。
 - **离线包**：`tools/build_android_www.mjs` 仅复制 short 页面脚本、levels.js、levels/b2、assets；不包含 editor/tests/docs/legacy。Capacitor webDir=www，本地资源，不依赖远端 URL。
 - **平台壳**：Capacitor 7.6.10、App/Filesystem/Share 锁版本；核心模块不 import Capacitor/DOM 文件选择；平台 bridge 是单独 esbuild bundle。
 - **未完成**：真机安装/文件选择/分享/性能、正式签名；PC 标准人工认证/发布/正式抽选。安卓交付是 debug 包，不是商店发布。
@@ -299,12 +299,16 @@ B1/B1-R1、B2-R1 已通过工程验收，用户短塔游玩基本正常；标准
 
 异常越界判死亡回大厅、同塔重试已由 B2 实现：重试重置 runId 与可变本局状态、沿用精确内容版本的 manifest；只有显式重构才重新规划。
 
-## 10. B3 平台边界（目标，尚未实现）
+## 10. B3 平台边界（主体已交付，B3-R1 待修）
 
 完整拟定签名、错误结果与检查见 [B3 卡](../tasks/12-b3-android-short-tower.md)。平台包装、DOM/原生文件与生命周期只放适配层，核心 GameSession/World/Codec/Repository 不依赖 Capacitor。模板、认证、本局与设置各自独立，沿用 Result，不自造手机版关卡格式。
+
+2026-11-06：平台层与 APK 已交付，但独立验收复现触点释放/重认证/草稿保真问题，当前按 [B3-R1](../tasks/13-b3-review-fixes.md) 修复。以下仍是行为契约，不能把已存在 API 等同于契约已全部通过；真机与真实认证文件往返未验。
 
 - **ActionInput**：以键码/pointerId 标识每个来源；held 合并、pressed 一次消费，释放单来源不取消其他来源。连接现有 setActions/pressSkill/pressInteract；后台、取消、失焦 clearAll 后暂停，恢复等待用户继续，不重建会话、不追算。
 - **PlatformFiles**：pickJSON 返回 `{name,text}`；取消返回 CANCELLED。exportJSON 返回 written 或 share-opened 等真实状态，只在已确认写入目的地时称已保存；分享面板打开不等于完成导出。
 - **内容导入**：共享 decode/validate/hash 后保存；未知内容保真但不运行/发布；旧规则认证不入池。兼容已认证文件记录 imported-declaration，明确加入池后才可抽，不能伪造本地试玩回执。失败旧池不变，已开始 manifest 不变；同 id+hash 幂等、不同 hash 并存。
 - **ControlLayout**：`{schemaVersion:1,buttons:{[action]:{x,y,size}}}`；中心坐标按安全区归一化、尺寸按参考短边比例，显示时约束在安全区；独立存储，失败不报保存成功、不改模板或 RunState。
 - **证据**：PC 标准认证发布人工待补；安卓正式内容/认证文件往返验收前要有真实样本。桌面/Node 不能证明系统文件流程、真机触控或性能；没有 APK/设备结果时不写成安卓交付完成。
+
+B3-R1 补充：按钮层同样按 pointerId 保存/释放来源，不能在 ActionInput 多来源正确时用一个按钮 source 变量丢失身份；导入对最终持久化记录核定 revision/eligible，旧认证更新需完整规则匹配与 revision 保护；草稿保存按 draft 门槛保真，play/publish 校验单独决定可选性。错误或冲突不能显示已保存有效认证，未知内容不能因不能运行而被拒绝保真留存。

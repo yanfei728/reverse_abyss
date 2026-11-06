@@ -1,0 +1,47 @@
+{
+  "size": 4581590,
+  "sha256": "76FE73C2A25F940F7C915FA97F602609FC55F7F1A6D5D098C4E294FB977AD663",
+  "entries": [
+    {
+      "file": "js/short.js",
+      "present": true,
+      "matchesSource": true
+    },
+    {
+      "file": "js/content-repository.js",
+      "present": true,
+      "matchesSource": true
+    },
+    {
+      "file": "js/platform/action-input.js",
+      "present": true,
+      "matchesSource": true
+    },
+    {
+      "file": "js/platform/files.js",
+      "present": true,
+      "matchesSource": true
+    },
+    {
+      "file": "js/platform/lifecycle.js",
+      "present": true,
+      "matchesSource": true
+    },
+    {
+      "file": "js/platform/control-layout.js",
+      "present": true,
+      "matchesSource": true
+    },
+    {
+      "file": "js/vendor/capacitor-plugins.js",
+      "present": true,
+      "matchesSource": true
+    },
+    {
+      "file": "levels/b2/normal-1.json",
+      "present": true,
+      "matchesSource": true
+    }
+  ],
+  "unwantedEntries": []
+}

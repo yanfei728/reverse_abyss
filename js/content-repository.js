@@ -286,6 +286,24 @@
   }
 
   // ---------------- 仓库 ----------------
+  function certState(data, hash, rules) {
+    var cert = data && data.certification;
+    if (!cert) return { ok: false, reason: '未认证' };
+    if (cert.profileId !== 'standard-v1' || cert.status !== 'passed') {
+      return { ok: false, reason: '认证来源/状态不支持' };
+    }
+    if (cert.contentHash !== hash) return { ok: false, reason: '认证 hash 与内容不一致' };
+    if (cert.rulesVersion !== rules.rulesVersion || cert.rulesFingerprint !== rules.rulesFingerprint) {
+      return { ok: false, reason: '认证规则版本已过期' };
+    }
+    var errors = LD.errorsOf(LD.validate(data, {
+      purpose: 'publish',
+      rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
+    }));
+    if (errors.length) return { ok: false, reason: '发布校验未通过:' + errors[0].code + ' ' + errors[0].path };
+    return { ok: true, reason: '' };
+  }
+
   class ContentRepository {
     constructor(adapter, info) {
       this.adapter = adapter;
@@ -410,56 +428,55 @@
       var dec = LD.decode(parsed);
       if (!dec.ok) return fail(dec.error.code, dec.error.message, dec.error.issues || []);
       var data = dec.value;
+      var draftErrors = LD.errorsOf(LD.validate(data, { purpose: 'draft' }));
+      if (draftErrors.length) {
+        return fail(draftErrors[0].code, '草稿结构不能保存:' + draftErrors[0].path + ' ' + draftErrors[0].message, draftErrors);
+      }
       var playErrors = LD.errorsOf(LD.validate(data, { purpose: 'play' }));
-      if (playErrors.length) {
-        return fail(playErrors[0].code, '关卡不能作为草稿保存:' + playErrors[0].path + ' ' + playErrors[0].message, playErrors);
-      }
-      var hash = LD.hashSync(data);
-      var rules = RA.RULES || {};
-      var cert = data.certification || null;
-      var certReason = '';
-      var certOk = false;
-      if (!cert) certReason = '未认证';
-      else if (cert.profileId !== 'standard-v1' || cert.status !== 'passed') certReason = '认证来源/状态不支持';
-      else if (cert.contentHash !== hash) certReason = '认证 hash 与内容不一致';
-      else if (cert.rulesVersion !== rules.rulesVersion || cert.rulesFingerprint !== rules.rulesFingerprint) certReason = '认证规则版本已过期';
-      else {
-        var pubErrors = LD.errorsOf(LD.validate(data, {
-          purpose: 'publish',
-          rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
-        }));
-        if (pubErrors.length) certReason = '发布校验未通过:' + pubErrors[0].code + ' ' + pubErrors[0].path;
-        else certOk = true;
-      }
+      var runnable = playErrors.length === 0;
       var enc = LD.encode(data);
       if (!enc.ok) return fail(enc.error.code, '导入内容编码失败:' + enc.error.message, enc.error.issues || []);
       var canonical = JSON.parse(enc.value);
+      var hash = LD.hashSync(data);
+      var rules = RA.RULES || {};
+      var certInfo = certState(data, hash, rules);
+      var certOk = certInfo.ok && runnable;
+      var certReason = certInfo.reason || '';
+      var runIssues = playErrors.map(function (e) { return e.code + ' ' + e.path + ' ' + e.message; });
+      var issues = [].concat(certReason ? [certReason] : [], runIssues);
       var existingList = await this.adapter.list();
       if (!existingList.ok) return existingList;
       var same = existingList.value.filter(function (m) { return m.contentHash === hash; })[0];
       if (same) {
-        // 同内容再次导入:若这次带匹配认证而旧草稿没有,把声明写回草稿;不改变 contentHash
-        if (certOk) {
-          var loadedSame = await this.adapter.get(same.draftId);
-          var oldCert = loadedSame.ok && loadedSame.value && loadedSame.value.data
-            ? loadedSame.value.data.certification : null;
-          if (!oldCert || oldCert.status !== 'passed' || oldCert.contentHash !== hash) {
-            var updated = clone(loadedSame.value);
-            updated.data = canonical;
-            updated.contentHash = hash;
-            updated.title = canonical.title || '';
-            updated.updatedAt = isoNow();
-            var up = await this.adapter.put(updated, loadedSame.value.revision);
-            if (up.ok) {
-              return ok({ draftId: same.draftId, revision: up.value.revision,
-                levelRef: { levelId: data.id, contentHash: hash }, eligible: true,
-                source: 'imported-declaration', issues: [] });
-            }
-            return up;
-          }
+        var loadedSame = await this.adapter.get(same.draftId);
+        if (!loadedSame.ok) return loadedSame;
+        if (!loadedSame.value) return fail('STORAGE_FAILED', '目录里有同 hash 记录,但读取详情为空');
+        var oldData = loadedSame.value.data;
+        var oldHash = LD.hashSync(oldData);
+        var oldInfo = certState(oldData, oldHash, rules);
+        var oldCert = oldData && oldData.certification ? oldData.certification : null;
+        var oldOk = oldInfo.ok;
+        if (certOk && !oldOk) {
+          var updated = clone(loadedSame.value);
+          updated.data = canonical;
+          updated.contentHash = hash;
+          updated.title = canonical.title || '';
+          updated.updatedAt = isoNow();
+          var up = await this.adapter.put(updated, loadedSame.value.revision);
+          if (!up.ok) return up;
+          return ok({ draftId: same.draftId, revision: up.value.revision,
+            levelRef: { levelId: data.id, contentHash: hash }, eligible: true,
+            runnable: runnable, source: 'imported-declaration', issues: [] });
         }
-        return ok({ draftId: same.draftId, revision: same.revision, levelRef: { levelId: data.id, contentHash: hash },
-          eligible: certOk, source: certOk ? 'imported-declaration' : 'uncertified', issues: certReason ? [certReason] : [] });
+        if (certOk && oldOk) {
+          return ok({ draftId: same.draftId, revision: loadedSame.value.revision,
+            levelRef: { levelId: data.id, contentHash: hash }, eligible: true,
+            runnable: true, source: (oldCert && oldCert.source) || 'imported-declaration', issues: [] });
+        }
+        return ok({ draftId: same.draftId, revision: loadedSame.value.revision,
+          levelRef: { levelId: data.id, contentHash: hash }, eligible: oldOk,
+          runnable: oldOk, source: oldOk ? ((oldCert && oldCert.source) || 'imported-declaration') : 'uncertified',
+          issues: oldOk ? [] : issues });
       }
       var draftId = data.id;
       if (existingList.value.some(function (m) { return m.draftId === draftId; })) {
@@ -473,8 +490,8 @@
       if (!put.ok) return put;
       return ok({ draftId: draftId, revision: put.value.revision,
         levelRef: { levelId: data.id, contentHash: hash }, eligible: certOk,
-        source: certOk ? 'imported-declaration' : 'uncertified',
-        issues: certReason ? [certReason] : [] });
+        runnable: runnable, source: certOk ? 'imported-declaration' : 'uncertified',
+        issues: issues });
     }
 
     async publishImported(opts) {

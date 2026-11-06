@@ -58,6 +58,13 @@ $env:JAVA_HOME='C:\Users\beilu\jdk21\jdk-21.0.12.1+1'
   - `apksigner verify` 返回 0（debug 证书；META-INF version 文件警告来自 APK 容器，不是签名失败）
 - `aapt dump badging` 确认包名/版本/SDK；`sensorLandscape` 来自 manifest。
 
+## B3-R1 新包（2026-11-06）
+
+- 新包：`docs/checks/B3-reverse-abyss-0.3.1-debug.apk`，4,552,177 bytes，SHA-256 `23EDEC3DF31F357896B1D15D1999B0F3D10A35B03E587D05B78A7DBF294BCC1C`，versionCode 4/0.3.1。
+- APK 包内 `www`/short/repository/平台模块/桥接已由修复源码重新生成；`apksigner verify --verbose` 输出 `Verifies`，v1/v2 true。
+- 旧 0.3.0 包原样保留；验签/大小/哈希见 [B3-R1 记录](B3-R1-2026-11-06.md)。
+- 仍未安装：无设备/模拟器；不是正式发布签名。
+
 ## 未完成/限制
 
 - 没有 Android Studio、模拟器或真机；APK 能构建/验签，但**未安装、未冷启动、未测锁屏/后台/返回/触控**。

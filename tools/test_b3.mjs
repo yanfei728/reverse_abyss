@@ -179,6 +179,73 @@ head('Repository import:合法草稿/幂等/认证门槛/显式入池');
   check('导入存储失败不改池', !failed.ok && (await repo2.listDrafts()).value.length === 0);
 }
 
+head('R2/R3:旧认证重导入、未知草稿保真与持久化');
+{
+  const repo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  const plain = clone(ld('normal-1'));
+  plain.certification = null; plain.contentHash = null;
+  const curCert = certFor(plain);
+  const oldCert = Object.assign({}, curCert, { rulesVersion: 'old-review-fixture' });
+  const oldData = clone(plain); oldData.certification = oldCert; oldData.contentHash = null;
+  const oldImp = await repo.importLevel(JSON.stringify(oldData));
+  check('旧规则认证先保存为不可选草稿', oldImp.ok && oldImp.value.eligible === false &&
+    oldImp.value.revision === 1);
+  const curData = clone(plain); curData.certification = curCert; curData.contentHash = null;
+  const curImp = await repo.importLevel(JSON.stringify(curData));
+  check('同内容当前认证重导入更新旧草稿', curImp.ok && curImp.value.eligible === true &&
+    curImp.value.revision === 2);
+  const reopened = await repo.loadDraft(curImp.value.draftId);
+  check('库内认证已变为当前规则', reopened.ok && reopened.value.data.certification.rulesVersion === RA.RULES.rulesVersion);
+  const again = await repo.importLevel(JSON.stringify(curData));
+  check('同有效声明重复导入幂等', again.ok && again.value.revision === 2 && again.value.eligible === true);
+  const oldAgain = await repo.importLevel(JSON.stringify(oldData));
+  check('旧声明不能覆盖已有当前认证', oldAgain.ok && oldAgain.value.eligible === true &&
+    oldAgain.value.revision === 2 &&
+    (await repo.loadDraft(curImp.value.draftId)).value.data.certification.rulesVersion === RA.RULES.rulesVersion);
+  const pub = await repo.publishImported({ draftId: curImp.value.draftId, expectedRevision: 2 });
+  check('重认证草稿可由用户明确加入正式池', pub.ok && pub.value.source === 'imported-declaration');
+
+  const failRepo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  await failRepo.importLevel(JSON.stringify(oldData));
+  failRepo.adapter.failNextPut('模拟写入失败');
+  const failUp = await failRepo.importLevel(JSON.stringify(curData));
+  check('重认证写失败返回失败且旧草稿仍在', !failUp.ok &&
+    (await failRepo.loadDraft('b2_normal_1')).value.data.certification.rulesVersion === 'old-review-fixture');
+  const readRepo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  await readRepo.importLevel(JSON.stringify(oldData));
+  const origGet = readRepo.adapter.get.bind(readRepo.adapter);
+  readRepo.adapter.get = async function () { return { ok: false, error: { code: 'STORAGE_FAILED', message: '模拟读取失败' } }; };
+  const failRead = await readRepo.importLevel(JSON.stringify(curData));
+  check('重认证读取失败返回失败', !failRead.ok && failRead.error.code === 'STORAGE_FAILED');
+  readRepo.adapter.get = origGet;
+
+  const conflictRepo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  await conflictRepo.importLevel(JSON.stringify(oldData));
+  conflictRepo.adapter.put = async function () { return { ok: false, error: { code: 'CONFLICT', message: '模拟 revision 冲突' } }; };
+  const conflict = await conflictRepo.importLevel(JSON.stringify(curData));
+  check('重认证 revision 冲突返回失败且旧草稿不变', !conflict.ok && conflict.error.code === 'CONFLICT' &&
+    (await conflictRepo.loadDraft('b2_normal_1')).value.data.certification.rulesVersion === 'old-review-fixture');
+
+  const demo = JSON.parse(readFileSync(join(ROOT, 'levels/demo/t02a-demo.json'), 'utf8'));
+  const unknownRepo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  const unknown = await unknownRepo.importLevel(JSON.stringify(demo));
+  check('未知对象/断引用/ports=null 可保存草稿', unknown.ok && unknown.value.runnable === false &&
+    unknown.value.eligible === false);
+  const stored = await unknownRepo.loadDraft(unknown.value.draftId);
+  check('未知内容读回保真', stored.ok && stored.value.data.objects.some((o) => o.type === 'future_enemy') &&
+    stored.value.data.objects.some((o) => o.type === 'future_enemy' && o.behavior && o.behavior.keep === 'author-data' && o.priority === 3) &&
+    stored.value.data.extensions && stored.value.data.extensions.authorNote === '未认证演示草稿');
+  check('未知草稿不进入正式池', (await unknownRepo.listEligible({ difficulty: 3 })).value.length === 0);
+  check('未知草稿不能加入正式池', !(await unknownRepo.publishImported({
+    draftId: unknown.value.draftId, expectedRevision: unknown.value.revision
+  })).ok);
+
+  const badRepo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  const badShape = clone(plain); badShape.ports = {};
+  const bad = await badRepo.importLevel(JSON.stringify(badShape));
+  check('结构错误草稿仍拒绝且不写', !bad.ok && (await badRepo.listDrafts()).value.length === 0);
+}
+
 head('Android 包:版本锁定、离线 www、最小内容、横屏 APK');
 {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
@@ -204,6 +271,9 @@ head('Android 包:版本锁定、离线 www、最小内容、横屏 APK');
   check('www 不打包编辑器/旧原型链接', page.indexOf('editor.html') < 0 && page.indexOf('legacy.html') < 0);
   check('www 不引用远端 URL', !/https?:\/\//.test(page));
   check('bridge 产物存在', existsSync(join(www, 'js/vendor/capacitor-plugins.js')));
+  const appGradle = readFileSync(join(ROOT, 'android/app/build.gradle'), 'utf8');
+  check('Android debug 版本 0.3.1/versionCode 4', appGradle.indexOf('versionCode 4') >= 0 &&
+    appGradle.indexOf('versionName "0.3.1"') >= 0);
   check('Android debug 构建配置存在', existsSync(join(ROOT, 'android/app/build.gradle')));
   check('APK 输出目录约定', readFileSync(join(ROOT, 'android/app/build.gradle'), 'utf8').indexOf('com.android.application') >= 0);
 }

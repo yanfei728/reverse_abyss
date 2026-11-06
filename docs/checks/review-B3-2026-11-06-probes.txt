@@ -1,0 +1,105 @@
+{
+  "sameButtonPointers": {
+    "both": {
+      "held": {
+        "left": true,
+        "right": false,
+        "jumpHeld": false
+      },
+      "pressed": {
+        "skill": false,
+        "interact": false,
+        "pause": false
+      },
+      "sources": 2
+    },
+    "firstUp": {
+      "held": {
+        "left": true,
+        "right": false,
+        "jumpHeld": false
+      },
+      "pressed": {
+        "skill": false,
+        "interact": false,
+        "pause": false
+      },
+      "sources": 1
+    },
+    "allUp": {
+      "held": {
+        "left": true,
+        "right": false,
+        "jumpHeld": false
+      },
+      "pressed": {
+        "skill": false,
+        "interact": false,
+        "pause": false
+      },
+      "sources": 1
+    },
+    "stuckAfterAllReleased": true
+  },
+  "refreshCertification": {
+    "first": {
+      "ok": true,
+      "value": {
+        "draftId": "b2_normal_1",
+        "revision": 1,
+        "levelRef": {
+          "levelId": "b2_normal_1",
+          "contentHash": "sha256:0ca2e0a46d920b6afa20b9589b63950d9187018f4d1601d23542e35a0a859b2e"
+        },
+        "eligible": false,
+        "source": "uncertified",
+        "issues": [
+          "认证规则版本已过期"
+        ]
+      }
+    },
+    "second": {
+      "ok": true,
+      "value": {
+        "draftId": "b2_normal_1",
+        "revision": 1,
+        "levelRef": {
+          "levelId": "b2_normal_1",
+          "contentHash": "sha256:0ca2e0a46d920b6afa20b9589b63950d9187018f4d1601d23542e35a0a859b2e"
+        },
+        "eligible": true,
+        "source": "imported-declaration",
+        "issues": []
+      }
+    },
+    "storedRulesVersion": "old-review-fixture",
+    "published": {
+      "ok": false,
+      "error": {
+        "code": "CERT_REQUIRED",
+        "message": "导入内容没有匹配当前内容/规则的声明认证",
+        "issues": []
+      }
+    },
+    "poolSize": 0
+  },
+  "unknownDraft": {
+    "draftErrors": [],
+    "result": {
+      "ok": false,
+      "error": {
+        "code": "UNKNOWN_ENTITY",
+        "message": "关卡不能作为草稿保存:/objects/4/type 未注册的对象类型 \"future_review_object\"(草稿可以保留,试玩/发布必须换成已支持的类型)",
+        "issues": [
+          {
+            "code": "UNKNOWN_ENTITY",
+            "path": "/objects/4/type",
+            "message": "未注册的对象类型 \"future_review_object\"(草稿可以保留,试玩/发布必须换成已支持的类型)",
+            "severity": "error"
+          }
+        ]
+      }
+    },
+    "storedCount": 0
+  }
+}

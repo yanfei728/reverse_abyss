@@ -406,3 +406,24 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 - **APK**：本机无 Android Studio/设备，用已有 SDK 35 CLI 构建 debug APK，4,581,590 bytes，SHA-256 `76FE73C2A25F940F7C915FA97F602609FC55F7F1A6D5D098C4E294FB977AD663`；debug 验签通过，未安装。
 - **实测**：`test_b3` 45/0；完整 **1400/4**（引擎 606/4，其余全绿）；`browser_b3` 25/0（移动视口/多来源触控/布局/暂停/返回/离线 www）。
 - **未完成**：真机安装/冷启动、真实多指、锁屏/后台/返回、系统文件选择/分享、PC↔安卓真实往返、PC 标准人工认证/发布/正式抽选、正式签名/商店发布；N01/floor09/floor11 保留非阻塞。
+
+### 2026-11-06 · B3 独立验收：保留平台壳，触控/导入一次收尾
+
+验收 HEAD `9f4b097`、实现 `43fd30b`。**B3 暂不通过，当前执行 [B3-R1 / 13 号卡](docs/tasks/13-b3-review-fixes.md)**；主体与真实 APK 成果保留，不重做 B1/B2，不把美术/音效/地图/Boss 改进升格为门槛。见 [独立报告](docs/checks/review-B3-2026-11-06.md)。
+
+独立全量 **1400 PASS / 4 FAIL，退出码 1**（B3 45/0，4 条旧 floor09/floor11）。补充内存/原始 DOM 绑定探针复现三项：同按钮两指全松仍 left=true；同 hash 旧认证→新认证导入误返回 eligible，持久化仍旧规则、加入池失败；未知对象合法草稿被 play 校验拒绝，未保真保存。R1/R2 为 P1，R3 为 P2，合并一张卡修复，不展开新平台路线。
+
+交付 APK 独立验签退出 0、SHA-256 与交付一致，抽查包内 8 项与当前代码一致，因此旧包也包含待修逻辑。独立 DevTools 未启动，交付方 Chrome 25/0 原证据保留；本轮没有重建包、安装 SDK 或向设备安装。用户明确尚未安装真机，真实多指/系统文件/前后台及 PC 人工认证发布仍待验，不生成 passed。
+
+下一步实现方一次修 R1～R3，补实际事件/存储结果回归，更新 www/bridge/cap 资源并交新版本 APK、大小/哈希/验签，保留旧包与证据。集中工程复验后，再由用户安装新包测真机和真实认证文件往返。本轮仅增加证据/文档/任务卡，未改游戏、地图、素材、APK，未提交推送。
+
+### 2026-11-06 · B3-R1：触点释放/重认证/未知草稿保真
+
+按 [B3-R1 卡](docs/tasks/13-b3-review-fixes.md) 完成，证据见 [B3-R1 记录](docs/checks/B3-R1-2026-11-06.md)。保留平台/玩法主体和用户数据，不扩 40 层、不做表现重设。
+
+- **R1**：每按钮维护 pointerId→source Map；同按钮两指独立释放，up/cancel/lostcapture/leave 只清对应来源；后台/暂停/菜单/重开同时清输入与按钮视觉；布局拖动锁定实际 pointer。实际 DOM PointerEvent 两种抬起顺序、cancel/无关 id、不同按钮多指均回归。
+- **R2**：完整比较认证 profile/status/hash/rulesVersion/rulesFingerprint 与共享 publish 校验；同 hash 旧/坏声明可用当前有效声明原子更新，返回实际 revision；重复有效声明幂等；旧/无效声明不能覆盖有效认证；读/写/冲突失败不改草稿/池；浏览器 IndexedDB 重启读回。
+- **R3**：导入持久化门槛改为 draft 校验/编码；未知对象/参数/断引用/ports=null 保真保存为 `runnable:false` 草稿，play/publish issues 明确；未知内容即使带认证也不 eligible；结构错误/坏 JSON 仍拒绝。
+- **测试**：`test_b3` 60/0；完整 **1415/4**（引擎 606/4，其余全绿）；`browser_b3` 35/0；reviewer 修复后探针退出 0。
+- **APK**：0.3.1 debug，4,552,177 bytes，SHA-256 `23EDEC3DF31F357896B1D15D1999B0F3D10A35B03E587D05B78A7DBF294BCC1C`，versionCode 4，v1/v2 验签通过；旧 0.3.0 保留。无设备/模拟器，未安装；真机、系统文件、PC 人工认证仍待验。
+- 提交：见下方 B3-R1 提交记录。
