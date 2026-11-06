@@ -393,6 +393,8 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 ### 2026-11-06 · B3 安卓平台壳：触控、生命周期、JSON 与 debug APK
 
+实现提交：`43fd30b`。
+
 按 [B3 卡](docs/tasks/12-b3-android-short-tower.md) 交付平台层，复用 B2 短塔核心，不复制物理/战斗，不做 40 层或美术/Boss 重设。证据见 [B3 记录](docs/checks/B3-2026-11-06.md)。
 
 - **语义输入**：`ActionInput` 按来源记录 held，左右抵消、释放一指不取消另一指，press 一次性边沿；键盘/触点都进同一 Session。
