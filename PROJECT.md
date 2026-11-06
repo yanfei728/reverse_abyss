@@ -324,7 +324,7 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 ### 2026-11-06 · B1-R1：异步保存/读取/试玩不再丢工作
 
-按 [B1-R1 收尾卡](docs/tasks/09-b1-review-fixes.md) 连续修复 R1a/R1b/R1c（含读取乱序）与顺手项 N02；保留 A3-C、普通保存恢复、World/GameSession。证据见 [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md)。
+按 [B1-R1 收尾卡](docs/tasks/09-b1-review-fixes.md) 连续修复 R1a/R1b/R1c（含读取乱序）与顺手项 N02；保留 A3-C、普通保存恢复、World/GameSession。修复提交 `9f2a4e3`，证据见 [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md)。
 
 - **工作区令牌**：`newLevel/replaceModel` 递增 `workspaceToken`；保存发起时捕获令牌、draftId、expectedRevision、快照/hash。旧图保存在切图后仍写入旧草稿，但不更新当前图的 draftId/revision/dirty，返回 false。
 - **试玩一致性**：`openPlaytest` 保存后核对令牌与 `dirty`/当前 hash；期间编辑或切图就留在编辑器并提示重试，handoff 改用刚保存的规范快照并再次 play 校验，不再把保存后的新编辑带走。
