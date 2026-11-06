@@ -426,4 +426,4 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 - **R3**：导入持久化门槛改为 draft 校验/编码；未知对象/参数/断引用/ports=null 保真保存为 `runnable:false` 草稿，play/publish issues 明确；未知内容即使带认证也不 eligible；结构错误/坏 JSON 仍拒绝。
 - **测试**：`test_b3` 60/0；完整 **1415/4**（引擎 606/4，其余全绿）；`browser_b3` 35/0；reviewer 修复后探针退出 0。
 - **APK**：0.3.1 debug，4,552,177 bytes，SHA-256 `23EDEC3DF31F357896B1D15D1999B0F3D10A35B03E587D05B78A7DBF294BCC1C`，versionCode 4，v1/v2 验签通过；旧 0.3.0 保留。无设备/模拟器，未安装；真机、系统文件、PC 人工认证仍待验。
-- 提交：见下方 B3-R1 提交记录。
+- 提交：`5dc5fb2`。

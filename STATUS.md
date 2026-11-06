@@ -4,7 +4,7 @@
 
 ## 版本与回退基线
 
-- T00 原型基线：`f56cdce`；T01 实现：`6a7e712`；T01-R 修复：`c7c5490`；T02A 交付：`f2a0e07`；T02A-R 修复：`6f88127`；B1/A3-C：`cc3df4a`；B1 主体：`fffaee0`；B1 文档/证据：`205d63c`；B1-R1 修复：`9f2a4e3`；B2 交付：`9a17f99`；B2-R1：`71e3219`；B3：`43fd30b`；**B3-R1：见下方提交记录**。
+- T00 原型基线：`f56cdce`；T01 实现：`6a7e712`；T01-R 修复：`c7c5490`；T02A 交付：`f2a0e07`；T02A-R 修复：`6f88127`；B1/A3-C：`cc3df4a`；B1 主体：`fffaee0`；B1 文档/证据：`205d63c`；B1-R1 修复：`9f2a4e3`；B2 交付：`9a17f99`；B2-R1：`71e3219`；B3：`43fd30b`；**B3-R1：`5dc5fb2`**。
 - B2 开始前 HEAD `cdd7b54`；本轮新增短塔/规则/对象/Boss/编辑发布与模板，原图、素材、`levels/v2`、`levels/levels.js`、旧 game/playtest 未改。
 - 本轮未推送远程；开始时无关 ZIP 保留。
 - 已有本地 Git，origin 为 `git@github.com:yanfei728/reverse_abyss.git`；不要重复初始化，不丢弃他人未提交内容。
