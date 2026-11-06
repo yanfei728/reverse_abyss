@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>reverse_abyss · 安卓短塔</title>
 <style>
-  html,body{margin:0;height:100%;background:#05060c;color:#cfd8ea;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;overflow:hidden}
-  #app{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
-  #wrap{position:relative;width:min(100vw,177.78vh);aspect-ratio:16/9}
-  #short-canvas{display:block;width:100%;height:100%;background:#05060c;image-rendering:pixelated;outline:none}
-  #menu{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#141b2f 0,#05060c 70%);z-index:8}
-  #menu .box{width:min(620px,86%);background:rgba(12,16,28,.92);border:1px solid #2c3752;border-radius:14px;padding:22px 24px}
+  html,body{margin:0;width:100%;height:100%;min-height:100%;background:#05060c;color:#cfd8ea;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;overflow:hidden}body{position:relative}
+  #app{position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #wrap{position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden}
+  #short-canvas{display:block;width:100%;height:100%;background:#05060c;image-rendering:pixelated;outline:none;touch-action:none}
+  #menu{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;overflow:auto;padding:8px;box-sizing:border-box;background:radial-gradient(ellipse at 50% 30%,#141b2f 0,#05060c 70%);z-index:8}
+  #menu .box{width:86%;max-width:620px;max-height:calc(100% - 16px);overflow:auto;box-sizing:border-box;flex:0 0 auto;margin:auto;background:rgba(12,16,28,.92);border:1px solid #2c3752;border-radius:14px;padding:22px 24px}
   #menu h1{margin:0 0 6px;font-size:24px}
   #menu p{color:#9fb0cc;font-size:13px;line-height:1.7}
   #menu button{font:inherit;font-size:14px;margin:6px 6px 0 0;padding:9px 14px;border-radius:9px;border:1px solid #40557f;background:#1d283d;color:#e8eefb;cursor:pointer}
@@ -22,15 +22,15 @@
   .hudbox{background:rgba(8,11,20,.72);border:1px solid #26324a;border-radius:8px;padding:5px 9px;color:#dfe7f5}
   #controls{position:absolute;right:12px;bottom:10px;display:flex;gap:6px;z-index:5}
   #controls button,#controls a{font:inherit;font-size:12px;color:#cfd8ea;background:#121a2b;border:1px solid #2c3752;border-radius:8px;padding:5px 9px;text-decoration:none;cursor:pointer}
-  #pause-overlay,#result-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,6,12,.74);z-index:7}
-  #pause-overlay .box,#result-overlay .box{background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:20px 24px;text-align:center;min-width:280px}
+  #pause-overlay,#result-overlay{position:absolute;top:0;right:0;bottom:0;left:0;display:none;align-items:center;justify-content:center;overflow:auto;padding:8px;box-sizing:border-box;background:rgba(4,6,12,.74);z-index:7}
+  #pause-overlay .box,#result-overlay .box{width:90%;max-width:420px;max-height:calc(100% - 16px);overflow:auto;box-sizing:border-box;background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:20px 24px;text-align:center;margin:auto}
   #pause-overlay h2,#result-overlay h2{margin:0 0 8px;font-size:20px}
   #pause-overlay p,#result-overlay p{color:#9fb0cc;font-size:12.5px;line-height:1.7}
   #pause-overlay button,#result-overlay button{font:inherit;margin:6px 4px 0;padding:7px 14px;border-radius:8px;background:#1d283d;color:#e8eefb;border:1px solid #40557f;cursor:pointer}
   #help{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#7787a6;background:rgba(8,11,20,.6);border-radius:8px;padding:4px 9px;z-index:3}
 
   body.touch #help{display:none}
-  #touch-controls{position:absolute;left:env(safe-area-inset-left);right:env(safe-area-inset-right);top:env(safe-area-inset-top);bottom:env(safe-area-inset-bottom);display:none;pointer-events:none;z-index:6}
+  #touch-controls{position:absolute;left:0;right:0;top:0;bottom:0;display:none;pointer-events:none;z-index:6}@supports (top: env(safe-area-inset-top)){#touch-controls{left:env(safe-area-inset-left);right:env(safe-area-inset-right);top:env(safe-area-inset-top);bottom:env(safe-area-inset-bottom)}#btn-settings{right:calc(12px + env(safe-area-inset-right));top:calc(8px + env(safe-area-inset-top))}}
   body.touch #touch-controls{display:block}
   body.menu #touch-controls{display:none}
   body.menu.settings #touch-controls{display:block;z-index:9}
@@ -38,23 +38,26 @@
   .tbtn{position:absolute;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;border:1px solid rgba(140,180,240,.55);border-radius:50%;background:rgba(18,28,48,.62);color:#e8f0ff;font:600 13px/1 "Microsoft YaHei",system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.35);opacity:.82;transition:transform .06s,background .06s}
   .tbtn.active{background:rgba(70,115,190,.82);transform:scale(.94);opacity:1}
   .tbtn.layout-on{border-color:#ffd166;box-shadow:0 0 0 2px rgba(255,209,102,.35)}
-  #btn-settings{position:absolute;right:calc(12px + env(safe-area-inset-right));top:calc(8px + env(safe-area-inset-top));z-index:9;display:none;font:inherit;font-size:12px;padding:5px 9px;border-radius:8px;border:1px solid #40557f;background:#1d283d;color:#e8eefb;touch-action:none}
+  #btn-settings{position:absolute;right:12px;top:8px;z-index:9;display:none;font:inherit;font-size:12px;padding:5px 9px;border-radius:8px;border:1px solid #40557f;background:#1d283d;color:#e8eefb;touch-action:none}
   body.touch #btn-settings{display:block}
-  #settings-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,6,12,.76);z-index:8}
-  #settings-overlay .box{width:min(520px,90%);background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:18px 20px;text-align:left}
+  #settings-overlay{position:absolute;top:0;right:0;bottom:0;left:0;display:none;align-items:center;justify-content:center;overflow:auto;padding:8px;box-sizing:border-box;background:rgba(4,6,12,.76);z-index:8}
+  #settings-overlay .box{width:90%;max-width:520px;max-height:calc(100% - 16px);overflow:auto;box-sizing:border-box;background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:18px 20px;text-align:left;margin:auto}
   #settings-overlay h2{margin:0 0 8px;font-size:19px;text-align:center}
   #settings-overlay p{color:#9fb0cc;font-size:12.5px;line-height:1.6;margin:6px 0}
   #settings-overlay .row{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}
   #settings-overlay button{font:inherit;font-size:12.5px;padding:7px 11px;border-radius:8px;border:1px solid #40557f;background:#1d283d;color:#e8eefb;touch-action:none}
   #layout-size{flex:1;min-width:120px}
   #layout-status{color:#ffd98a;min-height:1.4em}
-  #rotate-hint{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#05060c;color:#cfd8ea;z-index:20;font-size:16px;text-align:center;line-height:1.8}
+  #rotate-hint{position:fixed;top:0;right:0;bottom:0;left:0;display:none;align-items:center;justify-content:center;background:#05060c;color:#cfd8ea;z-index:20;font-size:16px;text-align:center;line-height:1.8;padding:16px;box-sizing:border-box}
   @media (orientation:portrait){body.touch #rotate-hint{display:flex}}
   body.layout-edit .tbtn{border-style:dashed;border-color:#ffd166}
   #import-status{color:#9fb0cc;font-size:12px}
+  @media (max-height:420px){#menu .box{padding:10px 14px}#menu h1{font-size:18px;margin-bottom:2px}#menu p{font-size:11.5px;line-height:1.4;margin:3px 0}#menu button{font-size:12px;padding:6px 9px;margin-top:3px}#menu .box>p:first-of-type{display:none}#menu-status{min-height:1em}#settings-overlay .box{padding:10px 12px}#settings-overlay h2{font-size:16px;margin-bottom:4px}#settings-overlay p{font-size:11px;line-height:1.35;margin:3px 0}#settings-overlay .row{margin:4px 0;gap:5px}}
+  #fatal-overlay{position:fixed;top:0;right:0;bottom:0;left:0;display:none;align-items:center;justify-content:center;background:#12090a;color:#ffd8d0;z-index:40;padding:16px;box-sizing:border-box;font-size:13px;line-height:1.6;text-align:center}
 </style>
 </head>
 <body>
+<div id="fatal-overlay"><div><b>页面初始化失败</b><p id="fatal-text" style="margin:8px 0 0;font-size:12px;color:#ffb3a6"></p></div></div>
 <div id="app"><div id="wrap">
   <canvas id="short-canvas" width="960" height="540"></canvas>
   <div id="hud">

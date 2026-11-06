@@ -1,6 +1,6 @@
 {
   "name": "reverse-abyss-android",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "reverse_abyss PC/Android short tower shell (Capacitor 7)",
   "scripts": {

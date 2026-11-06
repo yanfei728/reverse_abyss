@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**B3-R1 工程修复完成（2026-11-06）：同按钮多指释放、旧认证→当前认证重导入、未知内容草稿保真已修；新 0.3.1 debug APK 已构建并验签，旧 0.3.0 保留。** 真机安装、系统文件往返和 PC 标准认证/发布仍未完成，不能写成安卓版已发布。PC 入口 `index.html` 保留，B1/B2 不重做；美术/音效/地图/Boss 打磨继续后置。见 [STATUS.md](STATUS.md)、[B3-R1 记录](docs/checks/B3-R1-2026-11-06.md)、[新 APK](docs/checks/B3-reverse-abyss-0.3.1-debug.apk)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
+**B3-R2 工程修复完成（2026-11-06）：安卓启动/视口裁切已修，补基础 CSS/确定尺寸回退、短屏面板和屏幕坐标点击/可见性回归；新 0.3.2 debug APK 已构建并验签，0.3.0/0.3.1 保留。** OPD2101 / Android 11 真机尚未复测，系统文件往返与 PC 标准认证/发布仍未完成，不能写成安卓版已发布。见 [STATUS.md](STATUS.md)、[B3-R2 记录](docs/checks/B3-R2-2026-11-06.md)、[新 APK](docs/checks/B3-reverse-abyss-0.3.2-debug.apk)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
@@ -10,7 +10,7 @@ PC 端没有安装包，也没有 npm 运行依赖；取得整个项目文件夹
 
 - 游玩：使用桌面浏览器，目前按键操作为主。
 - 命令行检查：需要 Node.js；本次使用 Node.js `v24.21.0`。
-- Android：Capacitor 7 工程与 debug APK（新版 `docs/checks/B3-reverse-abyss-0.3.1-debug.apk`，旧 0.3.0 保留）；触控/布局/生命周期/JSON 已接入。**尚未在真机安装**，无正式签名/商店发布。
+- Android：Capacitor 7 工程与 debug APK（新版 `docs/checks/B3-reverse-abyss-0.3.2-debug.apk`，0.3.0/0.3.1 保留）；**用户在 OPD2101/Android 11 安装 0.3.1 后启动裁切，0.3.2 尚未在同设备复测**。无正式签名/商店发布。
 
 ## 启动
 
@@ -83,9 +83,9 @@ $env:JAVA_HOME='C:\Users\beilu\jdk21\jdk-21.0.12.1+1'
 .\android\gradlew.bat -p android assembleDebug --console=plain --no-daemon "-Pandroid.builder.sdkDownload=false"
 ```
 
-产物：`docs/checks/B3-reverse-abyss-0.3.1-debug.apk`（versionCode 4，debug，未签名正式发布）；旧 `0.3.0` 保留。校验值/版本/工具链见 [B3 工具链记录](docs/checks/B3-toolchain.md) 与 [B3-R1 记录](docs/checks/B3-R1-2026-11-06.md)。触控布局在游戏内「布局」面板拖动/调大小/保存/恢复默认；导入/导出在短塔菜单。真机安装、系统文件选择/分享和锁屏尚未验证。
+当前交付包：`docs/checks/B3-reverse-abyss-0.3.2-debug.apk`（versionCode 5，debug，非正式发布）；`0.3.0`/`0.3.1` 保留。校验值/版本/工具链见 [B3 工具链记录](docs/checks/B3-toolchain.md) 与 [B3-R2 记录](docs/checks/B3-R2-2026-11-06.md)。用户已在 OPD2101 / Android 11 安装 0.3.1，出现大厅/布局裁切，暂不能正常游玩；系统文件选择/分享和锁屏仍未验。
 
-0.3.1 包含 B3-R1 的触点释放/重认证导入/未知草稿保真修复；旧 0.3.0 原样保留。`assembleDebug` 的原始输出在 `android/app/build/outputs/apk/debug/app-debug.apk`，历史交付包不会被自动覆盖。真机检查与 PC 标准认证发布仍按 [13 号卡](docs/tasks/13-b3-review-fixes.md) 待验。
+0.3.2 包含 B3-R2 的视口/基础 CSS/短屏/屏幕坐标修复；0.3.0/0.3.1 原样保留。`assembleDebug` 的原始输出在 `android/app/build/outputs/apk/debug/app-debug.apk`，历史交付包不会被自动覆盖。目标设备复测步骤见 [14 号卡](docs/tasks/14-b3-android-viewport-fix.md)。入口恢复后再复测：完整大厅 → 点击开发短塔 → 地图/角色与移动跳跃 → 布局开关 → 暂停/继续 → 后台返回。PC 标准认证发布仍待作者实测。
 
 ## 检查方法
 
@@ -112,6 +112,7 @@ node tools/browser_t02a_r.mjs
 node tools/browser_b1.mjs
 node tools/browser_b2.mjs
 node tools/browser_b3.mjs
+node tools/browser_b3r2.mjs
 node tools/check_levels.mjs
 ```
 
@@ -138,7 +139,7 @@ node tools/check_levels.mjs
 
 2026-11-06 B2-R1 独立复跑：完整 **1355 PASS / 4 FAIL，退出码 1**，4 条仍为旧 floor09/floor11；原点/上层对象与标准技能独立探针退出 0，R1～R3 关闭。独立 DevTools 未启动，Chrome 25/0 为交付方证据；用户另确认短塔人工游玩基本正常。详见 [独立复验](docs/checks/review-B2R1-2026-11-06.md)。
 
-2026-11-06 B3-R1 实测：`node tools/test_b3.mjs` **60 PASS / 0 FAIL**；完整 `node tools/test_all.mjs` **1415 PASS / 4 FAIL，退出码 1**（引擎 606/4，其余全绿）；`node tools/browser_b3.mjs` **35 PASS / 0 FAIL**（实际 PointerEvent 同按钮多指/cancel/无关 id、IndexedDB 重认证读回、布局/离线 www）。新 0.3.1 APK 构建成功并验签，但本机无设备可安装；真机与系统文件往返未验。证据见 [B3-R1 记录](docs/checks/B3-R1-2026-11-06.md)。
+2026-11-06 B3-R2 交付方实测：`test_b3` **60/0**；完整 **1415/4**（旧 floor09/floor11）；`browser_b3r2` **47/0**（960×540/800×360/960×600、DPR1/2/3、屏幕坐标点击、短屏面板、基础回退、离线 www）；`browser_b3` 35/0（R1 回归）。0.3.2 APK 构建/验签成功，OPD2101 尚未复测。本轮独立全量同为 **1415/4**，原三项探针退出 0；独立 DevTools 未启动，未冒充重现 35/0。0.3.1 APK 独立验签/包内对照通过，但用户真机启动界面裁切、无法游玩，见 [最新复验与截图](docs/checks/review-B3R1-2026-11-06.md)。系统文件往返仍未验。
 
 2026-11-06 B2 独立复跑原完整自检为 **1334/4**；非零原点探针发现上层机关触发/伤害/安全恢复失效和标准技能永久禁用，故 B2 暂不通过。B2-R1 修复后：`test_b2` **96/0**、完整 **1355/4**（引擎 606/4，其余全绿）、真实 Chrome **25/0**；修复后 reviewer 探针的新运行时门/浮石/火球/恢复和 CD 后施法均符合预期。原 23/0 与 1334/4 保留为 B2 历史证据。详见 [B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。
 
@@ -170,13 +171,13 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 
 ## 当前重要限制
 
-- **B3-R1 已修**：同按钮按 pointerId 独立释放并在后台/面板清视觉；同 hash 当前认证可原子更新旧声明；未知内容按 draft 门槛保留为不可运行草稿。新 0.3.1 APK 已构建/验签，旧 0.3.0 保留；真机/文件往返/人工认证仍待验。见 [B3-R1 记录](docs/checks/B3-R1-2026-11-06.md)。
+- **B3-R2 已修**：旧 overlay 仅用 `inset:0`、wrap 仅靠 `aspect-ratio/min()`，无回退；现改为显式四方定位 + JS 确定 16:9 视口 + 短屏滚动/压缩 + 屏幕坐标可见性回归。0.3.2 APK 已构建/验签，**OPD2101/Android 11 仍未复测**；实际 WebView 版本未知。上一轮触点/重认证/草稿保真已独立复验通过，旧包保留。
 - **B2-R1 已验收**：默认入口、上层对象坐标与标准 CD 后施法通过独立工程复验；用户短塔游玩基本正常。标准认证/发布/正式实抽人工待测，不能写成已完成；可先推进独立安卓适配，正式内容与认证文件往返验收前补齐真实样本。
 - 美术粗糙、缺音效、AI 地图质量与 Boss 技能打磨，用户明确允许后置，见 [改进待办](docs/design/followups.md)，不阻塞本轮工程验收。
 - B1-R1 已修：保存/读取/试玩回包会核对工作区令牌与内容 hash；保存/读取期间编辑或切图不会丢新工作、不会错误绑定草稿，试玩不会带未保存内容离开。真实双窗口并发仍未浏览器自动化验证。暂停菜单重开已清遮罩（N02）。
-- B2 已实现生命/光环/六类对象/休整/两阶段 Boss/标准试玩/本地发布抽选；B3 已接安卓触控/布局/生命周期/JSON/离线包/debug APK，但没有真机安装记录、正式签名或 40 层扩展。
+- B2 已实现生命/光环/六类对象/休整/两阶段 Boss/标准试玩/本地发布抽选；B3 已接安卓触控/布局/生命周期/JSON/离线包/debug APK。用户已在 OPD2101 安装 0.3.1 并反馈启动裁切；0.3.2 未复测，无正式签名或 40 层扩展。
 - **标准试玩实际通关与人工认证尚未由作者/用户完成**。干净环境的正式池为空；自动化不代打、不伪造 passed。开发短塔使用未认证模板。B3 导入的认证只标 imported-declaration，不生成 local-playtest。
-- **B3 APK 未在真机安装**；系统文件选择/分享、锁屏/返回、真实多指、安全区域与性能未测。桌面触控模拟不等于真机。
+- **0.3.1 真机安装已确认但游玩失败；0.3.2 尚未在 OPD2101 复测**。完整短塔、系统文件选择/分享、锁屏/返回、真实多指、安全区域与性能仍待验证。桌面视口/触控模拟不能代替目标设备复测。
 - 固定大厅/休整/Boss 场景与三个普通模板是首版开发数据，未经过真人完整通关调参；Boss/伤害/接口数值是提案初值，可能需按实测调整。
 - 正式池与认证只存在当前浏览器 IndexedDB;换浏览器/清站点数据会丢，发布不是服务器/商店发布。
 - 草稿/发布冲突只做了 Node 双实例与隔离浏览器;真实双窗口并发、系统文件选择对话框未自动验证。
@@ -207,8 +208,9 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 | [B2-R1 独立复验](docs/checks/review-B2R1-2026-11-06.md) | R1～R3 关闭、用户人工反馈与仍未测的发布链路 |
 | [B3 安卓卡](docs/tasks/12-b3-android-short-tower.md) / [改进待办](docs/design/followups.md) | 安卓范围与后置体验改进 |
 | [B3 交付记录](docs/checks/B3-2026-11-06.md) / [工具链](docs/checks/B3-toolchain.md) | 平台壳/旧 APK 证据与待验项 |
-| [B3-R1 记录](docs/checks/B3-R1-2026-11-06.md) | 触点释放/重认证/草稿保真与新 APK |
-| [B3 独立验收](docs/checks/review-B3-2026-11-06.md) / [B3-R1 收尾卡](docs/tasks/13-b3-review-fixes.md) | 当前问题、独立证据、一次修复与新包要求 |
+| [B3-R1 记录](docs/checks/B3-R1-2026-11-06.md) | 触点释放/重认证/草稿保真与 0.3.1 APK |
+| [B3-R2 记录](docs/checks/B3-R2-2026-11-06.md) | 安卓启动/视口裁切修复与 0.3.2 APK |
+| [B3-R1 独立复验](docs/checks/review-B3R1-2026-11-06.md) / [B3-R2 修复卡](docs/tasks/14-b3-android-viewport-fix.md) | 当前安卓启动故障、真机截图、一次修复与新包要求 |
 | `js/` | 引擎、旧游戏、编辑器、草稿仓库、World/GameSession、开发试玩代码 |
 | `index.html` | 默认入口，自动进入 short.html |
 | `legacy.html` | 明确标注的旧原型历史入口 |

@@ -65,6 +65,12 @@ $env:JAVA_HOME='C:\Users\beilu\jdk21\jdk-21.0.12.1+1'
 - 旧 0.3.0 包原样保留；验签/大小/哈希见 [B3-R1 记录](B3-R1-2026-11-06.md)。
 - 仍未安装：无设备/模拟器；不是正式发布签名。
 
+## B3-R2 新包（2026-11-06）
+
+- 新包：`docs/checks/B3-reverse-abyss-0.3.2-debug.apk`，4,553,627 bytes，SHA-256 `6DFDAE1D8081A8AF95D4E572E81294D54F96461860673ADCD3CC170E802A502E`，versionCode 5/0.3.2。
+- 视口修复后重新生成 www/bridge/cap 资源，包内 index/short/repository 与 www 逐字节一致；`apksigner verify` 0，v1/v2 true。
+- 旧 0.3.0/0.3.1 保留；OPD2101/Android 11 尚未安装 0.3.2，不是真机通过。
+
 ## 未完成/限制
 
 - 没有 Android Studio、模拟器或真机；APK 能构建/验签，但**未安装、未冷启动、未测锁屏/后台/返回/触控**。

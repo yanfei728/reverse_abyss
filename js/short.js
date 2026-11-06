@@ -461,16 +461,73 @@
   }
 
   // ---------------- 渲染 ----------------
+  /** 从不依赖 inset/aspect-ratio 的 CSS 可见视口算 16:9 展示区域 */
+  function layoutViewport() {
+    var vw = Number(globalThis.innerWidth) || (document.documentElement && document.documentElement.clientWidth) || W;
+    var vh = Number(globalThis.innerHeight) || (document.documentElement && document.documentElement.clientHeight) || H;
+    if (!(vw > 0)) vw = W;
+    if (!(vh > 0)) vh = H;
+    var ratio = 16 / 9;
+    var w = vw, h = vw / ratio;
+    if (h > vh) { h = vh; w = vh * ratio; }
+    w = Math.max(1, Math.floor(w));
+    h = Math.max(1, Math.floor(h));
+    state.cw = w; state.ch = h;
+    var wrap = $('wrap');
+    if (wrap) {
+      wrap.style.left = Math.floor((vw - w) / 2) + 'px';
+      wrap.style.top = Math.floor((vh - h) / 2) + 'px';
+      wrap.style.width = w + 'px';
+      wrap.style.height = h + 'px';
+    }
+    resize();
+  }
+
   function resize() {
     var cv = state.canvas;
     if (!cv) return;
-    state.cw = cv.clientWidth || W;
-    state.ch = cv.clientHeight || H;
+    state.cw = Math.max(1, Math.round(state.cw || W));
+    state.ch = Math.max(1, Math.round(state.ch || H));
     state.dpr = globalThis.devicePixelRatio || 1;
     cv.width = Math.round(state.cw * state.dpr);
     cv.height = Math.round(state.ch * state.dpr);
-    state.ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    if (state.ctx) state.ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
     applyLayout();
+  }
+
+  function showFatal(message) {
+    var ov = $('fatal-overlay');
+    var tx = $('fatal-text');
+    if (tx) tx.textContent = String(message || '未知错误') + '（可截图反馈；未清除本地草稿）';
+    if (ov) ov.style.display = 'flex';
+  }
+
+  function diagnostics() {
+    function rect(id) {
+      var el = $(id);
+      if (!el || !el.getBoundingClientRect) return null;
+      var r = el.getBoundingClientRect();
+      return { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
+    }
+    return {
+      innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight,
+      dpr: globalThis.devicePixelRatio || 1,
+      visualViewport: globalThis.visualViewport ? {
+        width: globalThis.visualViewport.width, height: globalThis.visualViewport.height,
+        scale: globalThis.visualViewport.scale
+      } : null,
+      supports: {
+        inset: globalThis.CSS && CSS.supports ? CSS.supports('top: 0px') : null,
+        aspectRatio: globalThis.CSS && CSS.supports ? CSS.supports('aspect-ratio: 16 / 9') : null,
+        env: globalThis.CSS && CSS.supports ? CSS.supports('padding-top: env(safe-area-inset-top)') : null
+      },
+      wrap: rect('wrap'), canvas: rect('short-canvas'),
+      canvasBuffer: state.canvas ? { width: state.canvas.width, height: state.canvas.height } : null,
+      menu: rect('menu'),
+      menuBox: $('menu') ? (function(){var b=$('menu').querySelector('.box'); if(!b)return null;var r=b.getBoundingClientRect();return {left:Math.round(r.left),top:Math.round(r.top),width:Math.round(r.width),height:Math.round(r.height)};})() : null,
+      settings: rect('settings-overlay'),
+      session: state.session ? { status: state.session.status, paused: state.session.paused } : null
+    };
   }
 
   function drawObject(ctx, inst, o, cam) {
@@ -614,6 +671,13 @@
   }
 
   function boot() {
+    RA.short.diagnostics = diagnostics;
+    globalThis.addEventListener('error', function (e) {
+      if (e && e.message) showFatal(e.message);
+    });
+    globalThis.addEventListener('unhandledrejection', function (e) {
+      showFatal(e && e.reason && e.reason.message || e && e.reason || 'Promise 失败');
+    });
     state.canvas = $('short-canvas');
     state.ctx = state.canvas.getContext('2d');
     state.assets = new RA.Assets();
@@ -628,8 +692,10 @@
     if (!loaded.ok) setMenuNote(loaded.error.message);
     setupInput();
     setupTouchButtons();
-    resize();
-    globalThis.addEventListener('resize', resize);
+    globalThis.addEventListener('resize', layoutViewport);
+    globalThis.addEventListener('orientationchange', layoutViewport);
+    if (globalThis.visualViewport) globalThis.visualViewport.addEventListener('resize', layoutViewport);
+    layoutViewport();
     state.assets.loadAll(function () { if (state.session) state.session.player.loadSprites(state.assets); });
     setupLifecycle();
     RA.short.repo = RA.ContentRepository ? RA.ContentRepository.create() : null;

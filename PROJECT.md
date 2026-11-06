@@ -1,6 +1,6 @@
 # reverse_abyss 项目约定
 
-目标文档日期：2026-10-30；最近验收：2026-11-06；开发节奏调整：2026-11-04。目标不能当作已实现清单；当前事实见 [STATUS.md](STATUS.md)。用户最新明确决定优先。历史报告保留，最新安排见文末与批次卡。
+目标文档日期：2026-10-30；最近验收：2026-11-06；开发节奏调整：2026-11-04。目标不能当作已实现清单；当前事实见 [STATUS.md](STATUS.md)。**当前：B3-R1 三项工程复验通过，用户 OPD2101 / Android 11 / 0.3.1 真机启动裁切，按 [14 号卡](docs/tasks/14-b3-android-viewport-fix.md) 修复，B3 整批不通过。** 用户最新明确决定优先。历史报告保留，最新安排见文末与批次卡。
 
 ## 目标与核心体验
 
@@ -427,3 +427,21 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 - **测试**：`test_b3` 60/0；完整 **1415/4**（引擎 606/4，其余全绿）；`browser_b3` 35/0；reviewer 修复后探针退出 0。
 - **APK**：0.3.1 debug，4,552,177 bytes，SHA-256 `23EDEC3DF31F357896B1D15D1999B0F3D10A35B03E587D05B78A7DBF294BCC1C`，versionCode 4，v1/v2 验签通过；旧 0.3.0 保留。无设备/模拟器，未安装；真机、系统文件、PC 人工认证仍待验。
 - 提交：`5dc5fb2`。
+
+### 2026-11-06 · B3-R1 独立通过三项修复，真机新增启动阻塞
+
+验收 HEAD `c7553c7`。独立完整 **1415 PASS / 4 FAIL，退出码 1**，4 条仍为 floor09/floor11 旧诊断；原三项探针退出 0，R1 多指释放、R2 同内容认证更新、R3 未知草稿保真关闭。0.3.1 APK 独立验签退出 0、8 项包内对照相符。独立 DevTools 未启动，交付方 35/0 保留，不当作本轮独立画面验证。
+
+用户已安装 B3 0.3.1，设备 OPD2101 / Android 11 / 高通骁龙 870 八核。实际大厅与布局面板底部裁切，开始入口不可见、地图角色不可见，无法游玩，记录 **R4 / P1**。WebView 版本尚不明；无 CSS 定位/比例回退与容器尺寸是优先排查方向，尚未确证根因。详见 [最新报告与截图](docs/checks/review-B3R1-2026-11-06.md)。
+
+下一步一次完成 [B3-R2 / 14 号卡](docs/tasks/14-b3-android-viewport-fix.md)：诊断并修启动/视口、确保短屏主操作可达、补实际屏幕点击与画面可见性检查、更新离线资源并交递增版本 APK，再由用户同设备复测。页面显示度量只留适配层，不增加关卡/存档格式，不改物理/规则/认证。完整短塔/Boss、系统文件与 PC 人工认证仍待验，B3 整批不通过；Q01～Q04 继续后置。本轮仅改文档与独立证据，未改实现/APK、未构建或提交推送。
+
+### 2026-11-06 · B3-R2：安卓启动/视口裁切修复
+
+按 [B3-R2 卡](docs/tasks/14-b3-android-viewport-fix.md) 完成，证据见 [B3-R2 记录](docs/checks/B3-R2-2026-11-06.md)。保留 B3-R1 R1～R3 与用户数据；不扩玩法/表现。
+
+- **原因**：旧 overlay 仅 `inset:0`、wrap 仅 `aspect-ratio/min()`，无基础回退；不支持 `inset` 的 WebView 将菜单/设置放到静态底部。实际 WebView 版本未知，不写成已确证根因。
+- **修复**：overlay/app/wrap 显式 top/right/bottom/left + 宽高 + overflow/max-height；`layoutViewport()` 从 innerWidth/innerHeight 算 16:9 px wrap，canvas backing store 独立 DPR；短屏 media 压缩/滚动；安全区 @supports 增强；fatal overlay + `RA.short.diagnostics()`；重复 resize/orientation/visualViewport 统一重排。
+- **回归**：`browser_b3r2` 47/0（960×540/800×360/960×600、DPR1/2/3、屏幕坐标点击开始/暂停/布局、短屏面板、无 inset/aspect 回退、离线 www）；`browser_b3` 35/0；`test_b3` 60/0；完整 **1415/4**（旧 floor09/floor11）。
+- **APK**：0.3.2/versionCode 5，4,553,627 bytes，SHA-256 `6DFDAE1D8081A8AF95D4E572E81294D54F96461860673ADCD3CC170E802A502E`；debug v1/v2 验签通过；0.3.0/0.3.1 保留；包内 HTML/JS 与 www 逐字节一致。
+- **未验**：OPD2101/Android 11 尚未装 0.3.2；真机冷启动/短屏/布局/系统文件/完整短塔/性能、PC 人工认证/发布仍待验。App 不是商店发布版。

@@ -272,8 +272,8 @@ head('Android 包:版本锁定、离线 www、最小内容、横屏 APK');
   check('www 不引用远端 URL', !/https?:\/\//.test(page));
   check('bridge 产物存在', existsSync(join(www, 'js/vendor/capacitor-plugins.js')));
   const appGradle = readFileSync(join(ROOT, 'android/app/build.gradle'), 'utf8');
-  check('Android debug 版本 0.3.1/versionCode 4', appGradle.indexOf('versionCode 4') >= 0 &&
-    appGradle.indexOf('versionName "0.3.1"') >= 0);
+  check('Android debug 版本 0.3.2/versionCode 5', appGradle.indexOf('versionCode 5') >= 0 &&
+    appGradle.indexOf('versionName "0.3.2"') >= 0);
   check('Android debug 构建配置存在', existsSync(join(ROOT, 'android/app/build.gradle')));
   check('APK 输出目录约定', readFileSync(join(ROOT, 'android/app/build.gradle'), 'utf8').indexOf('com.android.application') >= 0);
 }

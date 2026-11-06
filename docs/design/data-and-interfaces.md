@@ -251,6 +251,16 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **平台壳**：Capacitor 7.6.10、App/Filesystem/Share 锁版本；核心模块不 import Capacitor/DOM 文件选择；平台 bridge 是单独 esbuild bundle。
 - **未完成**：真机安装/文件选择/分享/性能、正式签名；PC 标准人工认证/发布/正式抽选。安卓交付是 debug 包，不是商店发布。
 
+2026-11-06 B3-R2 页面视口约定：
+
+- **布局不依赖单一现代 CSS**：app/wrap/菜单/暂停/结果/设置/旋转提示都先写显式 top/right/bottom/left 与宽高，再增强安全区；不得只依赖 `inset`、`aspect-ratio`、`min()`。
+- **确定展示区域**：平台层从 `innerWidth/innerHeight` 计算 16:9 的 px wrap 并居中；canvas CSS 保持 100%，backing store 由 wrap CSS 尺寸 × DPR 单独设置，写入画布像素不反向撑大容器。
+- **短屏/滚动**：菜单/暂停/结果/设置 box 有 max-height/overflow，关键主操作（开始、关闭、保存、继续）可达；极短屏可压缩字号/间距，不允许 overflow:hidden 永久裁掉按钮。
+- **状态一致**：菜单、设置、暂停、结果由同一可见状态规则控制；打开布局暂停但关闭后回到暂停/菜单，清输入、不自动恢复。
+- **错误可见**：初始化异常显示 fatal overlay 与文本；`RA.short.diagnostics()` 暴露视口、wrap/canvas/menu/settings rect、DPR、session 状态，不把 DOM/UA 加进 GameSession。
+- **真机差异**：浏览器视口/DPR 模拟与故障注入不等于 OPD2101/Android 11 WebView 结果；缺真机记录必须写待验。
+- **APK**：离线 www 同步后再构建；新版本递增并保留旧包/哈希。修复不改变玩法规则或认证。
+
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。
 
 2026-11-06 B1 验收补充（B1-R1 待修要求，并非已实现）：编辑器异步操作需绑定发起时工作区与内容快照。保存晚回包只能更新原工作区的 draftId/revision，不能把新建/导入/打开的另一张图绑定回旧草稿；读取晚回包不能覆盖请求之后的新工作或更新的打开选择。开发试玩校验、持久保存与 handoff 必须针对同一份内容；自动保存期间变更则留在编辑器保留工作并提示重试，或在交接期间完整阻止冲突输入。Repository 的快照/revision/Result 契约不变，由编辑器负责工作区回包一致性；不引入第二份可编辑真值。
@@ -299,11 +309,11 @@ B1/B1-R1、B2-R1 已通过工程验收，用户短塔游玩基本正常；标准
 
 异常越界判死亡回大厅、同塔重试已由 B2 实现：重试重置 runId 与可变本局状态、沿用精确内容版本的 manifest；只有显式重构才重新规划。
 
-## 10. B3 平台边界（主体已交付，B3-R1 待修）
+## 10. B3 平台边界（R1～R3 复验通过，B3-R2 待修）
 
 完整拟定签名、错误结果与检查见 [B3 卡](../tasks/12-b3-android-short-tower.md)。平台包装、DOM/原生文件与生命周期只放适配层，核心 GameSession/World/Codec/Repository 不依赖 Capacitor。模板、认证、本局与设置各自独立，沿用 Result，不自造手机版关卡格式。
 
-2026-11-06：平台层与 APK 已交付，但独立验收复现触点释放/重认证/草稿保真问题，当前按 [B3-R1](../tasks/13-b3-review-fixes.md) 修复。以下仍是行为契约，不能把已存在 API 等同于契约已全部通过；真机与真实认证文件往返未验。
+2026-11-06：平台层与 APK 已交付，[B3-R1](../tasks/13-b3-review-fixes.md) 三项工程复验通过；用户在 OPD2101 / Android 11 安装 0.3.1 后启动裁切，当前按 [B3-R2](../tasks/14-b3-android-viewport-fix.md) 修复。以下仍是行为契约，不能把已存在 API 等同于契约已全部通过；完整真机游玩与真实认证文件往返未验。
 
 - **ActionInput**：以键码/pointerId 标识每个来源；held 合并、pressed 一次消费，释放单来源不取消其他来源。连接现有 setActions/pressSkill/pressInteract；后台、取消、失焦 clearAll 后暂停，恢复等待用户继续，不重建会话、不追算。
 - **PlatformFiles**：pickJSON 返回 `{name,text}`；取消返回 CANCELLED。exportJSON 返回 written 或 share-opened 等真实状态，只在已确认写入目的地时称已保存；分享面板打开不等于完成导出。
@@ -312,3 +322,20 @@ B1/B1-R1、B2-R1 已通过工程验收，用户短塔游玩基本正常；标准
 - **证据**：PC 标准认证发布人工待补；安卓正式内容/认证文件往返验收前要有真实样本。桌面/Node 不能证明系统文件流程、真机触控或性能；没有 APK/设备结果时不写成安卓交付完成。
 
 B3-R1 补充：按钮层同样按 pointerId 保存/释放来源，不能在 ActionInput 多来源正确时用一个按钮 source 变量丢失身份；导入对最终持久化记录核定 revision/eligible，旧认证更新需完整规则匹配与 revision 保护；草稿保存按 draft 门槛保真，play/publish 校验单独决定可选性。错误或冲突不能显示已保存有效认证，未知内容不能因不能运行而被拒绝保真留存。
+
+### 10.1 B3-R2 页面视口约定（待实现，不改存档）
+
+页面层测量可用视口并应用布局；可拆私有 `measureViewport()` / `applyViewport(metrics)`，名称可按现有结构调整，核心 GameSession 不接收 DOM/UA。建议临时结构如下，仅为显示度量，不序列化到关卡、本局或 ControlLayout：
+
+```js
+ViewportMetrics = {
+  cssWidth, cssHeight, dpr,
+  safeInsets: { top, right, bottom, left },
+  playRect: { x, y, width, height },
+  bufferWidth, bufferHeight
+}
+```
+
+除 bufferWidth/bufferHeight 是整数设备像素，其余尺寸均为 CSS px。可用视口来源须一致，visualViewport 或安全区不可用时有明确回退；playRect 非零、位于扣除安全区域后的可用范围并保持 16:9（允许像素舍入）。canvas CSS 尺寸从 playRect 得到，缓冲大小为各边乘 DPR 后取整，禁止用缓冲大小反推/撑大容器。现有渲染的 CSS 像素坐标约定不因该修复改动，世界坐标仍只由 World 管理。
+
+菜单/暂停/结果/布局覆盖层必须有确定定位区域，短屏内容可内部滚动，主操作能在可见区域实际点到；缺少 inset/aspect-ratio/min/env 支持仍有基础布局。触控 resolve 使用实际 host 的 CSS rect，指针与该 rect 同一坐标空间，只转换一次；旧 schemaVersion 1 布局继续加载并约束到当前区域。尺寸或前后台变化只重布局，不重建玩家/会话、不推进模拟计时、不改模板/认证。页面初始化错误可见并能取得诊断；功能不受支持与实际异常分开记录，不能黑屏后误报运行成功。
