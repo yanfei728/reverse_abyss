@@ -1,16 +1,16 @@
 {
-  "date": "2026-11-04T02:00:54.848Z",
-  "browser": "Chrome/156.0.8078.74",
+  "date": "2026-11-06T08:33:04.245Z",
+  "browser": "Chrome/156.0.8078.80",
   "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
-  "durationMs": 5549,
-  "pass": 21,
+  "durationMs": 5703,
+  "pass": 25,
   "fail": 0,
   "results": [
     {
       "name": "Chrome 已启动",
       "ok": true,
-      "extra": "Chrome/156.0.8078.74 headless"
+      "extra": "Chrome/156.0.8078.80 headless"
     },
     {
       "name": "编辑器真实页面加载完成",
@@ -80,7 +80,7 @@
     {
       "name": "跨层没有把玩家重置回出生点(位置仍在接口附近)",
       "ok": true,
-      "extra": "y=-81.5"
+      "extra": "y=-84.2"
     },
     {
       "name": "跨层后落回入口梯板也不会掉回第 0 层",
@@ -110,7 +110,27 @@
     {
       "name": "恢复后不追算暂停的 0.8 秒",
       "ok": true,
-      "extra": "0.317s"
+      "extra": "0.300s"
+    },
+    {
+      "name": "重开前已暂停并显示遮罩",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "暂停菜单重开后遮罩消失、新 session 未暂停",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "重开后回到第 1 层且仍是新 session",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "重开后玩家贴图仍加载",
+      "ok": true,
+      "extra": ""
     }
   ],
   "screenshots": [

@@ -1,11 +1,11 @@
 # 当前状态
 
-更新：2026-11-04（B1 交付后）。**B1 已一次接通：A3-C 收尾、IndexedDB 草稿、共用 GameSession、可变宽高连续两层、编辑器开发试玩；等待集中复验。** T00/T01/T01-R 已验收；旧主菜单仍是原型，B1 的新运行时候选入口是 `devplay.html`。B1 复验通过后再做 B2，不提前做战斗/Boss/安卓。
+更新：2026-11-06（B1-R1 修复后）。**B1-R1 的 R1a/R1b/R1c（含两个读取乱序）与 N02 已修复并补异步回归；B1 等待集中复验。** 已通过的 A3-C、普通保存恢复、连续世界与暂停保留；复验通过后才开始 B2，不提前实现战斗/Boss/安卓。
 
 ## 版本与回退基线
 
-- T00 原型基线：`f56cdce`；T01 实现：`6a7e712`；T01-R 修复：`c7c5490`；T02A 交付：`f2a0e07`；T02A-R 修复：`6f88127`；**B1/A3-C：`cc3df4a`；B1 主体：`fffaee0`；B1 文档/证据：`205d63c`**。
-- B1 实现/证据提交后工作区只保留无关 ZIP 与待提交文档；本轮没有再次初始化 Git、没有推送远程、没有改原图/素材/旧 game/playtest。
+- T00 原型基线：`f56cdce`；T01 实现：`6a7e712`；T01-R 修复：`c7c5490`；T02A 交付：`f2a0e07`；T02A-R 修复：`6f88127`；B1/A3-C：`cc3df4a`；B1 主体：`fffaee0`；B1 文档/证据：`205d63c`；**B1-R1 修复：见下方提交记录**。
+- B1-R1 开始前 HEAD `9756c37`；本轮修改编辑器/开发试玩与测试，原图、素材、`levels/v2`、`levels/levels.js`、旧 game/playtest 未改。
 - 已有本地 Git，origin 为 `git@github.com:yanfei728/reverse_abyss.git`；不要重复初始化，不丢弃他人未提交内容。
 - 原图、`levels/v2`、`levels/levels.js`、assets、旧 game/playtest 对照 B1 起点 `ebd5b80` 无差异；开发样例只新增在 `levels/dev/`。
 - 开始时未跟踪的无关 ZIP 原样保留，没有恢复或处理；没有再次初始化 Git。
@@ -15,12 +15,12 @@
 | 任务 | 状态 | 说明 |
 |---|---|---|
 | 需求、设计与任务卡 | 已完成当前轮整理 | 规则可在后续讨论中更新 |
-| **B1（当前批次）** | **已交付，待复验** | A3-C + T02B + T03/T04 一次接通；[交付记录](docs/checks/B1-2026-11-04.md) |
+| **B1（当前批次）** | **B1-R1 已修复，待集中复验** | [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md)；异步保存/读取/试玩不再丢工作或错误绑定草稿 |
 | T00 | 已验收 | 可回退基线和检查记录存在；浏览器人工检查未测 |
 | T01 | 数据层验收通过 | 编解码、参数描述、12 图迁移、测试接入；不代表编辑器与运行时接入完成 |
 | T01-R | **R1～R5 复验通过** | [独立复验报告](docs/checks/review-T01R-2026-10-31.md)；N01 为非阻塞工具限制 |
 | T02A | 已交付 | 数据模型与 JSON 往返；A1～A3 已修，见 [T02A-R 交付记录](docs/checks/T02A-R-2026-11-01.md) |
-| T02A-R | A1/A2 已通过；A3-C 已随 B1 修复 | A3-C 容量预检在 B1 中完成，[探针](docs/checks/B1-A3C-probe.json) |
+| T02A-R | A1/A2/A3-C 已通过 | 11-06 独立重跑容量探针通过；[探针](docs/checks/B1-A3C-probe.json) |
 | T02B | **已并入 B1 交付** | IndexedDB 草稿 save/load/list、revision 冲突、保存状态 |
 | T03/T04（B1 子集） | **已并入 B1 交付** | 共用 GameSession、可变宽高连续两层、开发试玩；完整端口工具/战斗仍留后续 |
 | T05～T10 | 待开始 | B2 战斗/休整/Boss/发布，B3 安卓 |
@@ -29,10 +29,11 @@
 
 - 已有：原型移动/碰撞/机关/画图交互；LevelData/LevelCodec、EntityRegistry、LegacyImport、迁移工具；编辑器完整 LevelData（T02A）。
 - B1 新增：IndexedDB 草稿（保存/列表/打开/revision 冲突/失败；刷新可找回）、共用 GameSession（固定步/暂停/动作）、World（可变宽高/偏置接口/active-preview-snapshot）、编辑层 + 样例 B 的两层开发试玩。
+- B1-R1 新增：工作区令牌 + 保存上下文核对（旧回包不绑定新图）、草稿读取请求序号 + 起始 hash（旧读取不覆盖新工作）、试玩保存后令牌/dirty/hash 一致性检查与规范 handoff；N02 重开清遮罩/输入/帧时间并重载角色图。
 - B1 的连续规则：同一玩家跨层不重建；脚底过线一次只提交一次；底边梯板防回落；下一层预热 `activeTime=0`；上一层地形保留到再上一层才释放。
 - 原始 12 张图仍在 levels/，未修改；levels/v2/ 仍是未认证迁移草稿（ports=null）；levels/dev/ 是新的未认证开发样例，不进正式池。
 - 旧主菜单仍是镜像/淡出换层原型；B1 新运行时入口是 devplay.html，正式游戏入口与战斗/发布未接。
-- 未实现：伤害/敌人/技能/Boss、认证发布、端口编辑、安卓触控与打包、完整美术；草稿冲突只做了 Node 双实例，浏览器未自动双窗口复现。
+- 未实现：伤害/敌人/技能/Boss、认证发布、端口编辑、安卓触控与打包、完整美术；草稿双窗口真实并发只在 Node 可控 Promise 验证，浏览器未自动双窗口复现。
 - 参数描述不代表敌人已实现；能保存/能开发试玩不代表已经认证发布。
 
 ## 检查与证据
@@ -120,6 +121,25 @@ T01-R 修复后（2026-10-31，当前工作区）：
 - 浏览器证据：截图 [保存后](docs/checks/b1-browser-editor-saved.png)、[恢复后](docs/checks/b1-browser-editor-restored.png)、[试玩开始](docs/checks/b1-browser-devplay-start.png)、[跨层](docs/checks/b1-browser-devplay-floor2.png)、[暂停](docs/checks/b1-browser-devplay-paused.png)，逐项结果 [browser-b1-2026-11-04.json](docs/checks/browser-b1-2026-11-04.json)。
 - 未做/未测：战斗/敌人/技能/Boss、发布认证、端口编辑、安卓/触屏、真实手感；草稿冲突只有 Node 双实例，文件选择对话框未自动点击；floor09/floor11 旧失败未修。
 
+## B1-R1 修复（待复验）
+
+2026-11-06 修复异步保存/读取/试玩上下文与 N02，详见 [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md)。
+
+| 命令 | 结果 | 退出码 |
+|---|---|---|
+| `node tools/test_b1r.mjs` | **24 PASS / 0 FAIL**（R1a/R1b/R1c/R1d、正常 handoff、N02） | `0` |
+| `node tools/test_all.mjs` | **1248 PASS / 4 FAIL**（引擎 595/4、编辑器 225/0、贴图 126/0、数据 139/0、修复 98/0、世界/会话 41/0、B1-R1 24/0） | `1` |
+| `node tools/browser_b1.mjs` | **25 PASS / 0 FAIL**（Chrome 156 headless；新增暂停菜单重开遮罩） | `0` |
+| 修复后独立探针 | 三场景 + N02 全部符合预期，退出 0 | `0` |
+
+- **R1a**：试玩自动保存期间编辑 → 不导航、dirty/新改动保留、不写 handoff；保存失败/切换图也不离开。
+- **R1b**：保存 A 期间切到 B → 旧回包返回 false，不绑定 B；A 记录完整，B 保存后有独立草稿。
+- **R1c/R1d**：读取期间编辑或切图 → 过期回包不替换；两个读取乱序时后选草稿生效。
+- **一致性**：试玩 handoff 使用刚保存的规范快照并再跑 play 校验，内容与草稿一致。
+- **N02**：暂停菜单重开隐藏遮罩、清输入/帧时间、新玩家仍加载角色图。
+- 证据：[异步自检](docs/checks/B1R1-test_all.txt)、[浏览器日志](docs/checks/B1-browser.txt)、[修复后探针](docs/checks/B1R1-postfix-probes.json)、[原验收探针（保留）](docs/checks/review-B1-2026-11-06-probes.json)。
+- 未测：真实双窗口并发、系统文件对话框、手感/安卓/性能；原 floor09/floor11 四条旧失败未修。
+
 ## 已关闭的验收问题
 
 2026-10-31 T01-R：以下 5 项均已修复并通过独立复验，表内描述是修复前的问题；详见 [复验结论](docs/checks/review-T01R-2026-10-31.md)。
@@ -149,11 +169,19 @@ T01-R 修复后（2026-10-31，当前工作区）：
 
 原编辑器“保存即改旧池”链路已经由 T02A 移除。其他原型限制仍在：游戏旧池未验证可抽选、旧种子受池排序/内容影响、主游戏与旧试玩分叉、浮石立即消失。这些分别由后续卡处理，不混入当前修复。
 
+## B1 独立验收（2026-11-06）
+
+完整自检独立复跑为 **1224 PASS / 4 FAIL，退出码 1**，仍为 floor09/floor11 旧诊断；A3-C 探针通过，原图/v2/素材/旧 game/playtest 对比 B1 起点无差异。普通草稿保存恢复、连续世界与暂停主体成立。
+
+新增确定性异步探针复现 **B1-R1（P1）**：试玩自动保存期间编辑，仍带未保存新内容离开；保存 A 期间切换 B，旧回调将 B 绑定回 A，后续保存覆盖 A；读取草稿期间编辑，回包覆盖新工作并清 dirty。三个场景作为一组修复，一次交付。**N02 非阻塞**：暂停菜单重开后遮罩不消失，可顺手修。
+
+本轮 Chrome/Edge 均未启动 DevTools，退出码 1；交付方的 21/0 与原截图保留，不算本轮重现。人工仅查看交付跨层截图，未测真实手感、安卓或性能。证据：[报告](docs/checks/review-B1-2026-11-06.md)、[完整输出](docs/checks/review-B1-2026-11-06-test_all.txt)、[异步复现](docs/checks/review-B1-2026-11-06-probes.json)、[浏览器日志](docs/checks/review-B1-2026-11-06-browser.txt)。
+
 ## 下一步
 
-1. 复验 B1：按 [交付记录](docs/checks/B1-2026-11-04.md) 检查 A3-C、草稿保存恢复、连续跨层与暂停；可重跑 `node tools/test_editor.mjs`、`node tools/test_world_session.mjs`、`node tools/test_all.mjs`、`node tools/browser_b1.mjs`。
-2. B1 通过后做 B2（PC 短塔战斗/休整/Boss/认证发布）；再 B3 安卓短塔。B1 复验前不提前做战斗、发布或安卓。
-3. 旧任务号保留作追踪，不再逐项暂停；低影响问题进集中待办。数据丢失、常用路径崩溃、主链路或核心规则错误仍必须修复。
+1. 集中复验 B1（含 B1-R1）：按 [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md) 重跑 `node tools/test_b1r.mjs`、`node tools/test_all.mjs`、`node tools/browser_b1.mjs`，并检查原 B1 主链路与 A3-C。
+2. B1 复验通过后再做 B2：PC 短塔的战斗/休整/Boss/认证发布；然后 B3 安卓短塔。B1 未通过前不提前实现战斗/Boss/发布/安卓。
+3. 不因原地图诊断、端口工具或其他低影响待办扩大本轮范围；数据丢失和错误覆盖必须修复。
 
 尚未确认的接缝规格、光环半径、无敌时间、Boss 节奏等提案继续见设计决定，不因本次代码修复自动转成用户要求。
 

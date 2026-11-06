@@ -264,6 +264,24 @@ async function main() {
       afterResume.time > pausedSnap.time && afterResume.time - pausedSnap.time < 0.4,
       (afterResume.time - pausedSnap.time).toFixed(3) + 's');
 
+    // N02:暂停菜单里重开,旧遮罩不能留在新 session 上
+    await key('rawKeyDown', 'KeyP', 'p', 80);
+    await key('keyUp', 'KeyP', 'p', 80);
+    check('重开前已暂停并显示遮罩',
+      await evaluate('RA.devplay.session.paused') === true &&
+      await evaluate('getComputedStyle(document.getElementById("pause-overlay")).display') === 'flex');
+    await evaluate('(window.__oldSession = RA.devplay.session, true)');
+    await evaluate('document.getElementById("btn-restart-pause").click()');
+    await sleep(300);
+    check('暂停菜单重开后遮罩消失、新 session 未暂停',
+      await evaluate('getComputedStyle(document.getElementById("pause-overlay")).display') === 'none' &&
+      await evaluate('RA.devplay.session.paused') === false);
+    check('重开后回到第 1 层且仍是新 session',
+      await evaluate('RA.devplay.session.floorIndex') === 0 &&
+      await evaluate('RA.devplay.session !== window.__oldSession') === true);
+    check('重开后玩家贴图仍加载',
+      await evaluate('Object.keys(RA.devplay.session.player.frames || {}).length > 0'));
+
     const evidence = {
       date: new Date().toISOString(),
       browser: version.Browser,

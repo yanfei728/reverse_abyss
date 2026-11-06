@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**B1 已交付（2026-11-04，待复验）：编辑 → 浏览器草稿 → 刷新找回 → 开发试玩 → 两层连续攀爬 → 暂停。** 游戏主菜单仍是旧平台跳跃原型；B1 的试玩是开发入口，不是正式发布。B2 做完整 PC 短塔（战斗/休整/Boss/发布），B3 做安卓。当前事实见 [STATUS.md](STATUS.md)，批次安排见 [批次卡](docs/tasks/08-playable-milestones.md)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
+**B1-R1 已修复（2026-11-06，待集中复验）。** 已接通编辑 → 浏览器草稿 → 刷新找回 → 开发试玩 → 两层连续攀爬 → 暂停；异步保存/读取/试玩不再丢新工作或错误绑定草稿，暂停菜单重开也清遮罩。游戏主菜单仍是旧原型，试玩是开发入口；B1 复验通过后做 B2 完整 PC 短塔，再 B3 安卓。当前事实见 [STATUS.md](STATUS.md)，证据见 [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
@@ -86,13 +86,14 @@ node tools/test_assets.mjs
 node tools/test_leveldata.mjs
 node tools/test_t01r.mjs
 node tools/test_world_session.mjs
+node tools/test_b1r.mjs
 node tools/browser_t02a.mjs
 node tools/browser_t02a_r.mjs
 node tools/browser_b1.mjs
 node tools/check_levels.mjs
 ```
 
-`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。`test_world_session.mjs` 用四层夹具验证 n−1/n/n+1 生命周期、跨层与暂停；`browser_t02a*.mjs`/`browser_b1.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`），用 headless + DevTools 做真实鼠标/键盘/下载；B1 脚本验证编辑保存→刷新恢复→试玩跨层→暂停恢复。
+`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。`test_world_session.mjs` 用四层夹具验证 n−1/n/n+1 生命周期、跨层与暂停；`test_b1r.mjs` 用可控 Promise 验证异步保存/读取/试玩不丢工作；`browser_t02a*.mjs`/`browser_b1.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`），用 headless + DevTools 做真实鼠标/键盘/下载；B1 脚本验证编辑保存→刷新恢复→试玩跨层→暂停恢复。
 
 2026-10-30 在本次会话实测的完整自检基线：
 
@@ -105,7 +106,7 @@ node tools/check_levels.mjs
 
 退出码为 `1`。失败是 `floor09`、`floor11` 各被两个入口报告，不能当作四个独立故障，也不能据此宣布两张地图人工不可通。Node 检查使用 DOM/Canvas 替身；贴图检查通过不等于已完成真实画面验收。
 
-2026-11-04 B1 实测：`node tools/test_all.mjs` 为 **1224 PASS / 4 FAIL，退出码 1**（引擎 595/4、编辑器 225/0、贴图 126/0、数据 139/0、修复自检 98/0、世界/会话 41/0）；`node tools/browser_b1.mjs` 为 **21 PASS / 0 FAIL**（Chrome 156.0.8078.74 headless，真实编辑保存→刷新恢复→键盘跨层→暂停恢复）。4 条失败仍是 floor09/floor11 的旧逐跳可达性诊断，本批未修、未跳过。证据见 [B1 交付记录](docs/checks/B1-2026-11-04.md)。
+2026-11-04 B1 主体实测：完整 1224/4（原有 floor09/floor11），浏览器 21/0。2026-11-06 B1-R1 修复后：`node tools/test_b1r.mjs` 为 **24 PASS / 0 FAIL**，完整 `node tools/test_all.mjs` 为 **1248 PASS / 4 FAIL，退出码 1**（引擎 595/4、编辑器 225/0、贴图 126/0、数据 139/0、修复自检 98/0、世界/会话 41/0、B1-R1 24/0）；`node tools/browser_b1.mjs` 为 **25 PASS / 0 FAIL**（Chrome 156 headless；新增暂停菜单重开遮罩检查）。4 条失败仍是 floor09/floor11 旧诊断，本批未修、未跳过。证据：[B1 交付记录](docs/checks/B1-2026-11-04.md)、[B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md)。
 
 历史：T01-R 复验为 1188/4；T02A 为 1089/4；T02A-R 为 1143/4。编辑器测试数变化来自旧 TXT/旧池断言被替换与新增草稿/试玩回归，不是删断言凑数。
 
@@ -122,7 +123,7 @@ node tools/check_levels.mjs
 5. 也可直接打开 `devplay.html`，玩内置样例 A+B。
 6. 打开浏览器开发者工具，记录异常、复现步骤和所在关卡。
 
-B1 主链路已用真实 Chrome headless 跑过 21/21（截图与 JSON 在 [B1 交付记录](docs/checks/B1-2026-11-04.md)）；系统文件选择对话框、真实手感、安卓与性能仍未人工验证，见“当前重要限制”。
+B1 主链路已用真实 Chrome headless 跑过 25/25（截图与 JSON 在 [B1 交付记录](docs/checks/B1-2026-11-04.md) 与 [B1-R1 记录](docs/checks/B1-R1-2026-11-06.md)）；系统文件选择对话框、真实双窗口并发、真实手感、安卓与性能仍未人工验证，见“当前重要限制”。
 
 ## 开发样例与编辑器现状
 
@@ -137,6 +138,7 @@ B1 主链路已用真实 Chrome headless 跑过 21/21（截图与 JSON 在 [B1 �
 
 ## 当前重要限制
 
+- B1-R1 已修：保存/读取/试玩回包会核对工作区令牌与内容 hash；保存/读取期间编辑或切图不会丢新工作、不会错误绑定草稿，试玩不会带未保存内容离开。真实双窗口并发仍未浏览器自动化验证。暂停菜单重开已清遮罩（N02）。
 - B1 是开发试玩，不是正式发布：没有伤害/敌人/技能/Boss，没有认证/发布；开发样例未认证、不进正式池。
 - 没有端口编辑：编辑器不能改接口；没有接口的草稿试玩会被明确拒绝。缩图退役接口只保存到 `extensions.retiredPorts`，修复入口仍未做（T04 后续）。
 - 两层是默认样例；四层只用于 Node 生命周期夹具。编辑器试玩的下一层固定为开发样例 B，不是可配置塔。
@@ -145,7 +147,7 @@ B1 主链路已用真实 Chrome headless 跑过 21/21（截图与 JSON 在 [B1 �
 - 对象只能摆 `S/x/y`（弹簧/门方块/浮石）；火球、地刺、齿轮还没有参数面板/路径绘制/运行行为，演示 JSON 里的这些对象只是保留数据。
 - `verified` 未构成可靠发布门槛；旧正式池仍可能抽到未验证关卡；`monsters.js` 只是参数表雏形。
 - 当前种子依赖关卡池顺序与内容，不承诺修改池后仍重现旧塔。
-- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
+- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 见下方提交记录。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
 
 ## 文档与目录
 
@@ -160,6 +162,7 @@ B1 主链路已用真实 Chrome headless 跑过 21/21（截图与 JSON 在 [B1 �
 | [开发任务](docs/tasks/README.md) | 顺序、任务卡和验收方法 |
 | [美术资产接入](docs/art/asset-integration.md) | 当前图片路径、替换规格、角色/图集接线、素材生成与测试注意项 |
 | [B1 交付记录](docs/checks/B1-2026-11-04.md) | 草稿/会话/连续楼层/A3-C 的证据与未测项 |
+| [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md) | 异步保存/读取/试玩与 N02 的修复证据 |
 | `js/` | 引擎、旧游戏、编辑器、草稿仓库、World/GameSession、开发试玩代码 |
 | `devplay.html` | 连续两层开发试玩入口（新 GameSession） |
 | `levels/` | 当前 12 张内置 JSON、模板和生成副本 |

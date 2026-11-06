@@ -882,6 +882,8 @@
       this.draftRevision = null;
       this.lastSavedHash = '';
       this._saving = false;
+      this.workspaceToken = 0;      // 每次新建/导入/打开草稿都换工作区
+      this._openSeq = 0;            // 草稿读取请求序号,防止旧回包覆盖新选择
 
       this.W = this.canvas.width || 800;
       this.H = this.canvas.height || 600;
@@ -1157,6 +1159,7 @@
       this.draftId = '';
       this.draftRevision = null;
       this.lastSavedHash = '';
+      this.workspaceToken++;
       this.resetHistory();
       this.dirty = false;
       this.fitView();
@@ -1232,6 +1235,7 @@
         this.dirty = true;             // 导入的是工作副本,还没导出
         this.fitView();
         this.syncUI();
+        this.workspaceToken++;         // UI 成功提交后才算进入新工作区
         return true;
       } catch (e) {
         this.model = prev.model;
@@ -1321,18 +1325,30 @@
       opts = opts || {};
       if (!this.repo) { this.say('这个环境没有草稿仓库;请导出 JSON', 'bad'); return false; }
       if (this._saving) { this.say('正在保存上一份草稿,请稍候', 'warn'); return false; }
+      var token = this.workspaceToken;
       var snapshot = this.model.toData();
       var snapshotHash = LD.hashSync(snapshot);
       var draftId = this.draftId || this.model.data.id;
+      var expected = this.draftRevision || 0;
       this._saving = true;
       var btn = this.$('btn-draft');
       if (btn) btn.disabled = true;
       this.setDraftStatus('保存中…', 'warn');
       try {
-        var res = await this.repo.saveDraft(draftId, snapshot, this.draftRevision || 0);
+        var res = await this.repo.saveDraft(draftId, snapshot, expected);
         if (!res.ok) {
           this.setDraftStatus('保存失败:[' + res.error.code + '] ' + res.error.message, 'bad');
           if (!opts.silent) this.say('草稿没有保存:[' + res.error.code + '] ' + res.error.message, 'bad');
+          return false;
+        }
+        // 旧保存可以写进旧草稿,但不能改写已经切换过去的新工作区
+        if (token !== this.workspaceToken) {
+          this.refreshDrafts(false, true);
+          this.setDraftStatus('发起保存的旧图已保存为 ' + draftId + ' revision ' +
+            res.value.revision + ';当前图没有被改动', 'warn');
+          if (!opts.silent) {
+            this.say('保存完成的是发起时那张图(已切走);当前图状态保持不变', 'warn');
+          }
           return false;
         }
         this.draftId = draftId;
@@ -1377,7 +1393,20 @@
           return false;
         }
       }
+      var token = this.workspaceToken;
+      var seq = ++this._openSeq;
+      var startHash = LD.hashSync(this.model.toData());
       var res = await this.repo.loadDraft(id);
+      // 只允许最新一次读取生效;旧回包不能覆盖后选的草稿
+      if (seq !== this._openSeq) return false;
+      if (token !== this.workspaceToken) {
+        this.say('读取完成时当前图已经切换,已取消这次草稿替换', 'warn');
+        return false;
+      }
+      if (LD.hashSync(this.model.toData()) !== startHash) {
+        this.say('读取草稿期间又有新改动;已保留当前工作,没有替换', 'warn');
+        return false;
+      }
       if (!res.ok) {
         this.say('打开草稿失败:[' + res.error.code + '] ' + res.error.message, 'bad');
         return false;
@@ -1515,15 +1544,38 @@
         return false;
       }
       // 试玩会离开当前页面:先把发起时的快照写进草稿,避免未保存工作丢失
+      var token = this.workspaceToken;
+      var snapshot = this.model.toData();
+      var snapshotHash = LD.hashSync(snapshot);
       var saved = await this.saveDraft({ silent: true });
+      if (token !== this.workspaceToken) {
+        this.say('保存期间已经新建/导入/打开别的图;已取消试玩,当前工作保留', 'warn');
+        return false;
+      }
       if (!saved) {
         this.say('草稿保存失败,没有离开编辑器;先解决保存问题再试玩', 'bad');
+        return false;
+      }
+      if (this.dirty || LD.hashSync(this.model.toData()) !== snapshotHash) {
+        this.say('保存期间又有改动;先再保存一次,再启动试玩(当前工作没有离开)', 'warn');
+        return false;
+      }
+      // handoff 使用刚保存的规范快照,不把保存后的新编辑带走
+      var enc = LD.encode(snapshot);
+      if (!enc.ok) {
+        this.say('试玩快照无法编码:[' + enc.error.code + '] ' + enc.error.message, 'bad');
+        return false;
+      }
+      var handoffTemplate = JSON.parse(enc.value);
+      var playIssues = LD.validate(handoffTemplate, { purpose: 'play' });
+      if (LD.errorsOf(playIssues).length) {
+        this.say('试玩快照没有通过 play 校验,已留在编辑器', 'bad');
         return false;
       }
       var handoff = {
         version: 1,
         from: 'editor',
-        template: this.model.toData(),
+        template: handoffTemplate,
         next: next,
         sourceDraft: this.draftId,
         revision: this.draftRevision

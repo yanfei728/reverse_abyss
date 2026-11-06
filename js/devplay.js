@@ -92,9 +92,10 @@
           $('pause-reason').textContent = reason || '手动暂停';
         }
       } else {
+        // 重开后的新 session 本来就不在暂停态,也要显式隐藏旧遮罩(N02)
+        if (overlay) overlay.style.display = 'none';
         if (!session.paused) return;
         session.resume();
-        if (overlay) overlay.style.display = 'none';
       }
     }
 
@@ -107,9 +108,14 @@
       session = again.value;
       RA.devplay.session = session;
       player = session.player;
+      held.left = held.right = held.jump = false;
+      lastT = 0;
+      pausedByPage = false;
+      if (assets && typeof assets.frames === 'function') player.loadSprites(assets);
       cam.x = player.x - W / 2;
       cam.y = player.y - H / 2;
       setPaused(false);
+      if (status) status.textContent = '已重开;当前第 1 层';
     }
 
     // ---------- 输入 ----------

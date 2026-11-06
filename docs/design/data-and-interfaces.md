@@ -213,9 +213,12 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **草稿仓库**：`ContentRepository` 使用 IndexedDB（`ra_drafts`）为主，无 IndexedDB 时内存兜底并明确 `persistent=false`。`saveDraft(draftId,data,expectedRevision)` 先按 draft 用途校验、encode 成规范 JSON，保存**发起时快照**；`revision` 由适配器原子递增，`expectedRevision` 不匹配返回 `CONFLICT`，存储失败返回 `STORAGE_FAILED`，两者都不清 dirty、不覆盖旧记录。`listDrafts/loadDraft/deleteDraft` 同样返回显式 Result。浏览器刷新后可从列表恢复；草稿不写入 `levels/`。
 - **GameSession/World（B1 子集）**：`GameSession.create({floors})` 对每层跑 `validate(play)`，拒绝结构错误；固定 `1/60` 步、最多 5 步/帧，暂停不推进、恢复不追算。`World` 按 `next.origin.x = cur.origin.x + (cur.exit.col - next.entry.col) * TS`、`next.origin.y = cur.origin.y - next.rows * TS` 对齐接口，并整体平移到 x≥0。同一 `Player` 跨层只切换 `FloorView`，不重建；脚底过线且身体完全在开口内才提交一次；底边是防回落的单向梯板；顶层无下一层时开口不放行。进入第 n+1 层时第 n 层变 snapshot、第 n+2 层变 preview，第 n−1 层释放；preview 只累计 `previewTime` 并跑非攻击环境运动，`activeTime` 保持 0。
 - **开发样例**：`levels/dev/floor-a.json`、`floor-b.json` 是开发模式数据，未认证、不进 `levels/levels.js`/正式池；`js/dev-samples.js` 由 `tools/sync_dev_levels.mjs` 生成。编辑器「开发试玩」按 play 校验当前草稿、保存草稿后把"当前层 + 样例 B"交给 `devplay.html`；直接打开 devplay 用 A+B。
+- 异步草稿操作（B1-R1）：编辑器以 `workspaceToken` 标识当前工作区（newLevel/replaceModel 递增），保存发起时捕获令牌、draftId、expectedRevision 与快照 hash；旧回包可完成旧草稿写入，但令牌不匹配时不更新当前图的 draftId/revision/dirty。试玩保存后若令牌/dirty/hash 变化则取消导航，handoff 使用刚保存的规范快照并再次 play 校验。打开草稿用请求序号 + 起始 hash + 令牌核对，过期回包不替换当前工作；两个读取乱序时只有最新请求生效。
 - 尚未实现：伤害/敌人/技能/Boss、认证发布、端口编辑；事件目前只有 `floorEntered/paused/resumed/respawn`，B2 再扩展战斗/胜利事件与 runId/sequence。
 
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。
+
+2026-11-06 B1 验收补充（B1-R1 待修要求，并非已实现）：编辑器异步操作需绑定发起时工作区与内容快照。保存晚回包只能更新原工作区的 draftId/revision，不能把新建/导入/打开的另一张图绑定回旧草稿；读取晚回包不能覆盖请求之后的新工作或更新的打开选择。开发试玩校验、持久保存与 handoff 必须针对同一份内容；自动保存期间变更则留在编辑器保留工作并提示重试，或在交接期间完整阻止冲突输入。Repository 的快照/revision/Result 契约不变，由编辑器负责工作区回包一致性；不引入第二份可编辑真值。
 
 Actions：`leftHeld,rightHeld,jumpHeld,jumpPressed,skillPressed,interactPressed,pausePressed`。键盘与触控共用；外壳每个模拟步仅消费一次 pressed。旧 Player 通过适配读取 held，不改变其跳跃缓冲语义。
 
