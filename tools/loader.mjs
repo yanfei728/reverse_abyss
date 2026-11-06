@@ -265,6 +265,15 @@ export function loadEngine(opts = {}) {
   return globalThis.RA;
 }
 
+/** 在已装好的 DOM/引擎上下文里加载 B3 平台适配(测试用) */
+export function loadPlatform() {
+  for (const rel of PLATFORM) {
+    const code = readFileSync(join(ROOT, rel), 'utf8');
+    vm.runInThisContext(code, { filename: rel });
+  }
+  return globalThis.RA;
+}
+
 /** 内嵌的关卡数据 → 关卡池 */
 export function buildPack(RA, extra) {
   const src = Object.assign({}, RA.LEVEL_DATA || {}, extra || {});
@@ -280,8 +289,16 @@ export const PLAYTEST_SCRIPTS = ENGINE.concat(['js/playtest.js']);
 /** 开发试玩页 = 引擎 + js/devplay.js(顺序和 devplay.html 一致) */
 export const DEVPLAY_SCRIPTS = ENGINE.concat(['js/devplay.js']);
 
-/** PC 短塔 = 引擎 + js/short.js */
-export const SHORT_SCRIPTS = ENGINE.concat(['js/short.js']);
+/** B3 平台适配(短塔页面加载;核心引擎不依赖 Capacitor/DOM) */
+export const PLATFORM = [
+  'js/platform/action-input.js',
+  'js/platform/control-layout.js',
+  'js/platform/files.js',
+  'js/platform/lifecycle.js'
+];
+
+/** PC/安卓短塔 = 引擎 + 平台适配 + js/short.js */
+export const SHORT_SCRIPTS = ENGINE.concat(PLATFORM, ['js/short.js']);
 
 /** 标准试玩 = 引擎 + js/standard.js */
 export const STANDARD_SCRIPTS = ENGINE.concat(['js/standard.js']);

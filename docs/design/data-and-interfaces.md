@@ -239,6 +239,18 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **默认入口**：`index.html` 只做同目录自动进入 `short.html` 的入口；旧原型完整保存在 `legacy.html`，明确标注历史。编辑器/devplay 返回路径落到当前短塔。
 - **未实现**：安卓、40 层、遗物/NPC/联网、完整美术;旧 floor09/floor11 诊断仍在。
 
+2026-11-06 B3 平台边界：
+
+- **ActionInput**：`setHeld(sourceId,action,down)`、`press(action)`、`releaseSource(sourceId)`、`clearAll()`、`consume()`。held 返回 `{left,right,jumpHeld}`，左右同时按住抵消；pressed 只含 skill/interact/pause，一次 consume 清空。sourceId 区分键盘键与 pointerId，不因一个来源释放误放其他来源。
+- **Session 连接**：页面每步把 held 交 `session.setActions`，pressed.skill 交 `pressSkill`；交互仅预留入口。暂停由页面/生命周期适配。一次 touch 的 skill 只产生一个 press 边沿。
+- **ControlLayout**：`{schemaVersion:1,buttons:{left|right|jump|skill:{x,y,size}}}`，x/y 为安全区域内归一化中心，size 为短边比例；`resolve` 夹回可见范围。存储失败返回 `LAYOUT_SAVE_FAILED`，页面保留旧值，不冒充保存。
+- **PlatformLifecycle**：平台事件转 background/foreground/back，订阅可 dispose；后台先 clearAll 再暂停；前台仍暂停；back 由页面按面板→暂停→退出处理，不重建 Session、不补现实时间。
+- **PlatformFiles**：`pickJSON()` 返回 name/text 或 CANCELLED；`exportJSON` 返回 download-started / written / share-opened。Web 下载不声称写入磁盘；Android 写入 Documents 才报 written，Share 打开只附 shareOpened。
+- **导入边界**：`ContentRepository.importLevel(text,{rules})` 先 decode/play 校验/hash，保存不可自动发布草稿；认证只有 profile/hash/rules/发布校验都匹配才 eligible。`publishImported` 需用户明确操作，记录 source=imported-declaration，不生成 local-playtest 回执。未知/不支持内容阻止运行/入池；取消/失败不改池。
+- **离线包**：`tools/build_android_www.mjs` 仅复制 short 页面脚本、levels.js、levels/b2、assets；不包含 editor/tests/docs/legacy。Capacitor webDir=www，本地资源，不依赖远端 URL。
+- **平台壳**：Capacitor 7.6.10、App/Filesystem/Share 锁版本；核心模块不 import Capacitor/DOM 文件选择；平台 bridge 是单独 esbuild bundle。
+- **未完成**：真机安装/文件选择/分享/性能、正式签名；PC 标准人工认证/发布/正式抽选。安卓交付是 debug 包，不是商店发布。
+
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。
 
 2026-11-06 B1 验收补充（B1-R1 待修要求，并非已实现）：编辑器异步操作需绑定发起时工作区与内容快照。保存晚回包只能更新原工作区的 draftId/revision，不能把新建/导入/打开的另一张图绑定回旧草稿；读取晚回包不能覆盖请求之后的新工作或更新的打开选择。开发试玩校验、持久保存与 handoff 必须针对同一份内容；自动保存期间变更则留在编辑器保留工作并提示重试，或在交接期间完整阻止冲突输入。Repository 的快照/revision/Result 契约不变，由编辑器负责工作区回包一致性；不引入第二份可编辑真值。
@@ -279,10 +291,20 @@ Repository 提案使用 IndexedDB 存草稿与发布版本，内置内容只读�
 - 相同模板两次实例化，门、移动进度和领取记录互不影响。
 - 正式/试玩使用相同输入与初始状态时，模拟得到相同位置、伤害和冷却结果。
 
-## 9. B2 实施边界（方案，尚未实现）
+## 9. B2 实施边界（工程已交付，人工发布待验）
 
-B1/B1-R1 已通过工程验收；B2 的模块输入输出、实现顺序和验收见 [PC 短塔批次卡](../tasks/10-b2-pc-short-tower.md)。沿用本文件的 LevelData/Certification/TowerManifest/RunState，不新增另一套格式。GameSession 扩展 manifest/templates/rules/mode/profile 适配，正式短塔、debug 与 standard 共用核心；B1 的 floors 开发适配可保留，不复制模拟。
+B1/B1-R1、B2-R1 已通过工程验收，用户短塔游玩基本正常；标准认证/发布/正式实抽人工未测，不能声称已通过。见 [本轮复验](../checks/review-B2R1-2026-11-06.md)、[PC 短塔批次卡](../tasks/10-b2-pc-short-tower.md)。沿用本文件的 LevelData/Certification/TowerManifest/RunState，不新增另一套格式。GameSession 的正式短塔、debug 与 standard 共用核心，保留 floors 开发适配，不复制模拟。
 
 发布接口按本文件既有建议实施：`publish({draftId,expectedRevision,receipt})` 在事务中重新核对草稿与回执，再写不可变内容版本和池索引。未认证、debug、旧回执或未知内容不可入池；无候选时报明确空池，不以旧池/开发草稿兜底。RunState 的生命/冷却/技能只保留一份会话真值，实际对象行为必须与注册参数共用，旧层 snapshot 不再保留活实体。
 
-用户本轮确认异常越界判死亡回大厅、同塔重试：重试重置 runId 与可变本局状态、沿用精确内容版本的 manifest；只有显式重构才重新规划。该要求由 B2 实现，不能把本方案写成当前运行能力。
+异常越界判死亡回大厅、同塔重试已由 B2 实现：重试重置 runId 与可变本局状态、沿用精确内容版本的 manifest；只有显式重构才重新规划。
+
+## 10. B3 平台边界（目标，尚未实现）
+
+完整拟定签名、错误结果与检查见 [B3 卡](../tasks/12-b3-android-short-tower.md)。平台包装、DOM/原生文件与生命周期只放适配层，核心 GameSession/World/Codec/Repository 不依赖 Capacitor。模板、认证、本局与设置各自独立，沿用 Result，不自造手机版关卡格式。
+
+- **ActionInput**：以键码/pointerId 标识每个来源；held 合并、pressed 一次消费，释放单来源不取消其他来源。连接现有 setActions/pressSkill/pressInteract；后台、取消、失焦 clearAll 后暂停，恢复等待用户继续，不重建会话、不追算。
+- **PlatformFiles**：pickJSON 返回 `{name,text}`；取消返回 CANCELLED。exportJSON 返回 written 或 share-opened 等真实状态，只在已确认写入目的地时称已保存；分享面板打开不等于完成导出。
+- **内容导入**：共享 decode/validate/hash 后保存；未知内容保真但不运行/发布；旧规则认证不入池。兼容已认证文件记录 imported-declaration，明确加入池后才可抽，不能伪造本地试玩回执。失败旧池不变，已开始 manifest 不变；同 id+hash 幂等、不同 hash 并存。
+- **ControlLayout**：`{schemaVersion:1,buttons:{[action]:{x,y,size}}}`；中心坐标按安全区归一化、尺寸按参考短边比例，显示时约束在安全区；独立存储，失败不报保存成功、不改模板或 RunState。
+- **证据**：PC 标准认证发布人工待补；安卓正式内容/认证文件往返验收前要有真实样本。桌面/Node 不能证明系统文件流程、真机触控或性能；没有 APK/设备结果时不写成安卓交付完成。

@@ -1,6 +1,7 @@
-# 本机临时文件（不属于项目内容，也不进基线）
-# 注意：不要在这里排除 log.txt、levels/ 下任何内容或编辑器导出的关卡数据。
-Thumbs.db
-desktop.ini
-*.tmp
-*.crdownload
+node_modules/
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.aab
+!docs/checks/B3-*.apk

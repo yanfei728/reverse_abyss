@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Reverse Abyss</string>
+    <string name="title_activity_main">Reverse Abyss</string>
+    <string name="package_name">com.yanfei.reverseabyss</string>
+    <string name="custom_url_scheme">com.yanfei.reverseabyss</string>
+</resources>

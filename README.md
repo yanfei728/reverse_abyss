@@ -2,15 +2,15 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**B2-R1 已交付（2026-11-06，待集中复验 + 人工认证）：默认入口已接新短塔，上层机关坐标/接触已修，标准试玩改为初始 CD 20 秒后可用技能。** 双击 `index.html` 进入短塔；旧原型移到明确标注的 `legacy.html`。正式池只抽已认证并发布的普通层，干净环境为空。标准试玩人工通关/发布/正式实抽仍未由作者完成，不伪造认证。B3 安卓等 B2 复验通过后再做。见 [STATUS.md](STATUS.md)、[B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
+**B3 安卓平台壳已交付（2026-11-06）：触控/布局/生命周期/JSON 导入导出/离线 Capacitor 包；真实 debug APK 已构建并验签。** 真机安装与系统文件往返、PC 标准通关/认证发布仍未完成，不能写成安卓版已发布。PC 默认 `index.html` 进入短塔，旧原型在 `legacy.html`。美术、音效、地图质量与 Boss 打磨按用户意见后置。见 [STATUS.md](STATUS.md)、[B3 记录](docs/checks/B3-2026-11-06.md)、[APK](docs/checks/B3-reverse-abyss-0.3.0-debug.apk)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
-当前没有安装包，也没有 npm 安装或构建步骤。取得整个项目文件夹，保留 `index.html`、`js/`、`css/`、`levels/`、`assets/` 的相对位置即可。不要只复制 HTML 文件。
+PC 端没有安装包，也没有 npm 运行依赖；取得整个项目文件夹，保留 `index.html`、`js/`、`css/`、`levels/`、`assets/` 的相对位置即可。安卓有可构建的 Capacitor 工程与 debug APK（非商店发布），构建依赖 Node/npm 与 Android SDK，见下文。
 
 - 游玩：使用桌面浏览器，目前按键操作为主。
 - 命令行检查：需要 Node.js；本次使用 Node.js `v24.21.0`。
-- Android：尚无 APK、Capacitor 工程或可用触控移动。计划先完成 PC 短塔，再开发安卓版本。
+- Android：已生成 Capacitor 7 工程与 debug APK（`docs/checks/B3-reverse-abyss-0.3.0-debug.apk`）；触控/布局/生命周期/JSON 已接入。**尚未在真机安装**，无正式签名/商店发布。
 
 ## 启动
 
@@ -52,7 +52,7 @@ node tools/sync_levels.mjs
 
 | 操作 | 按键或入口 |
 |---|---|
-| 进入 PC 短塔 | 打开 `short.html`,选「开发短塔」或「正式短塔」 |
+| 进入 PC 短塔 | 打开 `index.html`（也可直接 `short.html`），选「开发短塔」或「正式短塔」 |
 | 短塔移动 / 跳跃 | `A`/`D` 或左右方向键；`Space`/`W`/上方向键(可二段跳) |
 | 光环技能 | `K`；持续 14 秒,从施放起冷却 20 秒,开局可用 |
 | 交互(预留) | `E`；B2 没有可交互物 |
@@ -69,6 +69,21 @@ node tools/sync_levels.mjs
 | 旧原型游戏 | 只从 `legacy.html` 进入；标题界面 `Space`/`Enter`、设置中 `E` 等旧操作仍属旧原型 |
 
 `legacy.html` 仍保留旧主菜单的 3～24 层、镜像、淡出换层、回落起点，只作历史参照。默认 `index.html` 用 B2-R1 的 `short-v1`：大厅 → 3 个普通层 → 休整 → 两阶段 Boss；正式池只抽已认证普通层，固定大厅/休整/Boss 来自 `levels/b2/`。开发短塔使用未认证模板，不生成认证。标准试玩初始无活动光环、剩余 CD 20 秒，满 20 秒后可按 K 施放；必须从生成入口真实过关。编辑器导出仍是 v2 JSON，旧 `play.html` 只认 TXT，所以不走旧试玩。
+
+## 安卓构建与安装
+
+安卓工程只打包短塔运行文件，不打包编辑器/测试/文档。
+
+```powershell
+npm install --no-audit --no-fund
+npm run build:android
+# 本机已有 SDK 时:
+$env:ANDROID_HOME='<Android SDK 路径>'
+$env:JAVA_HOME='C:\Users\beilu\jdk21\jdk-21.0.12.1+1'
+.\android\gradlew.bat -p android assembleDebug --console=plain --no-daemon "-Pandroid.builder.sdkDownload=false"
+```
+
+产物：`docs/checks/B3-reverse-abyss-0.3.0-debug.apk`（debug，未签名正式发布）；校验值/版本/工具链见 [B3 工具链记录](docs/checks/B3-toolchain.md)。触控布局在游戏内「布局」面板拖动/调大小/保存/恢复默认；导入/导出在短塔菜单。真机安装、系统文件选择/分享和锁屏尚未验证。
 
 ## 检查方法
 
@@ -89,10 +104,12 @@ node tools/test_t01r.mjs
 node tools/test_world_session.mjs
 node tools/test_b1r.mjs
 node tools/test_b2.mjs
+node tools/test_b3.mjs
 node tools/browser_t02a.mjs
 node tools/browser_t02a_r.mjs
 node tools/browser_b1.mjs
 node tools/browser_b2.mjs
+node tools/browser_b3.mjs
 node tools/check_levels.mjs
 ```
 
@@ -117,6 +134,10 @@ node tools/check_levels.mjs
 
 历史：T01-R 复验为 1188/4；T02A 为 1089/4；T02A-R 为 1143/4。编辑器测试数变化来自旧 TXT/旧池断言被替换与新增草稿/试玩回归，不是删断言凑数。
 
+2026-11-06 B2-R1 独立复跑：完整 **1355 PASS / 4 FAIL，退出码 1**，4 条仍为旧 floor09/floor11；原点/上层对象与标准技能独立探针退出 0，R1～R3 关闭。独立 DevTools 未启动，Chrome 25/0 为交付方证据；用户另确认短塔人工游玩基本正常。详见 [独立复验](docs/checks/review-B2R1-2026-11-06.md)。
+
+2026-11-06 B3 实测：`node tools/test_b3.mjs` **45 PASS / 0 FAIL**；完整 `node tools/test_all.mjs` **1400 PASS / 4 FAIL，退出码 1**（引擎 606/4，其余全绿）；`node tools/browser_b3.mjs` **25 PASS / 0 FAIL**（移动视口、多来源触控、布局保存/重载、暂停/返回、离线 www）。debug APK 构建成功并验签，但本机无设备可安装；真机与系统文件往返未验。证据见 [B3 记录](docs/checks/B3-2026-11-06.md)。
+
 2026-11-06 B2 独立复跑原完整自检为 **1334/4**；非零原点探针发现上层机关触发/伤害/安全恢复失效和标准技能永久禁用，故 B2 暂不通过。B2-R1 修复后：`test_b2` **96/0**、完整 **1355/4**（引擎 606/4，其余全绿）、真实 Chrome **25/0**；修复后 reviewer 探针的新运行时门/浮石/火球/恢复和 CD 后施法均符合预期。原 23/0 与 1334/4 保留为 B2 历史证据。详见 [B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。
 
 迁移工具 `tools/migrate_levels.mjs` 现在是“先规划后写入”：`--in` 与 `--out` 相同（含大小写/别名）、输出 id 碰撞、报告落到源文件上都会在写入前失败；内容不同的既有输出默认不覆盖，需显式 `--force`。报告必须放在输入目录之外，例如默认的 `docs/checks/`。本次没有重写已交付的 `levels/v2/`（12 张全部幂等跳过）。
@@ -126,12 +147,12 @@ node tools/check_levels.mjs
 人工检查 B2-R1 的方法：
 
 1. 双击 `index.html`，应自动进入短塔；点「开发短塔(未认证模板)」。用 `A/D` + `Space` 爬大厅/普通层，按 `K` 看 14/20 秒光环，暂停/恢复，死亡后「重试同一座塔」。`legacy.html` 只作历史对照。
-2. 爬到普通层后检查门、浮石、伤害、弹簧；上层应和原点层一样按同一坐标工作。门约 0.5s 浮石预警、1.6s 消失、恢复不夹人；样例位置见 [B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。
+2. 爬到普通层后检查门、浮石、伤害、弹簧；上层应和原点层一样按同一坐标工作。门触碰后消失；浮石约 0.5s 预警、1.6s 消失、恢复不夹人；样例位置见 [B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。
 3. 编辑器「打开 JSON…」载入 [普通层模板](levels/b2/normal-1.json)，改接口/对象/路径，保存草稿；刷新找回。
 4. 修复后点「标准试玩」，确认初始 CD 20 秒结束后按 K 可施法，从生成入口真实通关；回到编辑器打开该草稿，点「发布」，再打开短塔点「正式短塔」。**必须由作者实际完成，自动化不会代打生成认证。**
 5. 打开浏览器开发者工具，记录异常、复现步骤和所在关卡。
 
-B2 页面已用真实 Chrome headless 跑过 23/23（截图与 JSON 在 [B2 交付记录](docs/checks/B2-2026-11-06.md)）；标准试玩实际通关/人工认证、完整短塔手感、系统文件选择对话框、真实双窗口并发、安卓与性能仍未人工验证，见“当前重要限制”。
+B2-R1 交付方 Chrome headless 25/0，独立浏览器未启动；用户人工短塔游玩基本正常。用户明确只测了短塔，标准通关/认证发布/正式实抽仍待补；系统文件对话框、真实双窗口并发、安卓与性能未验证。
 
 ## 开发样例、短塔与编辑器现状
 
@@ -147,10 +168,12 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 
 ## 当前重要限制
 
-- **B2-R1 已修**：`index.html` 默认短塔、`legacy.html` 历史入口；上层对象统一局部坐标，门/浮石/弹簧/火球/地刺/齿轮在非零原点正常；标准试玩初始 CD 20 秒后可施放。修复见 [B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。标准人工通关/发布/正式抽选仍待作者，B2 复验通过前不开始 B3。
+- **B2-R1 已验收**：默认入口、上层对象坐标与标准 CD 后施法通过独立工程复验；用户短塔游玩基本正常。标准认证/发布/正式实抽人工待测，不能写成已完成；可先推进独立安卓适配，正式内容与认证文件往返验收前补齐真实样本。
+- 美术粗糙、缺音效、AI 地图质量与 Boss 技能打磨，用户明确允许后置，见 [改进待办](docs/design/followups.md)，不阻塞本轮工程验收。
 - B1-R1 已修：保存/读取/试玩回包会核对工作区令牌与内容 hash；保存/读取期间编辑或切图不会丢新工作、不会错误绑定草稿，试玩不会带未保存内容离开。真实双窗口并发仍未浏览器自动化验证。暂停菜单重开已清遮罩（N02）。
-- B2 已实现生命/光环/六类对象/休整/两阶段 Boss/标准试玩/本地发布抽选；没有安卓、40 层、遗物/NPC/联网。
-- **标准试玩实际通关与人工认证尚未由作者/用户完成**。干净环境的正式池为空；自动化不代打、不伪造 passed。开发短塔使用未认证模板。
+- B2 已实现生命/光环/六类对象/休整/两阶段 Boss/标准试玩/本地发布抽选；B3 已接安卓触控/布局/生命周期/JSON/离线包/debug APK，但没有真机安装记录、正式签名或 40 层扩展。
+- **标准试玩实际通关与人工认证尚未由作者/用户完成**。干净环境的正式池为空；自动化不代打、不伪造 passed。开发短塔使用未认证模板。B3 导入的认证只标 imported-declaration，不生成 local-playtest。
+- **B3 APK 未在真机安装**；系统文件选择/分享、锁屏/返回、真实多指、安全区域与性能未测。桌面触控模拟不等于真机。
 - 固定大厅/休整/Boss 场景与三个普通模板是首版开发数据，未经过真人完整通关调参；Boss/伤害/接口数值是提案初值，可能需按实测调整。
 - 正式池与认证只存在当前浏览器 IndexedDB;换浏览器/清站点数据会丢，发布不是服务器/商店发布。
 - 草稿/发布冲突只做了 Node 双实例与隔离浏览器;真实双窗口并发、系统文件选择对话框未自动验证。
@@ -178,10 +201,15 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 | [B2 交付记录](docs/checks/B2-2026-11-06.md) | 短塔/战斗/Boss/发布/调参与未测项 |
 | [B2 独立验收](docs/checks/review-B2-2026-11-06.md) / [B2-R1 卡](docs/tasks/11-b2-review-fixes.md) | 原问题、证据与收尾范围 |
 | [B2-R1 交付记录](docs/checks/B2-R1-2026-11-06.md) | 默认入口/上层坐标/标准技能修复证据 |
+| [B2-R1 独立复验](docs/checks/review-B2R1-2026-11-06.md) | R1～R3 关闭、用户人工反馈与仍未测的发布链路 |
+| [B3 安卓卡](docs/tasks/12-b3-android-short-tower.md) / [改进待办](docs/design/followups.md) | 安卓范围与后置体验改进 |
+| [B3 交付记录](docs/checks/B3-2026-11-06.md) / [工具链](docs/checks/B3-toolchain.md) | 触控/生命周期/JSON/APK 证据与待验项 |
 | `js/` | 引擎、旧游戏、编辑器、草稿仓库、World/GameSession、开发试玩代码 |
 | `index.html` | 默认入口，自动进入 short.html |
 | `legacy.html` | 明确标注的旧原型历史入口 |
-| `short.html` | B2 PC 短塔入口(开发/正式) |
+| `short.html` | PC/安卓短塔入口(开发/正式) |
+| `www/` | 安卓离线最小 Web 包 |
+| `android/` | Capacitor 7 Android 工程 |
 | `standard.html` | 标准试玩(由编辑器进入) |
 | `devplay.html` | 连续两层开发试玩入口(新 GameSession) |
 | `levels/` | 当前 12 张内置 JSON、模板和生成副本 |

@@ -1,0 +1,9 @@
+{
+  "appId": "com.yanfei.reverseabyss",
+  "appName": "Reverse Abyss",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "backgroundColor": "#05060c"
+  }
+}

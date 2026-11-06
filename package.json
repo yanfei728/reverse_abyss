@@ -1,0 +1,23 @@
+{
+  "name": "reverse-abyss-android",
+  "version": "0.3.0",
+  "private": true,
+  "description": "reverse_abyss PC/Android short tower shell (Capacitor 7)",
+  "scripts": {
+    "build:web": "node tools/build_android_www.mjs",
+    "build:bridge": "esbuild js/platform/capacitor-bridge-src.js --bundle --format=iife --global-name=RA_CAP_BRIDGE --outfile=www/js/vendor/capacitor-plugins.js --platform=browser",
+    "sync:android": "npx cap sync android",
+    "build:android": "npm run build:web && npm run build:bridge && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "7.6.10",
+    "@capacitor/app": "7.1.2",
+    "@capacitor/core": "7.6.10",
+    "@capacitor/filesystem": "7.1.9",
+    "@capacitor/share": "7.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "7.6.10",
+    "esbuild": "0.25.10"
+  }
+}

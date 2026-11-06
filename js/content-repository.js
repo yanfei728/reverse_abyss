@@ -88,7 +88,8 @@
     async listPublished() {
       return ok(Array.from(this.published.values()).map(function (r) {
         return { levelId: r.levelId, contentHash: r.contentHash, rulesVersion: r.rulesVersion,
-          rulesFingerprint: r.rulesFingerprint, profile: r.profile, publishedAt: r.publishedAt,
+          rulesFingerprint: r.rulesFingerprint, profile: r.profile,
+          source: r.source || 'local-playtest', publishedAt: r.publishedAt,
           data: clone(r.data) };
       }));
     }
@@ -392,12 +393,125 @@
         rulesVersion: rules.rulesVersion,
         rulesFingerprint: rules.rulesFingerprint,
         profile: 'standard-v1',
+        source: 'local-playtest',
         publishedAt: isoNow(),
         revision: loaded.value.revision
       };
       var put = await this.adapter.publish(record);
       if (!put.ok) return put;
       return ok({ levelId: data.id, contentHash: hash, revision: loaded.value.revision });
+    }
+
+    async importLevel(text, opts) {
+      opts = opts || {};
+      var parsed;
+      try { parsed = typeof text === 'string' ? JSON.parse(text) : clone(text); }
+      catch (e) { return fail('INVALID_JSON', '不是合法 JSON:' + (e && e.message || e)); }
+      var dec = LD.decode(parsed);
+      if (!dec.ok) return fail(dec.error.code, dec.error.message, dec.error.issues || []);
+      var data = dec.value;
+      var playErrors = LD.errorsOf(LD.validate(data, { purpose: 'play' }));
+      if (playErrors.length) {
+        return fail(playErrors[0].code, '关卡不能作为草稿保存:' + playErrors[0].path + ' ' + playErrors[0].message, playErrors);
+      }
+      var hash = LD.hashSync(data);
+      var rules = RA.RULES || {};
+      var cert = data.certification || null;
+      var certReason = '';
+      var certOk = false;
+      if (!cert) certReason = '未认证';
+      else if (cert.profileId !== 'standard-v1' || cert.status !== 'passed') certReason = '认证来源/状态不支持';
+      else if (cert.contentHash !== hash) certReason = '认证 hash 与内容不一致';
+      else if (cert.rulesVersion !== rules.rulesVersion || cert.rulesFingerprint !== rules.rulesFingerprint) certReason = '认证规则版本已过期';
+      else {
+        var pubErrors = LD.errorsOf(LD.validate(data, {
+          purpose: 'publish',
+          rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
+        }));
+        if (pubErrors.length) certReason = '发布校验未通过:' + pubErrors[0].code + ' ' + pubErrors[0].path;
+        else certOk = true;
+      }
+      var enc = LD.encode(data);
+      if (!enc.ok) return fail(enc.error.code, '导入内容编码失败:' + enc.error.message, enc.error.issues || []);
+      var canonical = JSON.parse(enc.value);
+      var existingList = await this.adapter.list();
+      if (!existingList.ok) return existingList;
+      var same = existingList.value.filter(function (m) { return m.contentHash === hash; })[0];
+      if (same) {
+        // 同内容再次导入:若这次带匹配认证而旧草稿没有,把声明写回草稿;不改变 contentHash
+        if (certOk) {
+          var loadedSame = await this.adapter.get(same.draftId);
+          var oldCert = loadedSame.ok && loadedSame.value && loadedSame.value.data
+            ? loadedSame.value.data.certification : null;
+          if (!oldCert || oldCert.status !== 'passed' || oldCert.contentHash !== hash) {
+            var updated = clone(loadedSame.value);
+            updated.data = canonical;
+            updated.contentHash = hash;
+            updated.title = canonical.title || '';
+            updated.updatedAt = isoNow();
+            var up = await this.adapter.put(updated, loadedSame.value.revision);
+            if (up.ok) {
+              return ok({ draftId: same.draftId, revision: up.value.revision,
+                levelRef: { levelId: data.id, contentHash: hash }, eligible: true,
+                source: 'imported-declaration', issues: [] });
+            }
+            return up;
+          }
+        }
+        return ok({ draftId: same.draftId, revision: same.revision, levelRef: { levelId: data.id, contentHash: hash },
+          eligible: certOk, source: certOk ? 'imported-declaration' : 'uncertified', issues: certReason ? [certReason] : [] });
+      }
+      var draftId = data.id;
+      if (existingList.value.some(function (m) { return m.draftId === draftId; })) {
+        draftId = data.id + '@' + hash.slice(7, 19);
+      }
+      var record = {
+        draftId: draftId, revision: 0, title: canonical.title || '',
+        updatedAt: isoNow(), contentHash: hash, data: canonical
+      };
+      var put = await this.adapter.put(record, 0);
+      if (!put.ok) return put;
+      return ok({ draftId: draftId, revision: put.value.revision,
+        levelRef: { levelId: data.id, contentHash: hash }, eligible: certOk,
+        source: certOk ? 'imported-declaration' : 'uncertified',
+        issues: certReason ? [certReason] : [] });
+    }
+
+    async publishImported(opts) {
+      opts = opts || {};
+      var loaded = await this.adapter.get(opts.draftId);
+      if (!loaded.ok) return loaded;
+      if (!loaded.value) return fail('DRAFT_NOT_FOUND', '找不到导入草稿 ' + opts.draftId);
+      if (opts.expectedRevision !== undefined && opts.expectedRevision !== null &&
+        loaded.value.revision !== opts.expectedRevision) {
+        return fail('CONFLICT', '导入草稿 revision 已变化,没有加入正式池');
+      }
+      var data = loaded.value.data;
+      var hash = LD.hashSync(data);
+      var cert = data.certification;
+      var rules = RA.RULES || {};
+      if (!cert || cert.profileId !== 'standard-v1' || cert.status !== 'passed' ||
+        cert.contentHash !== hash ||
+        cert.rulesVersion !== rules.rulesVersion ||
+        cert.rulesFingerprint !== rules.rulesFingerprint) {
+        return fail('CERT_REQUIRED', '导入内容没有匹配当前内容/规则的声明认证');
+      }
+      var errors = LD.errorsOf(LD.validate(data, {
+        purpose: 'publish',
+        rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
+      }));
+      if (errors.length) {
+        return fail(errors[0].code, '导入内容发布校验失败:' + errors[0].path + ' ' + errors[0].message, errors);
+      }
+      var record = {
+        key: data.id + ':' + hash, levelId: data.id, contentHash: hash, data: clone(data),
+        rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint,
+        profile: 'standard-v1', source: 'imported-declaration', publishedAt: isoNow(),
+        revision: loaded.value.revision
+      };
+      var put = await this.adapter.publish(record);
+      if (!put.ok) return put;
+      return ok({ levelId: data.id, contentHash: hash, source: 'imported-declaration' });
     }
 
     getPublished(levelId, hash) { return this.adapter.getPublished(levelId, hash); }
@@ -416,7 +530,7 @@
         if (d.certification.contentHash !== LD.hashSync(d)) return false;
         return true;
       }).map(function (r) {
-        return { levelId: r.levelId, contentHash: r.contentHash, data: clone(r.data) };
+        return { levelId: r.levelId, contentHash: r.contentHash, source: r.source || 'local-playtest', data: clone(r.data) };
       });
       out.sort(function (a, b) { return (a.levelId + a.contentHash).localeCompare(b.levelId + b.contentHash); });
       return ok(out);

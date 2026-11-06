@@ -380,3 +380,27 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 - **回归**：新增正常固定步跨层后上层对象接触（非零 origin）、浮石暂停/恢复、门事件一次、上层弹簧/火球/地刺/齿轮、标准开局 K 失败与 20s 后成功。`test_b2` **96/0**；完整 **1355/4**（引擎 606/4，其余全绿）；Chrome **25/0**；修复后 reviewer 探针新运行时行为/标准技能通过。
 - **未完成**：作者/用户实际标准通关→写回→发布→正式抽选、完整短塔/Boss 真人通关、手感/性能/安卓未测；旧 floor09/floor11 诊断仍在。原 B2 的 78/0、1334/4、23/0 证据保留，B2-R1 证据另存。当前状态“工程修复完成，人工认证待验”，不写成已发布。
 - 提交：`71e3219`。
+
+### 2026-11-06 · B2-R1 复验通过，准备安卓短塔
+
+验收 HEAD `df008b4`、修复 `71e3219`。**默认入口、上层对象坐标/接触、标准 CD 后技能的 R1～R3 关闭，B2 核心工程与短塔游玩验收通过。** 独立完整自检 **1355 PASS / 4 FAIL，退出码 1**（4 条仍为旧 floor09/floor11），独立对象/技能探针退出 0；本轮 DevTools 未启动，交付方 Chrome 25/0 原证据保留。见 [独立复验](docs/checks/review-B2R1-2026-11-06.md)。
+
+用户人工游玩短塔确认基本正常，明确允许美术粗糙、缺音效、AI 地图质量与 Boss 技能打磨后置，已记入 [改进待办 Q01～Q04](docs/design/followups.md)，不再作为本轮阻塞。用户另确认只测试了短塔，标准通关→认证写回→明确发布→正式实抽没有执行，保留待补；没有生成认证，也不宣称 PC 首版整体发布完成。
+
+下一批按 [B3 安卓卡](docs/tasks/12-b3-android-short-tower.md) 完成离线壳、多指动作输入/按键设置、后台暂停/返回键、JSON 文件往返及 APK/真机检查。独立平台/触控适配可先推进，正式内容和认证文件往返验收前由作者补齐真实 PC 认证发布样本。继续复用 GameSession/World/LevelCodec/Repository，不重写手机版玩法，不先扩展 40 层。
+
+本轮仅新增验收证据、下一批方案和文档，未改游戏代码/关卡/素材，未安装工具链或实现安卓，未提交推送。只确认 PATH 可找到 Node/npm/Java、JAVA_HOME 路径存在；adb 不在 PATH、SDK 变量未设，不推断 SDK 完全缺失，更不声称 APK 已可构建。正式构建/系统范围待 B3 核验。
+
+### 2026-11-06 · B3 安卓平台壳：触控、生命周期、JSON 与 debug APK
+
+按 [B3 卡](docs/tasks/12-b3-android-short-tower.md) 交付平台层，复用 B2 短塔核心，不复制物理/战斗，不做 40 层或美术/Boss 重设。证据见 [B3 记录](docs/checks/B3-2026-11-06.md)。
+
+- **语义输入**：`ActionInput` 按来源记录 held，左右抵消、释放一指不取消另一指，press 一次性边沿；键盘/触点都进同一 Session。
+- **触控 UI**：短塔左右+跳跃/技能按钮；按钮可拖动/调大小/保存/重载恢复/恢复默认；安全区域 inset；暂停/菜单/设置/导入导出不依赖键盘。
+- **生命周期**：后台/失焦先清输入再暂停；前台保持暂停；返回按面板→暂停→退出；不重建 Player/Session、不补现实时间。
+- **JSON**：`PlatformFiles` 系统选择/Android Documents+Share/Web 下载，区分 download-started/written/share-opened；`ContentRepository.importLevel/publishImported` 保留草稿、认证绑定 hash/rules、来源 imported-declaration、用户明确才入池，不生成 local-playtest。
+- **离线包**：`tools/build_android_www.mjs` 只复制 short 运行文件、B2 模板、levels.js、assets；不打包编辑器/测试/文档。
+- **Capacitor**：锁定 7.6.10（官方 v7 要求 Node20+/JDK21/API35/AGP8.7.2/Gradle8.11.1；v8 需 Android Studio 2025.2.1+/API36，未升级）；Android 横屏、target/compile 35。
+- **APK**：本机无 Android Studio/设备，用已有 SDK 35 CLI 构建 debug APK，4,581,590 bytes，SHA-256 `76FE73C2A25F940F7C915FA97F602609FC55F7F1A6D5D098C4E294FB977AD663`；debug 验签通过，未安装。
+- **实测**：`test_b3` 45/0；完整 **1400/4**（引擎 606/4，其余全绿）；`browser_b3` 25/0（移动视口/多来源触控/布局/暂停/返回/离线 www）。
+- **未完成**：真机安装/冷启动、真实多指、锁屏/后台/返回、系统文件选择/分享、PC↔安卓真实往返、PC 标准人工认证/发布/正式抽选、正式签名/商店发布；N01/floor09/floor11 保留非阻塞。

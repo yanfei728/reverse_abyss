@@ -1,0 +1,113 @@
+{
+  "legacyBlink": {
+    "hiddenOnLandingStep": true,
+    "solidAfterLanding": false,
+    "hiddenSeconds": 1.6,
+    "expectedNewDefaultWarningSeconds": 0.5
+  },
+  "legacyDoor": {
+    "top": {
+      "gone": false,
+      "solid": true,
+      "feet": 180,
+      "objectTop": 180,
+      "right": 302.5,
+      "objectLeft": 270
+    },
+    "left": {
+      "gone": false,
+      "solid": true,
+      "feet": 219.63888888888889,
+      "objectTop": 180,
+      "right": 270,
+      "objectLeft": 270
+    }
+  },
+  "newRuntimeDoor": {
+    "atOrigin": {
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "broken": true,
+      "solid": false
+    },
+    "upperFloor": {
+      "origin": {
+        "x": 90,
+        "y": -540
+      },
+      "broken": true,
+      "solid": false
+    }
+  },
+  "newRuntimeBlink": {
+    "atOrigin": {
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "first": {
+        "state": "warning",
+        "timer": 0.5,
+        "solid": true
+      },
+      "finalState": "gone",
+      "elapsedUntilGoneOrStop": 0.5167
+    },
+    "upperFloor": {
+      "origin": {
+        "x": 90,
+        "y": -540
+      },
+      "first": {
+        "state": "warning",
+        "timer": 0.5,
+        "solid": true
+      },
+      "finalState": "gone",
+      "elapsedUntilGoneOrStop": 0.5167
+    }
+  },
+  "newRuntimeFire": {
+    "atOrigin": {
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "hp": 80
+    },
+    "upperFloor": {
+      "origin": {
+        "x": 90,
+        "y": -450
+      },
+      "hp": 80
+    }
+  },
+  "newRuntimeRecovery": {
+    "atOrigin": {
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "state": "gone",
+      "solid": false
+    },
+    "upperFloor": {
+      "origin": {
+        "x": 90,
+        "y": -540
+      },
+      "state": "gone",
+      "solid": false
+    }
+  },
+  "sampleBlinkHasSolidTile": false,
+  "standardSkill": {
+    "time": 20.33333333333346,
+    "cooldown": 0,
+    "allowSkill": true,
+    "castAfterCooldown": true
+  }
+}

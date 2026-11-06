@@ -21,10 +21,11 @@ const t01r = (await import('./test_t01r.mjs')).result;
 const world = (await import('./test_world_session.mjs')).result;
 const b1r = (await import('./test_b1r.mjs')).result;
 const b2 = (await import('./test_b2.mjs')).result;
+const b3 = (await import('./test_b3.mjs')).result;
 
-const pass = engine.pass + editor.pass + assets.pass + leveldata.pass + t01r.pass + world.pass + b1r.pass + b2.pass;
-const fail = engine.fail + editor.fail + assets.fail + leveldata.fail + t01r.fail + world.fail + b1r.fail + b2.fail;
-const fails = engine.fails.concat(editor.fails, assets.fails, leveldata.fails, t01r.fails, world.fails, b1r.fails, b2.fails);
+const pass = engine.pass + editor.pass + assets.pass + leveldata.pass + t01r.pass + world.pass + b1r.pass + b2.pass + b3.pass;
+const fail = engine.fail + editor.fail + assets.fail + leveldata.fail + t01r.fail + world.fail + b1r.fail + b2.fail + b3.fail;
+const fails = engine.fails.concat(editor.fails, assets.fails, leveldata.fails, t01r.fails, world.fails, b1r.fails, b2.fails, b3.fails);
 
 console.log('\n' + '='.repeat(70));
 console.log(`引擎自检    PASS ${engine.pass}  FAIL ${engine.fail}`);
@@ -35,6 +36,7 @@ console.log(`修复自检    PASS ${t01r.pass}  FAIL ${t01r.fail}`);
 console.log(`世界/会话   PASS ${world.pass}  FAIL ${world.fail}`);
 console.log(`B1-R1 异步  PASS ${b1r.pass}  FAIL ${b1r.fail}`);
 console.log(`B2 自检     PASS ${b2.pass}  FAIL ${b2.fail}`);
+console.log(`B3 自检     PASS ${b3.pass}  FAIL ${b3.fail}`);
 console.log('-'.repeat(70));
 console.log(`合计        PASS ${pass}  FAIL ${fail}   用时 ${((Date.now() - t0) / 1000).toFixed(1)}s` +
   (fast ? '  (--fast:跳过了逐跳物理模拟)' : ''));
