@@ -60,7 +60,9 @@
       <button id="btn-export" class="primary" title="导出完整 LevelData JSON(Ctrl+S)。只发起浏览器下载,不写 levels/">导出 JSON (Ctrl+S)</button>
       <button id="btn-copy" title="把导出的 JSON 放进剪贴板">复制 JSON</button>
       <button id="btn-view-json" title="把导出的 JSON 摊开看 / 手动复制">查看 JSON</button>
-      <button id="btn-play" title="用新 GameSession 连续两层开发试玩;接口/出生点不合法会先报错">▶ 开发试玩(两层)</button>
+      <button id="btn-play" title="用新 GameSession 连续两层开发试玩;接口/出生点不合法会先报错">▶ 开发试玩</button>
+      <button id="btn-standard" title="standard-v1:无光环、冷却20秒、从生成的入口支撑开始,通过真实出口才发回执">标准试玩</button>
+      <button id="btn-publish" title="只发布已通过标准试玩且内容/规则未变的草稿">发布</button>
       <a class="back" id="back-link" href="index.html" title="回游戏:有未导出的改动会先问一句">← 回游戏</a>
     </div>
     <div id="board-wrap">
@@ -137,11 +139,50 @@
       <button id="btn-draft-refresh" title="重新读取草稿列表">刷新列表</button>
     </div>
     <p class="dim small" id="draft-status">草稿:…</p>
+    <p class="dim small" id="publish-status"></p>
     <p class="dim small">
       草稿按发起保存时的快照写入;保存期间继续编辑,仍会显示"有未保存改动"。
       另一窗口先保存时 revision 冲突,不会覆盖;导出 JSON 仍是独立备份。
       草稿不会自动发布,也不改旧正式池。
     </p>
+
+    <h2>接口(vertical-v1)</h2>
+    <div class="row">
+      <span class="lab">入口 col</span><input type="number" id="port-entry" min="0" max="599" step="1">
+      <span class="lab">出口 col</span><input type="number" id="port-exit" min="0" max="599" step="1">
+    </div>
+    <div class="row">
+      <button id="btn-ports-apply">应用接口</button>
+      <button id="btn-ports-clear">清空接口</button>
+    </div>
+    <p class="dim small" id="ports-note">接口开口 4 格;两个 col 都要让开口落在地图内。</p>
+
+    <h2>对象 / 参数 / 路径</h2>
+    <div class="row">
+      <select id="obj-list" title="选择已有对象"></select>
+      <button id="btn-obj-del">删除对象</button>
+    </div>
+    <div class="row">
+      <select id="obj-type"></select>
+      <input type="number" id="obj-col" min="0" step="1" placeholder="col" style="width:60px">
+      <input type="number" id="obj-row" min="0" step="1" placeholder="row" style="width:60px">
+    </div>
+    <div id="obj-params"></div>
+    <div class="row">
+      <span class="lab">路径</span><select id="obj-path"></select>
+    </div>
+    <div class="row"><button id="btn-obj-apply">添加 / 更新对象</button></div>
+    <div class="row">
+      <select id="path-list"></select>
+      <button id="btn-path-del">删除路径</button>
+    </div>
+    <div class="row">
+      <select id="path-mode"><option value="loop">loop(闭环)</option><option value="pingpong">pingpong(折返)</option></select>
+      <button id="btn-path-new">新建路径</button>
+    </div>
+    <textarea id="path-points" rows="4" spellcheck="false" placeholder="每行一个点:col,row" style="width:100%;background:#0a0d16;color:#dfe7f5;border:1px solid #2c3752;border-radius:8px;font:12px Consolas,monospace;padding:6px"></textarea>
+    <div class="row"><button id="btn-path-apply">应用路径</button></div>
+    <p class="dim small" id="edit-status"></p>
 
     <h2>检查</h2>
     <ul id="check-list" class="check"></ul>
@@ -189,14 +230,18 @@
 <script src="js/tower.js"></script>
 <script src="js/levelpack.js"></script>
 <script src="js/content-repository.js"></script>
+<script src="js/rules.js"></script>
 <script src="js/world.js"></script>
 <script src="js/session.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/tower-planner.js"></script>
 <script src="js/reach.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>
 <script src="js/smoke.js"></script>
 <script src="levels/levels.js"></script>
 <script src="js/dev-samples.js"></script>
+<script src="js/b2-samples.js"></script>
 <!-- 编辑器本体 -->
 <script src="js/editor.js"></script>
 </body>

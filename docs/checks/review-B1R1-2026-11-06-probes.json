@@ -1,0 +1,36 @@
+{
+  "playtestEditDuringSave": {
+    "result": false,
+    "navigated": false,
+    "dirty": true,
+    "storedTitle": "开发样例 A(下层)",
+    "currentTitle": "试玩保存期间的新改动",
+    "handoffTitle": null,
+    "unsavedChangesSentAway": false
+  },
+  "switchModelDuringSave": {
+    "currentModelId": "review-other-draft",
+    "draftIdAfterOldSave": "",
+    "originalDraftId": "dev_floor_a",
+    "originalStoredModelIdAfterSecondSave": "dev_floor_a",
+    "otherDraftExists": true,
+    "originalOverwritten": false
+  },
+  "editDuringOpen": {
+    "result": false,
+    "finalTitle": "读取期间的新改动",
+    "dirty": true,
+    "newEditLost": false
+  },
+  "restartFromPause": {
+    "before": {
+      "paused": true,
+      "overlay": "flex"
+    },
+    "after": {
+      "paused": false,
+      "overlay": "none"
+    },
+    "staleOverlay": false
+  }
+}

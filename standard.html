@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>reverse_abyss · 标准试玩</title>
+<style>
+  html,body{margin:0;height:100%;background:#05060c;color:#cfd8ea;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;overflow:hidden}
+  #app{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #wrap{position:relative;width:min(100vw,177.78vh);aspect-ratio:16/9}
+  #std-canvas{display:block;width:100%;height:100%;background:#05060c;image-rendering:pixelated}
+  #std-hud{position:absolute;left:12px;top:10px;font-size:12.5px;background:rgba(8,11,20,.72);border:1px solid #26324a;border-radius:8px;padding:6px 10px;color:#dfe7f5;pointer-events:none}
+  #std-help{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#7787a6;background:rgba(8,11,20,.6);border-radius:8px;padding:4px 9px}
+  #std-error{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:620px;padding:16px 20px;background:#2a1414;border:1px solid #7a3838;border-radius:10px;color:#ffb3a6;font-size:13px;line-height:1.6;z-index:8}
+  #std-result{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,6,12,.74);z-index:7}
+  #std-result .box{background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:20px 24px;text-align:center;min-width:300px}
+  #std-result h2{margin:0 0 8px}
+  #std-result p{color:#9fb0cc;font-size:12.5px;line-height:1.7}
+  #std-result a,#std-result button{display:inline-block;margin:6px 4px 0;padding:7px 14px;border-radius:8px;background:#1d283d;color:#e8eefb;border:1px solid #40557f;text-decoration:none;font-size:13px}
+</style>
+</head>
+<body>
+<div id="app"><div id="wrap">
+  <canvas id="std-canvas" width="960" height="540"></canvas>
+  <div id="std-hud">标准试玩</div>
+  <div id="std-help">A/D 移动 · Space 二段跳 · P/Esc 暂停 · 无光环、无回复</div>
+  <div id="std-error"></div>
+  <div id="std-result"><div class="box">
+    <h2>标准试玩</h2><p id="std-result-text"></p>
+    <a id="std-back" href="editor.html">回编辑器</a>
+  </div></div>
+</div></div>
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/text.js"></script>
+<script src="js/level.js"></script>
+<script src="js/entity-registry.js"></script>
+<script src="js/level-data.js"></script>
+<script src="js/legacy-import.js"></script>
+<script src="js/entities/base.js"></script>
+<script src="js/entities/player.js"></script>
+<script src="js/entities/goal.js"></script>
+<script src="js/entities/spring.js"></script>
+<script src="js/entities/ghost.js"></script>
+<script src="js/entities/blink.js"></script>
+<script src="js/monsters.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/tower.js"></script>
+<script src="js/levelpack.js"></script>
+<script src="js/content-repository.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/world.js"></script>
+<script src="js/session.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/tower-planner.js"></script>
+<script src="js/reach.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script src="js/smoke.js"></script>
+<script src="levels/levels.js"></script>
+<script src="js/dev-samples.js"></script>
+<script src="js/b2-samples.js"></script>
+<script src="js/standard.js"></script>
+</body>
+</html>

@@ -214,7 +214,23 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **GameSession/World（B1 子集）**：`GameSession.create({floors})` 对每层跑 `validate(play)`，拒绝结构错误；固定 `1/60` 步、最多 5 步/帧，暂停不推进、恢复不追算。`World` 按 `next.origin.x = cur.origin.x + (cur.exit.col - next.entry.col) * TS`、`next.origin.y = cur.origin.y - next.rows * TS` 对齐接口，并整体平移到 x≥0。同一 `Player` 跨层只切换 `FloorView`，不重建；脚底过线且身体完全在开口内才提交一次；底边是防回落的单向梯板；顶层无下一层时开口不放行。进入第 n+1 层时第 n 层变 snapshot、第 n+2 层变 preview，第 n−1 层释放；preview 只累计 `previewTime` 并跑非攻击环境运动，`activeTime` 保持 0。
 - **开发样例**：`levels/dev/floor-a.json`、`floor-b.json` 是开发模式数据，未认证、不进 `levels/levels.js`/正式池；`js/dev-samples.js` 由 `tools/sync_dev_levels.mjs` 生成。编辑器「开发试玩」按 play 校验当前草稿、保存草稿后把"当前层 + 样例 B"交给 `devplay.html`；直接打开 devplay 用 A+B。
 - 异步草稿操作（B1-R1）：编辑器以 `workspaceToken` 标识当前工作区（newLevel/replaceModel 递增），保存发起时捕获令牌、draftId、expectedRevision 与快照 hash；旧回包可完成旧草稿写入，但令牌不匹配时不更新当前图的 draftId/revision/dirty。试玩保存后若令牌/dirty/hash 变化则取消导航，handoff 使用刚保存的规范快照并再次 play 校验。打开草稿用请求序号 + 起始 hash + 令牌核对，过期回包不替换当前工作；两个读取乱序时只有最新请求生效。
-- 尚未实现：伤害/敌人/技能/Boss、认证发布、端口编辑；事件目前只有 `floorEntered/paused/resumed/respawn`，B2 再扩展战斗/胜利事件与 runId/sequence。
+- B2 已实现伤害/光环/六类对象/休整/两阶段 Boss/接口编辑/标准认证/本地发布与抽选；安卓、40 层、完整美术仍未实现。
+
+2026-11-06 B2 实现补充：
+
+- **规则**：`RA.RULES` 固定 `rulesVersion=b2-1` 与 `rulesFingerprint`(物理/生命/光环/Boss/对象键);改行为需升版本。`run-v1` 开局光环可用;标准 `standard-v1` 无光环、冷却 20 秒、无休整。
+- **RunState**：会话唯一可变真值,含 hp/maxHp、invulnerableRemaining、haloActiveRemaining/haloCooldownRemaining/castId、visited/claimedRest、elapsed、status(running/dead/won);Player 不另存生命/冷却。事件带 runId + 单调 sequence。
+- **伤害/死亡**：同一模拟步最多一次受伤;1 秒无敌;hp≤0 死亡;异常越界(掉出当前层/横向越界)判死亡并记录 `outOfBounds`;死亡/中断不再无伤 respawn,页面回大厅/重试同一 manifest。死亡优先于胜利。
+- **光环**：K 施放,14 秒/从施放起 20 秒冷却;跨层保留、暂停冻结;命中 Boss 消耗本次光环但不重置冷却;一次 castId 最多打掉一个阶段;preview 不参与。
+- **六类对象**：spring/crumble_door/blink_platform/fireball_static/spike/gear 由注册参数驱动实际行为;门/浮石/地刺底座进入动态碰撞,火球/齿轮/地刺伸出按活动层伤害权限;preview 只跑非攻击运动;模板只读、每实例独立。
+- **Boss**：shielded(12/8s) → exposed(停攻、清伤害物、保持到命中) → resolving → 下一阶段/defeated;三种轮换攻击有预警;出口击败前关闭。
+- **短塔**：`short-v1` 固定大厅/休整/Boss + 3 个已认证 normal;TowerPlanner 纯函数,按 levelId+contentHash 引用不可变内容,候选不足允许重复;开发短塔使用未认证模板。
+- **发布**：ContentRepository `publish({draftId,expectedRevision,receipt})` 在同一流程重读草稿,校验 revision/contentHash/rules/回执与 publish 校验;写入不可变 published 记录,同 id+hash 幂等,同 id 新 hash 保留旧版本,失败旧池不变。`listEligible({difficulty,rules})` 只返回已发布且认证匹配的 normal;本地浏览器存储,不是服务器发布。
+- **标准试玩**：standard-v1 handoff 绑定 draftId/revision/contentHash/rules;页面生成入口支撑 + 作者层 + 生成出口,真实过线后才把 certification(绑定 hash/rules/profile/revision/source=local-playtest)写回草稿;不自动发布;debug/开发短塔不生成认证。
+- **编辑器工具**：接口 col、六类对象参数、路径点/loop/pingpong、引用保护;删除被引用路径被拒绝;所有编辑进入整份 LevelData 撤销;未知内容仍保真但阻止 play/publish。
+- **页面**：short.html/standard.html 通过适配器提供键盘/画布/HUD;不单独结算伤害/Boss/胜利。
+- **事件**：floorEntered、playerDamaged、skillCast、fireballDestroyed、bossEntered、bossPhaseChanged、haloHitBoss、restHealed、dead、won、outOfBounds 等;仍保留 paused/resumed。
+- **未实现**：安卓、40 层、遗物/NPC/联网、完整美术;旧 floor09/floor11 诊断仍在。
 
 Entity 的行为接口：`stepAmbient(dt,context)` 处理非攻击运动；`stepActive(dt,context)` 处理当前层攻击；`draw(...)` 不修改玩法状态；`dispose()` 清除自身计时/资源引用。preview 不调用 active；retired 不调用二者。接触伤害也必须经过 active 权限，而非直接在 draw/player 碰撞中扣血。
 
@@ -255,3 +271,11 @@ Repository 提案使用 IndexedDB 存草稿与发布版本，内置内容只读�
 - 保存失败/取消/存储不足不改旧发布池；相同 id 不同 hash 不破坏旧清单。
 - 相同模板两次实例化，门、移动进度和领取记录互不影响。
 - 正式/试玩使用相同输入与初始状态时，模拟得到相同位置、伤害和冷却结果。
+
+## 9. B2 实施边界（方案，尚未实现）
+
+B1/B1-R1 已通过工程验收；B2 的模块输入输出、实现顺序和验收见 [PC 短塔批次卡](../tasks/10-b2-pc-short-tower.md)。沿用本文件的 LevelData/Certification/TowerManifest/RunState，不新增另一套格式。GameSession 扩展 manifest/templates/rules/mode/profile 适配，正式短塔、debug 与 standard 共用核心；B1 的 floors 开发适配可保留，不复制模拟。
+
+发布接口按本文件既有建议实施：`publish({draftId,expectedRevision,receipt})` 在事务中重新核对草稿与回执，再写不可变内容版本和池索引。未认证、debug、旧回执或未知内容不可入池；无候选时报明确空池，不以旧池/开发草稿兜底。RunState 的生命/冷却/技能只保留一份会话真值，实际对象行为必须与注册参数共用，旧层 snapshot 不再保留活实体。
+
+用户本轮确认异常越界判死亡回大厅、同塔重试：重试重置 runId 与可变本局状态、沿用精确内容版本的 manifest；只有显式重构才重新规划。该要求由 B2 实现，不能把本方案写成当前运行能力。

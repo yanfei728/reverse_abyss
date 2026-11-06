@@ -1,0 +1,134 @@
+{
+  "date": "2026-11-06T09:13:06.290Z",
+  "browser": "Chrome/156.0.8078.80",
+  "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "durationMs": 3827,
+  "pass": 23,
+  "fail": 0,
+  "results": [
+    {
+      "name": "Chrome 已启动",
+      "ok": true,
+      "extra": "Chrome/156.0.8078.80 headless"
+    },
+    {
+      "name": "short.html 加载完成",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "菜单默认可见",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "正式池为空时明确提示,不启动",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "开发短塔启动",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "从大厅开始、生命 100",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "HUD 显示生命与技能",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "K 施放光环并进入 14/20 秒",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "P 暂停并冻结时间",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "继续后恢复",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "真实输入越过大堂接口进入普通层",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "HUD/会话保留生命与光环",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "死亡结果遮罩出现",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "重试回到大厅且仍是同一 manifest",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "编辑器加载",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "打开普通层模板",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "接口/对象/路径面板已填充",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "接口编辑写入模型",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "路径点工具新增路径",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "对象参数工具新增对象",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "标准试玩页加载",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "标准会话三层(入口/作者层/出口)且无光环",
+      "ok": true,
+      "extra": "{\"floors\":3,\"allow\":false,\"cd\":19.350000000000037,\"err\":\"\"}"
+    },
+    {
+      "name": "标准页 HUD 显示无光环/冷却",
+      "ok": true,
+      "extra": ""
+    }
+  ],
+  "screenshots": [
+    "docs/checks/b2-browser-short-start.png",
+    "docs/checks/b2-browser-short-floor2.png",
+    "docs/checks/b2-browser-short-retry.png",
+    "docs/checks/b2-browser-editor-tools.png",
+    "docs/checks/b2-browser-standard-start.png"
+  ],
+  "note": "标准试玩/人工通关认证未由自动化伪造;正式池此时为空。"
+}

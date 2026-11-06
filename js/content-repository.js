@@ -18,8 +18,9 @@
 
   var LD = RA.LevelData;
   var DB_NAME = 'ra_drafts';
-  var DB_VERSION = 1;
+  var DB_VERSION = 2;
   var STORE = 'drafts';
+  var PUBLISHED = 'published';
 
   function ok(value) { return { ok: true, value: value }; }
   function fail(code, message, issues) {
@@ -41,6 +42,7 @@
   class MemoryAdapter {
     constructor() {
       this.records = new Map();
+      this.published = new Map();
       this.failPutMessage = '';
     }
     /** 让下一次写入失败一次(自检用;不改变正常行为) */
@@ -77,6 +79,23 @@
       this.records.set(rec.draftId, rec);
       return ok(metaOf(rec));
     }
+    async publish(record) {
+      var key = record.levelId + ':' + record.contentHash;
+      if (this.published.has(key)) return ok(metaOf(record));
+      this.published.set(key, clone(record));
+      return ok(metaOf(record));
+    }
+    async listPublished() {
+      return ok(Array.from(this.published.values()).map(function (r) {
+        return { levelId: r.levelId, contentHash: r.contentHash, rulesVersion: r.rulesVersion,
+          rulesFingerprint: r.rulesFingerprint, profile: r.profile, publishedAt: r.publishedAt,
+          data: clone(r.data) };
+      }));
+    }
+    async getPublished(levelId, hash) {
+      var r = this.published.get(levelId + ':' + hash);
+      return ok(r ? clone(r) : null);
+    }
     async remove(id, expectedRevision) {
       var cur = this.records.get(id);
       if (!cur) return ok({ removed: false });
@@ -107,6 +126,9 @@
           var db = req.result;
           if (!db.objectStoreNames.contains(STORE)) {
             db.createObjectStore(STORE, { keyPath: 'draftId' });
+          }
+          if (!db.objectStoreNames.contains(PUBLISHED)) {
+            db.createObjectStore(PUBLISHED, { keyPath: 'key' });
           }
         };
         req.onsuccess = function () { resolve(req.result); };
@@ -203,6 +225,44 @@
         return e && e.ok === false ? e : fail('STORAGE_FAILED', String(e));
       });
     }
+    async publish(record) {
+      var self = this;
+      var db = await self.open();
+      if (!db || db.ok === false) return db || fail('STORAGE_FAILED', '草稿库不可用');
+      return new Promise(function (resolve) {
+        var tx = db.transaction(PUBLISHED, 'readwrite');
+        var store = tx.objectStore(PUBLISHED);
+        var rec = clone(record); rec.key = rec.levelId + ':' + rec.contentHash;
+        var req = store.get(rec.key);
+        req.onsuccess = function () {
+          if (!req.result) store.put(rec);
+        };
+        req.onerror = function () { resolve(fail('STORAGE_FAILED', '读取发布记录失败')); };
+        tx.oncomplete = function () { resolve(ok({ levelId: rec.levelId, contentHash: rec.contentHash })); };
+        tx.onabort = function () { resolve(fail('STORAGE_FAILED', '发布事务被取消')); };
+      });
+    }
+    async listPublished() {
+      var res = await this._withStore('readonly', function (store, done) {
+        var out = [];
+        var req = store.openCursor();
+        req.onsuccess = function () {
+          var cur = req.result;
+          if (!cur) { done(ok(out)); return; }
+          out.push(cur.value); cur.continue();
+        };
+        req.onerror = function () { done(fail('STORAGE_FAILED', '读取发布池失败')); };
+      });
+      return res;
+    }
+    async getPublished(levelId, hash) {
+      var res = await this._withStore('readonly', function (store, done) {
+        var req = store.get(levelId + ':' + hash);
+        req.onsuccess = function () { done(ok(req.result ? clone(req.result) : null)); };
+        req.onerror = function () { done(fail('STORAGE_FAILED', '读取发布内容失败')); };
+      });
+      return res;
+    }
     async remove(id, expectedRevision) {
       var res = await this._withStore('readwrite', function (store, done, tx) {
         var req = store.get(id);
@@ -283,6 +343,83 @@
         data: canonical
       };
       return this.adapter.put(record, expectedRevision);
+    }
+
+    async publish(opts) {
+      opts = opts || {};
+      var draftId = opts.draftId;
+      var expected = opts.expectedRevision;
+      var receipt = opts.receipt;
+      if (!receipt || receipt.status !== 'passed' || receipt.profileId !== 'standard-v1') {
+        return fail('CERT_REQUIRED', '发布需要 standard-v1 通关认证回执');
+      }
+      var loaded = await this.adapter.get(draftId);
+      if (!loaded.ok) return loaded;
+      if (!loaded.value) return fail('DRAFT_NOT_FOUND', '找不到草稿 ' + draftId);
+      if (expected !== undefined && expected !== null && loaded.value.revision !== expected) {
+        return fail('CONFLICT', '草稿 revision 已变化,没有发布');
+      }
+      var data = loaded.value.data;
+      var hash = LD.hashSync(data);
+      if (!data.certification || data.certification.profileId !== 'standard-v1' ||
+        data.certification.status !== 'passed') {
+        return fail('CERT_REQUIRED', '草稿没有 standard-v1 passed 认证');
+      }
+      if (data.certification.contentHash !== receipt.contentHash) {
+        return fail('HASH_MISMATCH', '认证回执和草稿里的内容 hash 不一致');
+      }
+      if (data.certification.rulesVersion !== receipt.rulesVersion ||
+        data.certification.rulesFingerprint !== receipt.rulesFingerprint) {
+        return fail('RULES_MISMATCH', '认证回执和草稿里的规则版本不一致');
+      }
+      if (receipt.contentHash !== hash) {
+        return fail('HASH_MISMATCH', '认证回执和当前草稿内容不一致,不能发布');
+      }
+      var rules = RA.RULES || {};
+      var issues = LD.validate(data, {
+        purpose: 'publish',
+        rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
+      });
+      var errors = LD.errorsOf(issues);
+      if (errors.length) {
+        return fail(errors[0].code, '发布校验失败:' + errors[0].path + ' ' + errors[0].message, errors);
+      }
+      var record = {
+        key: data.id + ':' + hash,
+        levelId: data.id,
+        contentHash: hash,
+        data: clone(data),
+        rulesVersion: rules.rulesVersion,
+        rulesFingerprint: rules.rulesFingerprint,
+        profile: 'standard-v1',
+        publishedAt: isoNow(),
+        revision: loaded.value.revision
+      };
+      var put = await this.adapter.publish(record);
+      if (!put.ok) return put;
+      return ok({ levelId: data.id, contentHash: hash, revision: loaded.value.revision });
+    }
+
+    getPublished(levelId, hash) { return this.adapter.getPublished(levelId, hash); }
+
+    async listEligible(opts) {
+      opts = opts || {};
+      var res = await this.adapter.listPublished();
+      if (!res.ok) return res;
+      var rules = RA.RULES || {};
+      var out = res.value.filter(function (r) {
+        var d = r.data;
+        if (!d || d.kind !== 'normal') return false;
+        if (opts.difficulty !== undefined && d.difficulty !== opts.difficulty) return false;
+        if (r.rulesVersion !== rules.rulesVersion || r.rulesFingerprint !== rules.rulesFingerprint) return false;
+        if (!d.certification || d.certification.status !== 'passed') return false;
+        if (d.certification.contentHash !== LD.hashSync(d)) return false;
+        return true;
+      }).map(function (r) {
+        return { levelId: r.levelId, contentHash: r.contentHash, data: clone(r.data) };
+      });
+      out.sort(function (a, b) { return (a.levelId + a.contentHash).localeCompare(b.levelId + b.contentHash); });
+      return ok(out);
     }
 
     deleteDraft(draftId, expectedRevision) {

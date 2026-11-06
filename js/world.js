@@ -29,6 +29,9 @@
   }
   function clone(v) { return JSON.parse(JSON.stringify(v)); }
   function isInt(n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n; }
+  function overlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
 
   function tilesToAsc(tiles) {
     return tiles.map(function (row) {
@@ -54,9 +57,17 @@
       this.previewTime = 0;
       this.entered = false;
       this.hasNext = !!opts.hasNext;
+      this.exitOpen = data.kind !== 'boss';
       this.objects = (data.objects || []).map(function (o) {
         var rec = clone(o);
         rec._phase = 0;
+        rec.alive = true;
+        rec.broken = false;
+        rec.state = 'idle';
+        rec.timer = 0;
+        rec.cycle = 0;
+        rec.rx = rec.col * TS + TS / 2;
+        rec.ry = rec.row * TS + TS / 2;
         return rec;
       });
       this.paths = {};
@@ -71,6 +82,8 @@
       level.startFeet = (this.spawn.row + 1) * TS;
       level.spawnCol = this.spawn.col;
       level.spawnRow = this.spawn.row;
+      var self = this;
+      level.solidEntityAt = function (r, c) { return self.solidAt(r, c); };
       this.level = level;
       this.view = new FloorView(this);
     }
@@ -86,40 +99,141 @@
       return localCol >= this.exitCol && localCol < this.exitCol + OPEN;
     }
 
-    /** 非攻击的环境运动:路径对象沿路径来回走;不产生伤害 */
-    updateAmbient(dt) {
+    /** 路径几何(loop 含末点→首点;pingpong 折返) */
+    pathSegments(path) {
+      var pts = (path && path.points) || [];
+      if (pts.length < 2) return null;
+      var segs = [];
+      for (var i = 1; i < pts.length; i++) segs.push([pts[i - 1], pts[i]]);
+      if (path.mode === 'loop' && pts.length >= 2) segs.push([pts[pts.length - 1], pts[0]]);
+      var total = 0;
+      segs = segs.map(function (s) {
+        var dx = (s[1].col - s[0].col) * TS;
+        var dy = (s[1].row - s[0].row) * TS;
+        var len = Math.sqrt(dx * dx + dy * dy) || 0.001;
+        total += len;
+        return { a: s[0], b: s[1], len: len };
+      });
+      return { segs: segs, total: total };
+    }
+
+    /** 路径对象运动;preview 只动不打人 */
+    moveObjects(dt) {
       this.objects.forEach(function (o) {
         if (!o.pathId || !this.paths[o.pathId]) return;
-        var path = this.paths[o.pathId];
-        var pts = path.points || [];
-        if (pts.length < 2) return;
-        var speed = 40;                      // 诊断用像素速度
-        var total = 0, segs = [];
-        for (var i = 1; i < pts.length; i++) {
-          var dx = (pts[i].col - pts[i - 1].col) * TS;
-          var dy = (pts[i].row - pts[i - 1].row) * TS;
-          var len = Math.sqrt(dx * dx + dy * dy) || 0.001;
-          segs.push({ a: pts[i - 1], b: pts[i], len: len, dx: dx, dy: dy });
-          total += len;
-        }
-        if (path.mode === 'pingpong') {
+        var geo = this.pathSegments(this.paths[o.pathId]);
+        if (!geo) return;
+        var speed = (o.params && Number(o.params.speedTilesPerSecond) || 0) * TS || 90;
+        if (this.paths[o.pathId].mode === 'pingpong') {
           var p = o._phase % 2;
-          o._phase = p + dt * speed / total;
+          o._phase = p + dt * speed / geo.total;
         } else {
-          o._phase = (o._phase + dt * speed / total) % 1;
+          o._phase = (o._phase + dt * speed / geo.total) % 1;
         }
-        var u = o._phase % 1;
-        var acc = u * total;
-        for (var s = 0; s < segs.length; s++) {
-          if (acc <= segs[s].len || s === segs.length - 1) {
-            var k = segs[s].len ? Math.min(1, acc / segs[s].len) : 0;
-            o.rx = (segs[s].a.col + (segs[s].b.col - segs[s].a.col) * k) * TS + TS / 2;
-            o.ry = (segs[s].a.row + (segs[s].b.row - segs[s].a.row) * k) * TS + TS / 2;
+        var u = o._phase % 2;
+        if (this.paths[o.pathId].mode === 'pingpong' && u > 1) u = 2 - u;
+        var acc = u * geo.total;
+        for (var s = 0; s < geo.segs.length; s++) {
+          if (acc <= geo.segs[s].len || s === geo.segs.length - 1) {
+            var k = geo.segs[s].len ? Math.min(1, acc / geo.segs[s].len) : 0;
+            var a = geo.segs[s].a, b = geo.segs[s].b;
+            o.rx = (a.col + (b.col - a.col) * k) * TS + TS / 2;
+            o.ry = (a.row + (b.row - a.row) * k) * TS + TS / 2;
             break;
           }
-          acc -= segs[s].len;
+          acc -= geo.segs[s].len;
         }
       }, this);
+    }
+
+    updateAmbient(dt) { this.moveObjects(dt); }
+
+    /** 对象是否提供实心碰撞(门/浮石/地刺底座) */
+    solidAt(localRow, localCol) {
+      for (var i = 0; i < this.objects.length; i++) {
+        var o = this.objects[i];
+        if (o.col !== localCol || o.row !== localRow) continue;
+        if (o.type === 'crumble_door' && !o.broken) return true;
+        if (o.type === 'blink_platform' && o.state !== 'gone') return true;
+        if (o.type === 'spike') return true;          // 底座始终实心
+      }
+      return false;
+    }
+
+    /** 活动层对象行为:弹簧/门/浮石/地刺;伤害交给 session */
+    updateActiveObjects(dt, session) {
+      var self = this;
+      this.objects.forEach(function (o) {
+        if (o.type === 'spike') {
+          var p = (o.params || {});
+          var warn = Number(p.warningSeconds); if (!isFinite(warn)) warn = 0.5;
+          var active = Number(p.activeSeconds); if (!isFinite(active)) active = 0.8;
+          var cool = Number(p.cooldownSeconds); if (!isFinite(cool)) cool = 1.0;
+          var span = warn + active + cool;
+          o.cycle = (o.cycle + dt) % Math.max(0.01, span);
+          o.state = o.cycle < warn ? 'warning' : (o.cycle < warn + active ? 'active' : 'cooldown');
+        }
+        if (o.type === 'blink_platform') {
+          var bp = (o.params || {});
+          var bw = Number(bp.warningSeconds); if (!isFinite(bw)) bw = 0.5;
+          var bg = Number(bp.goneSeconds); if (!isFinite(bg)) bg = 1.6;
+          if (o.state === 'warning') {
+            o.timer -= dt;
+            if (o.timer <= 0) { o.state = 'gone'; o.timer = bg; }
+          } else if (o.state === 'gone') {
+            o.timer -= dt;
+            if (o.timer <= 0) {
+              // 恢复时不夹人:玩家仍重叠就延后
+              if (self.playerOverlap(o, session.player)) o.timer = 0.2;
+              else o.state = 'idle';
+            }
+          }
+        }
+      });
+      // 接触/伤害:同一模拟步最多一次受伤由 session 保证
+      var player = session.player;
+      this.objects.forEach(function (o) {
+        if (!o.alive) return;
+        var box = self.objectBox(o);
+        var pr = { x: player.x, y: player.y, w: player.w, h: player.h };
+        var touched = { x: pr.x - 6, y: pr.y - 6, w: pr.w + 12, h: pr.h + 12 };
+        var hit = overlap(pr, box);
+        var near = overlap(touched, box);
+        var feetOnTop = player.feet >= box.y - 8 && player.feet <= box.y + 10 &&
+          pr.x + pr.w > box.x && pr.x < box.x + box.w;
+        if (o.type === 'spring') {
+          if (hit && player.vy >= 0 && player.feet >= box.y - 10) {
+            player.vy = (o.params && Number(o.params.bounceVel)) || -1180;
+            player.onGround = false;
+            session.events.push({ type: 'springBounce', simTime: session.time });
+          }
+        } else if (o.type === 'crumble_door') {
+          if (!o.broken && near) {
+            o.broken = true;
+            session.events.push({ type: 'doorBroken', simTime: session.time });
+          }
+        } else if (o.type === 'blink_platform') {
+          if (o.state === 'idle' && feetOnTop) {
+            o.state = 'warning';
+            o.timer = (o.params && Number(o.params.warningSeconds)) || 0.5;
+          }
+        } else if (o.type === 'spike') {
+          if (o.state === 'active' && feetOnTop) session.damage((o.params && o.params.damage) || 20, 'spike');
+        } else if (o.type === 'fireball_static') {
+          if (hit) session.damage((o.params && o.params.damage) || 20, 'fireball');
+        } else if (o.type === 'gear') {
+          if (hit) session.damage((o.params && o.params.damage) || 20, 'gear');
+        }
+      });
+    }
+
+    objectBox(o) {
+      var r = (o.params && Number(o.params.radiusTiles)) || 0.5;
+      return { x: o.rx - r * TS, y: o.ry - r * TS, w: r * 2 * TS, h: r * 2 * TS };
+    }
+
+    playerOverlap(o, player) {
+      return overlap({ x: player.x, y: player.y, w: player.w, h: player.h }, this.objectBox(o));
     }
   }
 
@@ -143,7 +257,7 @@
       if (lc < 0 || lc >= this.inst.cols) return lr >= 0 && lr < this.inst.rows;
       if (lr < 0) return false;                   // 地图上方没有地块;顶边由 move 处理
       if (lr >= this.inst.rows) return true;      // 底边:防回落/防掉出世界
-      return !!this.inst.level.grid[lr][lc] || !!this.inst.level.oneway[lr][lc];
+      return !!this.inst.level.grid[lr][lc] || !!this.inst.level.oneway[lr][lc] || this.inst.solidAt(lr, lc);
     }
 
     standingOn(worldX, feet, w) {
@@ -169,7 +283,7 @@
         var openL = inst.exitCol * TS;
         var openR = openL + OPEN * TS;
         var inside = nx >= openL - 0.01 && nx + w <= openR + 0.01;
-        if (!inside || !inst.hasNext) { ny = 0; nvy = 0; }
+        if (!inside || !inst.hasNext || !inst.exitOpen) { ny = 0; nvy = 0; }
       }
 
       // 底边:进入本层后是一块单向梯板,防止从入口回落到下一层
@@ -246,12 +360,12 @@
       var active = this.currentFloor;
       if (active) {
         active.activeTime += dt;
-        active.updateAmbient(dt);
+        active.moveObjects(dt);
       }
       var preview = this.instances.get(this.current + 1);
       if (preview && preview.state === 'preview') {
         preview.previewTime += dt;
-        preview.updateAmbient(dt);
+        preview.moveObjects(dt);
       }
     }
 

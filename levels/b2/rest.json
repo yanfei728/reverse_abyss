@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 2,
+  "id": "b2_rest",
+  "title": "短塔休整层",
+  "kind": "rest",
+  "difficulty": null,
+  "size": {
+    "cols": 10,
+    "rows": 6
+  },
+  "terrain": {
+    "tiles": [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ]
+  },
+  "ports": {
+    "profile": "vertical-v1",
+    "entry": {
+      "col": 2
+    },
+    "exit": {
+      "col": 4
+    }
+  },
+  "spawn": {
+    "col": 2,
+    "row": 4
+  },
+  "objects": [],
+  "paths": [],
+  "visuals": {
+    "backgroundId": "sky3",
+    "decorations": []
+  },
+  "extensions": {
+    "dev": true,
+    "template": true
+  },
+  "portsNote": null,
+  "contentHash": "sha256:608a42df1368b85db6be6d5a4d5758e91c708d81be02584ac8870df6540e3c8e",
+  "certification": null
+}
+

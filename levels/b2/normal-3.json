@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 2,
+  "id": "b2_normal_3",
+  "title": "短塔普通层 3",
+  "kind": "normal",
+  "difficulty": 1,
+  "size": {
+    "cols": 16,
+    "rows": 10
+  },
+  "terrain": {
+    "tiles": [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ]
+  },
+  "ports": {
+    "profile": "vertical-v1",
+    "entry": {
+      "col": 3
+    },
+    "exit": {
+      "col": 8
+    }
+  },
+  "spawn": {
+    "col": 2,
+    "row": 8
+  },
+  "objects": [
+    {
+      "id": "o_fire3",
+      "type": "fireball_static",
+      "col": 8,
+      "row": 7,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "o_spike3",
+      "type": "spike",
+      "col": 12,
+      "row": 8,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "o_gear3",
+      "type": "gear",
+      "col": 2,
+      "row": 4,
+      "params": {
+        "speedTilesPerSecond": 2.5,
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": "p3"
+    }
+  ],
+  "paths": [
+    {
+      "id": "p3",
+      "mode": "loop",
+      "points": [
+        {
+          "col": 2,
+          "row": 4
+        },
+        {
+          "col": 13,
+          "row": 4
+        }
+      ]
+    }
+  ],
+  "visuals": {
+    "backgroundId": "sky3",
+    "decorations": []
+  },
+  "extensions": {
+    "dev": true,
+    "template": true
+  },
+  "portsNote": null,
+  "contentHash": "sha256:daf49ca38b6d1f59e63f0527ca2865d67d57f7b44ecdf1fda592cfc9ffdebbc8",
+  "certification": null
+}
+

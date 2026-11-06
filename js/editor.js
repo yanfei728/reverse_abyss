@@ -482,6 +482,121 @@
       return LD.ok(rec);
     }
 
+    objectById(id) {
+      for (var i = 0; i < this.data.objects.length; i++) {
+        if (this.data.objects[i].id === id) return this.data.objects[i];
+      }
+      return null;
+    }
+
+    /** 对象属性面板:保留未知字段;pathId 有路径时把初始格对齐路径首点 */
+    updateObject(id, fields) {
+      var o = this.objectById(id);
+      if (!o) return LD.fail('INVALID_FIELD', '找不到对象 ' + id, []);
+      fields = fields || {};
+      if (fields.type !== undefined) {
+        if (!RA.EntityRegistry.has(fields.type)) {
+          return LD.fail('UNKNOWN_ENTITY', '未注册的对象类型 "' + fields.type + '"', []);
+        }
+        o.type = fields.type;
+      }
+      if (fields.params && typeof fields.params === 'object') {
+        Object.keys(fields.params).forEach(function (k) { o.params[k] = fields.params[k]; });
+      }
+      if (fields.pathId !== undefined) o.pathId = fields.pathId || null;
+      if (fields.col !== undefined) o.col = fields.col;
+      if (fields.row !== undefined) o.row = fields.row;
+      if (o.pathId) {
+        var path = this.data.paths.filter(function (pth) { return pth.id === o.pathId; })[0];
+        if (path && path.points && path.points.length) {
+          o.col = path.points[0].col;
+          o.row = path.points[0].row;
+        }
+      }
+      if (!this.inBounds(o.col, o.row)) return LD.fail('INVALID_FIELD', '对象位置在地图外', []);
+      this.data.terrain.tiles[o.row][o.col] = 0;
+      this.clearSpawnAt(o.col, o.row);
+      this.invalidate();
+      return LD.ok(o);
+    }
+
+    /** 设置 vertical-v1 接口;缺失时创建,已有时只改 col */
+    setPorts(entryCol, exitCol) {
+      if (!isInt(entryCol) || !isInt(exitCol)) {
+        return LD.fail('INVALID_FIELD', '入口/出口 col 必须是整数', []);
+      }
+      var prev = this.data.ports || {};
+      this.data.ports = {
+        profile: 'vertical-v1',
+        entry: Object.assign({}, prev.entry || {}, { col: entryCol }),
+        exit: Object.assign({}, prev.exit || {}, { col: exitCol })
+      };
+      Object.keys(prev).forEach(function (k) {
+        if (k !== 'entry' && k !== 'exit' && k !== 'profile') this.data.ports[k] = prev[k];
+      }, this);
+      this.invalidate();
+      return LD.ok(this.data.ports);
+    }
+
+    clearPorts() {
+      if (!this.data.ports) return LD.ok({ changed: false });
+      this.data.ports = null;
+      this.invalidate();
+      return LD.ok({ changed: true });
+    }
+
+    uniquePathId() {
+      var used = {};
+      (this.data.paths || []).forEach(function (p) { used[p.id] = true; });
+      for (var i = 1; i < 10000; i++) if (!used['path_' + i]) return 'path_' + i;
+      return 'path_' + Date.now().toString(36);
+    }
+
+    addPath(mode, points) {
+      if (mode !== 'loop' && mode !== 'pingpong') {
+        return LD.fail('INVALID_FIELD', '路径模式只能是 loop / pingpong', []);
+      }
+      if (!Array.isArray(points) || points.length < 2) {
+        return LD.fail('INVALID_FIELD', '路径至少需要 2 个点', []);
+      }
+      for (var i = 0; i < points.length; i++) {
+        if (!points[i] || !isInt(points[i].col) || !isInt(points[i].row) ||
+          !this.inBounds(points[i].col, points[i].row)) {
+          return LD.fail('INVALID_FIELD', '路径点必须都在地图内且为整数', []);
+        }
+      }
+      var path = { id: this.uniquePathId(), mode: mode, points: points.map(function (p) { return { col: p.col, row: p.row }; }) };
+      this.data.paths.push(path);
+      this.invalidate();
+      return LD.ok(path);
+    }
+
+    updatePath(id, mode, points) {
+      var path = this.data.paths.filter(function (p) { return p.id === id; })[0];
+      if (!path) return LD.fail('INVALID_FIELD', '找不到路径 ' + id, []);
+      if (mode !== 'loop' && mode !== 'pingpong') return LD.fail('INVALID_FIELD', '路径模式只能是 loop / pingpong', []);
+      if (!Array.isArray(points) || points.length < 2) return LD.fail('INVALID_FIELD', '路径至少需要 2 个点', []);
+      for (var i = 0; i < points.length; i++) {
+        if (!points[i] || !isInt(points[i].col) || !isInt(points[i].row) ||
+          !this.inBounds(points[i].col, points[i].row)) {
+          return LD.fail('INVALID_FIELD', '路径点必须都在地图内且为整数', []);
+        }
+      }
+      path.mode = mode;
+      path.points = points.map(function (p) { return { col: p.col, row: p.row }; });
+      this.invalidate();
+      return LD.ok(path);
+    }
+
+    removePath(id) {
+      var used = this.data.objects.some(function (o) { return o.pathId === id; });
+      if (used) return LD.fail('IN_USE', '路径 ' + id + ' 仍被对象引用,先改掉对象的 pathId', []);
+      var before = this.data.paths.length;
+      this.data.paths = this.data.paths.filter(function (p) { return p.id !== id; });
+      if (this.data.paths.length !== before) this.invalidate();
+      return LD.ok({ removed: before !== this.data.paths.length });
+    }
+
     // ---------- 批量绘制 ----------
     fillRect(c0, r0, c1, r1, ch) {
       var a = Math.min(c0, c1), b = Math.max(c0, c1);
@@ -898,6 +1013,7 @@
       this.resize();
       this.fitView();
       this.syncUI();
+      this.refreshEditorPanels();
       this.assets.loadAll(() => { this.buildPalette(); });
       this.refreshDrafts(true);
       this.loop();
@@ -977,6 +1093,18 @@
       click('btn-copy', () => self.copyJSON());
       click('btn-view-json', () => self.showJSON());
       click('btn-play', () => { self.openPlaytest(); });
+      click('btn-standard', () => { self.openStandardPlaytest(); });
+      click('btn-publish', () => { self.publishCurrent(); });
+      click('btn-ports-apply', () => self.applyPorts());
+      click('btn-ports-clear', () => self.clearPortsUI());
+      click('btn-obj-apply', () => self.applyObjectForm());
+      click('btn-obj-del', () => self.deleteObjectUI());
+      click('btn-path-new', () => self.newPathUI());
+      click('btn-path-apply', () => self.applyPathForm());
+      click('btn-path-del', () => self.deletePathUI());
+      on('obj-list', 'change', () => self.fillObjectForm());
+      on('obj-type', 'change', () => self.fillObjectParams());
+      on('path-list', 'change', () => self.fillPathForm());
       click('btn-draft', () => { self.saveDraft(); });
       click('btn-draft-open', () => self.openSelectedDraft());
       click('btn-draft-refresh', () => self.refreshDrafts());
@@ -1235,6 +1363,7 @@
         this.dirty = true;             // 导入的是工作副本,还没导出
         this.fitView();
         this.syncUI();
+        this.refreshEditorPanels();
         this.workspaceToken++;         // UI 成功提交后才算进入新工作区
         return true;
       } catch (e) {
@@ -1529,6 +1658,274 @@
      * 最后把"当前层 + 下一层开发样例"交给 devplay.html 的新运行时。
      * 不合法接口在这里明确提示,不会降级成旧 TXT。
      */
+    // ================= B2 编辑工具:接口/对象/路径 =================
+    selectedObject() {
+      var sel = this.$('obj-list');
+      var id = sel ? sel.value : '';
+      return id ? this.model.objectById(id) : null;
+    }
+
+    refreshEditorPanels() {
+      if (this._syncingPanels) return;
+      this._syncingPanels = true;
+      try {
+        var model = this.model;
+        var ports = model.data.ports;
+        var entryCol = ports && ports.entry && isInt(ports.entry.col) ? ports.entry.col : null;
+        var exitCol = ports && ports.exit && isInt(ports.exit.col) ? ports.exit.col : null;
+        var pe = this.$('port-entry'), px = this.$('port-exit');
+        if (pe && document.activeElement !== pe) pe.value = entryCol === null ? '' : entryCol;
+        if (px && document.activeElement !== px) px.value = exitCol === null ? '' : exitCol;
+        var note = this.$('ports-note');
+        if (note) note.textContent = ports && entryCol !== null && exitCol !== null
+          ? '接口 vertical-v1:入口 col ' + entryCol + ' / 出口 col ' + exitCol
+          : (ports ? '接口结构损坏;共享校验会报告具体字段' : '接口未设置(ports=null);可在此补上。');
+        var typeSel = this.$('obj-type');
+        if (typeSel) {
+          var cur = typeSel.value;
+          typeSel.innerHTML = '';
+          RA.EntityRegistry.list().forEach(function (e) {
+            var op = document.createElement('option');
+            op.value = e.type; op.textContent = e.name + '(' + e.type + ')';
+            typeSel.appendChild(op);
+          });
+          if (cur) typeSel.value = cur;
+        }
+        var list = this.$('obj-list');
+        if (list) {
+          var keep = list.value;
+          list.innerHTML = '';
+          var o0 = document.createElement('option');
+          o0.value = ''; o0.textContent = '(新对象)';
+          list.appendChild(o0);
+          model.data.objects.forEach(function (o, i) {
+            var op = document.createElement('option');
+            op.value = o.id;
+            op.textContent = (i + 1) + '. ' + o.type + ' @' + o.col + ',' + o.row;
+            list.appendChild(op);
+          });
+          if (keep && model.objectById(keep)) list.value = keep;
+        }
+        [['obj-path', true], ['path-list', false]].forEach(function (spec) {
+          var sel = this.$(spec[0]);
+          if (!sel) return;
+          var keep = sel.value;
+          sel.innerHTML = '';
+          if (spec[1]) {
+            var none = document.createElement('option');
+            none.value = ''; none.textContent = '(无路径)';
+            sel.appendChild(none);
+          }
+          (model.data.paths || []).forEach(function (p) {
+            var op = document.createElement('option');
+            op.value = p.id; op.textContent = p.id + ' · ' + p.mode;
+            sel.appendChild(op);
+          });
+          if (keep && model.data.paths.some(function (p) { return p.id === keep; })) sel.value = keep;
+        }, this);
+        this.fillObjectParams();
+      } finally {
+        this._syncingPanels = false;
+      }
+    }
+
+    fillObjectParams() {
+      var host = this.$('obj-params');
+      var typeSel = this.$('obj-type');
+      if (!host || !typeSel) return;
+      var info = RA.EntityRegistry.get(typeSel.value);
+      var selected = this.selectedObject();
+      var params = selected && selected.type === typeSel.value ? selected.params : null;
+      host.innerHTML = '';
+      if (!info) return;
+      info.params.forEach(function (p) {
+        var row = document.createElement('div');
+        row.className = 'row';
+        var lab = document.createElement('span');
+        lab.className = 'lab'; lab.textContent = p.label;
+        var input = document.createElement('input');
+        input.type = 'number'; input.min = p.min; input.max = p.max; input.step = 'any';
+        input.value = params && params[p.name] !== undefined ? params[p.name] : p.def;
+        input.dataset.param = p.name;
+        var unit = document.createElement('span');
+        unit.className = 'unit'; unit.textContent = p.unit || '';
+        row.appendChild(lab); row.appendChild(input); row.appendChild(unit);
+        host.appendChild(row);
+      });
+      var pathSel = this.$('obj-path');
+      if (pathSel && selected) pathSel.value = selected.pathId || '';
+    }
+
+    fillObjectForm() {
+      var o = this.selectedObject();
+      if (!o) { this.refreshEditorPanels(); return; }
+      var t = this.$('obj-type'); if (t) t.value = o.type;
+      var c = this.$('obj-col'), r = this.$('obj-row');
+      if (c) c.value = o.col;
+      if (r) r.value = o.row;
+      this.fillObjectParams();
+      this.refreshEditorPanels();
+    }
+
+    applyObjectForm() {
+      var type = this.$('obj-type') ? this.$('obj-type').value : '';
+      var col = parseInt(this.$('obj-col') ? this.$('obj-col').value : '', 10);
+      var row = parseInt(this.$('obj-row') ? this.$('obj-row').value : '', 10);
+      if (isNaN(col) || isNaN(row)) { this.say('对象 col/row 必须是整数', 'bad'); return false; }
+      var params = {};
+      var host = this.$('obj-params');
+      if (host && host.querySelectorAll) {
+        Array.prototype.forEach.call(host.querySelectorAll('input[data-param]'), function (inp) {
+          var v = Number(inp.value);
+          if (isFinite(v)) params[inp.dataset.param] = v;
+        });
+      }
+      var pathSel = this.$('obj-path');
+      var pathId = pathSel && pathSel.value ? pathSel.value : null;
+      this.pushUndo();
+      var selected = this.selectedObject();
+      var res;
+      if (selected) {
+        res = this.model.updateObject(selected.id, { type: type, col: col, row: row, params: params, pathId: pathId });
+      } else {
+        res = this.model.placeObject(type, col, row);
+        if (res.ok) res = this.model.updateObject(res.value.id, { params: params, pathId: pathId });
+      }
+      if (!res.ok) { this.popUndo(); this.say('对象保存失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
+      this.markDirty(); this.syncUI(); this.say('对象已更新(可撤销)');
+      return true;
+    }
+
+    deleteObjectUI() {
+      var o = this.selectedObject();
+      if (!o) { this.say('先选择一个对象', 'bad'); return false; }
+      this.pushUndo(); this.model.removeObject(o.id);
+      this.markDirty(); this.syncUI(); this.say('对象已删除(可撤销)');
+      return true;
+    }
+
+    applyPorts() {
+      var e = parseInt(this.$('port-entry') ? this.$('port-entry').value : '', 10);
+      var x = parseInt(this.$('port-exit') ? this.$('port-exit').value : '', 10);
+      this.pushUndo();
+      var res = this.model.setPorts(e, x);
+      if (!res.ok) { this.popUndo(); this.say('接口保存失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
+      this.markDirty(); this.syncUI(); this.say('接口已保存;试玩/发布前共享校验会检查开口和安全区');
+      return true;
+    }
+
+    clearPortsUI() {
+      if (!this.model.data.ports) { this.say('本来就没有接口', 'warn'); return false; }
+      this.pushUndo(); this.model.clearPorts(); this.markDirty(); this.syncUI();
+      this.say('接口已清空(可撤销)', 'warn');
+      return true;
+    }
+
+    parsePathPoints() {
+      var ta = this.$('path-points');
+      var out = [];
+      String(ta ? ta.value : '').split(/\r?\n/).forEach(function (line) {
+        if (!line.trim()) return;
+        var m = line.split(',');
+        var c = parseInt(m[0], 10), r = parseInt(m[1], 10);
+        if (!isNaN(c) && !isNaN(r)) out.push({ col: c, row: r });
+      });
+      return out;
+    }
+
+    newPathUI() {
+      var mode = this.$('path-mode') ? this.$('path-mode').value : 'loop';
+      var points = this.parsePathPoints();
+      if (points.length < 2) { this.say('先填至少两行 col,row', 'bad'); return false; }
+      this.pushUndo();
+      var res = this.model.addPath(mode, points);
+      if (!res.ok) { this.popUndo(); this.say('新建路径失败:' + res.error.message, 'bad'); return false; }
+      this.markDirty(); this.syncUI(); this.say('已新建路径 ' + res.value.id + '(可撤销)');
+      return true;
+    }
+
+    applyPathForm() {
+      var sel = this.$('path-list');
+      var id = sel ? sel.value : '';
+      if (!id) { this.say('先选择路径;新路径用「新建路径」', 'bad'); return false; }
+      var mode = this.$('path-mode') ? this.$('path-mode').value : 'loop';
+      this.pushUndo();
+      var res = this.model.updatePath(id, mode, this.parsePathPoints());
+      if (!res.ok) { this.popUndo(); this.say('路径保存失败:' + res.error.message, 'bad'); return false; }
+      this.markDirty(); this.syncUI(); this.say('路径已更新(可撤销)');
+      return true;
+    }
+
+    fillPathForm() {
+      var sel = this.$('path-list');
+      var id = sel ? sel.value : '';
+      var path = this.model.data.paths.filter(function (p) { return p.id === id; })[0];
+      if (!path) return;
+      var mode = this.$('path-mode'); if (mode) mode.value = path.mode;
+      var ta = this.$('path-points');
+      if (ta) ta.value = path.points.map(function (p) { return p.col + ',' + p.row; }).join('\n');
+    }
+
+    deletePathUI() {
+      var sel = this.$('path-list');
+      var id = sel ? sel.value : '';
+      if (!id) { this.say('先选择路径', 'bad'); return false; }
+      this.pushUndo();
+      var res = this.model.removePath(id);
+      if (!res.ok) { this.popUndo(); this.say('不能删除:' + res.error.message, 'bad'); return false; }
+      this.markDirty(); this.syncUI(); this.say('路径已删除(可撤销)');
+      return true;
+    }
+
+    async openStandardPlaytest() {
+      var rules = RA.RULES || {};
+      var issues = LD.validate(this.model.data, {
+        purpose: 'publish',
+        rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
+      });
+      var errors = LD.errorsOf(issues).filter(function (e) {
+        // 标准试玩前本来就允许没有认证;只拦结构/接口/规则内容错误
+        return String(e.path || '').indexOf('/certification') !== 0;
+      });
+      if (errors.length) {
+        this.say('现在不能标准试玩:[' + errors[0].code + '] ' + errors[0].path + ' ' + errors[0].message, 'bad');
+        return false;
+      }
+      var token = this.workspaceToken;
+      var snapshot = this.model.toData();
+      var saved = await this.saveDraft({ silent: true });
+      if (token !== this.workspaceToken) { this.say('保存期间切图,已取消标准试玩', 'warn'); return false; }
+      if (!saved) { this.say('草稿保存失败,没有开始标准试玩', 'bad'); return false; }
+      if (this.dirty) { this.say('保存期间又有改动,先再保存一次', 'warn'); return false; }
+      var enc = LD.encode(snapshot);
+      if (!enc.ok) { this.say('标准试玩快照编码失败:' + enc.error.message, 'bad'); return false; }
+      var handoff = {
+        version: 1, from: 'editor', template: JSON.parse(enc.value),
+        draftId: this.draftId, revision: this.draftRevision,
+        contentHash: LD.hashSync(snapshot),
+        rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint,
+        profile: 'standard-v1'
+      };
+      try { sessionStorage.setItem('RA_STANDARD_V1', JSON.stringify(handoff)); }
+      catch (e) { this.say('浏览器不允许暂存标准试玩数据', 'bad'); return false; }
+      this.say('正在打开标准试玩(无光环、冷却 20 秒)…');
+      if (location) location.href = 'standard.html';
+      return true;
+    }
+
+    async publishCurrent() {
+      if (!this.repo) { this.say('没有草稿/发布库', 'bad'); return false; }
+      if (!this.draftId) { this.say('先保存草稿并标准试玩通关', 'bad'); return false; }
+      var cert = this.model.data.certification;
+      if (!cert) { this.say('还没有标准试玩认证;先点「标准试玩」实际通关', 'bad'); return false; }
+      var res = await this.repo.publish({ draftId: this.draftId, expectedRevision: this.draftRevision, receipt: cert });
+      if (!res.ok) { this.say('发布失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
+      var ps = this.$('publish-status');
+      if (ps) ps.textContent = '已发布 ' + res.value.levelId + ' @ ' + res.value.contentHash.slice(0, 18) + '…';
+      this.say('已发布到本地正式池;正式短塔可抽到');
+      return true;
+    }
+
     async openPlaytest() {
       var issues = LD.validate(this.model.data, { purpose: 'play' });
       var errors = LD.errorsOf(issues);

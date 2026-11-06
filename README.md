@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**B1-R1 已修复（2026-11-06，待集中复验）。** 已接通编辑 → 浏览器草稿 → 刷新找回 → 开发试玩 → 两层连续攀爬 → 暂停；异步保存/读取/试玩不再丢新工作或错误绑定草稿，暂停菜单重开也清遮罩。游戏主菜单仍是旧原型，试玩是开发入口；B1 复验通过后做 B2 完整 PC 短塔，再 B3 安卓。当前事实见 [STATUS.md](STATUS.md)，证据见 [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
+**B2 已交付（2026-11-06，待集中复验）：PC 短塔（大厅→3 普通层→休整→两阶段 Boss）、生命/光环/六类对象、编辑器接口/参数/路径工具、标准试玩认证与本地发布抽选。** 旧 `index.html` 仍是原型；新入口是 `short.html`。开发短塔用未认证模板可直接试玩；正式短塔只抽已认证并发布的普通层，当前干净环境里正式池为空。标准试玩认证必须由作者实际通关，不伪造人工通关。下一批 B3 安卓。当前事实见 [STATUS.md](STATUS.md)，证据见 [B2 交付记录](docs/checks/B2-2026-11-06.md)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
@@ -16,9 +16,9 @@
 
 ### 最快启动
 
-双击根目录 `index.html` 打开旧原型游戏；双击 `editor.html` 打开编辑器；双击 `devplay.html` 直接打开连续两层开发试玩。
+双击根目录 `index.html` 打开旧原型游戏；双击 `short.html` 打开 PC 短塔；双击 `editor.html` 打开编辑器；`devplay.html` 是 B1 两层开发试玩；`standard.html` 由编辑器的「标准试玩」进入。
 
-`file://` 模式主要读取 `levels/levels.js` 与 `js/dev-samples.js` 的内嵌数据。编辑器的 JSON 导入导出走浏览器文件选择/下载；**导出只发起下载，不会写进 `levels/`**。编辑器「保存草稿」写浏览器 IndexedDB，刷新后可找回；草稿不发布、不改旧正式池。
+`file://` 模式主要读取 `levels/levels.js`、`js/dev-samples.js`、`js/b2-samples.js` 的内嵌数据。编辑器的 JSON 导入导出走浏览器文件选择/下载；**导出只发起下载，不会写进 `levels/`**。编辑器「保存草稿」写浏览器 IndexedDB，刷新后可找回；草稿与正式发布池都只存在本地浏览器。
 
 ### 本地 HTTP 启动（开发推荐）
 
@@ -32,6 +32,7 @@ python -m http.server 8000 --bind 127.0.0.1
 然后打开：
 
 - 旧原型游戏：<http://127.0.0.1:8000/index.html>
+- PC 短塔：<http://127.0.0.1:8000/short.html>
 - 编辑器：<http://127.0.0.1:8000/editor.html>
 - 开发试玩（两层）：<http://127.0.0.1:8000/devplay.html>
 - 浏览器检查：<http://127.0.0.1:8000/tests/browser.html>
@@ -50,24 +51,23 @@ node tools/sync_levels.mjs
 
 | 操作 | 按键或入口 |
 |---|---|
-| 左右移动 | `A` / `D` 或左右方向键 |
-| 跳跃、二段跳 | `Space` / `W` / 上方向键；空中再次按下可二段跳 |
-| 开始游戏 | 标题界面 `Space` / `Enter` |
-| 打开设置 | 标题界面的齿轮或 `Esc` |
-| 重构塔 | 设置中 `R` |
-| 打开编辑器 | 设置中 `E`，或直接打开 `editor.html` |
-| 导入旧关卡 | 设置中 `I`，目前接受 TXT / JSON |
-| 返回标题 | 游戏中 `Esc`；当前不是暂停恢复 |
+| 进入 PC 短塔 | 打开 `short.html`,选「开发短塔」或「正式短塔」 |
+| 短塔移动 / 跳跃 | `A`/`D` 或左右方向键；`Space`/`W`/上方向键(可二段跳) |
+| 光环技能 | `K`；持续 14 秒,从施放起冷却 20 秒,开局可用 |
+| 交互(预留) | `E`；B2 没有可交互物 |
+| 暂停 / 恢复 | `P` 或 `Esc`；暂停冻结模拟 |
+| 死亡 / 重试 | 回大厅/重试同一座塔;不会重新抽选 |
 | 编辑器工具 | `B` 画笔、`E` 橡皮、`R` 矩形、`F` 填充、`K` 吸管 |
 | 编辑器撤销 / 重做 | `Ctrl+Z` / `Ctrl+Shift+Z`（整份 LevelData,对象/路线/元信息一起） |
 | 编辑器导出 JSON | `Ctrl+S` 或「导出 JSON」；只发起浏览器下载 |
 | 编辑器打开 / 导入 | 「打开 JSON…」读 v2；「导入旧图…」把 TXT/旧 JSON 迁移成草稿 |
 | 编辑器草稿 | 「保存草稿」写 IndexedDB；下拉选择后「打开草稿」；刷新后可找回 |
-| 编辑器开发试玩 | 「▶ 开发试玩(两层)」；先按 play 校验接口/出生点，保存草稿后进入新运行时 |
-| 开发试玩移动 / 跳跃 | `A`/`D` 或左右方向键；`Space`/`W`/上方向键(可二段跳) |
-| 开发试玩暂停 / 重开 | `P` 或 `Esc` 暂停；「继续」恢复(不追算暂停时间)；`R` 重开 |
+| 编辑器开发试玩 | 「▶ 开发试玩(两层)」；先按 play 校验，保存草稿后进入新运行时 |
+| 编辑器 B2 工具 | 接口 col、对象类型/参数、路径点/loop/pingpong、删除引用保护 |
+| 标准试玩 / 发布 | 「标准试玩」从生成入口真实通关 → 认证写回草稿；「发布」把匹配草稿入本地正式池 |
+| 旧原型游戏 | 标题界面 `Space`/`Enter`、设置中 `E` 等旧操作仍只属于 `index.html` |
 
-旧主菜单仍有 3～24 层、镜像、淡出换层、坠落回本层起点；这些是待迁移的旧行为。B1 的新运行时是 `devplay.html`：两层、可变宽高、接口对齐、同一玩家连续攀爬；没有伤害、敌人、技能或 Boss，也没有认证发布。编辑器的导出格式是 v2 JSON，旧 `play.html` 只认 TXT，所以不走旧试玩。
+旧主菜单仍有 3～24 层、镜像、淡出换层、坠落回本层起点；这些是待迁移的旧行为。B2 的新入口 `short.html` 用 `short-v1`：大厅 → 3 个普通层 → 休整 → 两阶段 Boss；正式池只抽已认证普通层，固定大厅/休整/Boss 来自 `levels/b2/`。开发短塔使用未认证模板,不生成认证。标准试玩（`standard-v1`）无光环、技能冷却 20 秒、必须从生成入口真实过关。编辑器导出仍是 v2 JSON，旧 `play.html` 只认 TXT，所以不走旧试玩。
 
 ## 检查方法
 
@@ -87,13 +87,15 @@ node tools/test_leveldata.mjs
 node tools/test_t01r.mjs
 node tools/test_world_session.mjs
 node tools/test_b1r.mjs
+node tools/test_b2.mjs
 node tools/browser_t02a.mjs
 node tools/browser_t02a_r.mjs
 node tools/browser_b1.mjs
+node tools/browser_b2.mjs
 node tools/check_levels.mjs
 ```
 
-`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。`test_world_session.mjs` 用四层夹具验证 n−1/n/n+1 生命周期、跨层与暂停；`test_b1r.mjs` 用可控 Promise 验证异步保存/读取/试玩不丢工作；`browser_t02a*.mjs`/`browser_b1.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`），用 headless + DevTools 做真实鼠标/键盘/下载；B1 脚本验证编辑保存→刷新恢复→试玩跨层→暂停恢复。
+`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。`test_world_session.mjs` 用四层夹具验证 n−1/n/n+1 生命周期、跨层与暂停；`test_b1r.mjs` 用可控 Promise 验证异步保存/读取/试玩不丢工作；`test_b2.mjs` 验证生命/光环/六类对象/休整/Boss/抽选/发布/编辑工具；`browser_b2.mjs` 走短塔与编辑器工具的真实页面。`browser_t02a*.mjs`/`browser_b1.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`），用 headless + DevTools 做真实鼠标/键盘/下载；B1 脚本验证编辑保存→刷新恢复→试玩跨层→暂停恢复。
 
 2026-10-30 在本次会话实测的完整自检基线：
 
@@ -108,6 +110,10 @@ node tools/check_levels.mjs
 
 2026-11-04 B1 主体实测：完整 1224/4（原有 floor09/floor11），浏览器 21/0。2026-11-06 B1-R1 修复后：`node tools/test_b1r.mjs` 为 **24 PASS / 0 FAIL**，完整 `node tools/test_all.mjs` 为 **1248 PASS / 4 FAIL，退出码 1**（引擎 595/4、编辑器 225/0、贴图 126/0、数据 139/0、修复自检 98/0、世界/会话 41/0、B1-R1 24/0）；`node tools/browser_b1.mjs` 为 **25 PASS / 0 FAIL**（Chrome 156 headless；新增暂停菜单重开遮罩检查）。4 条失败仍是 floor09/floor11 旧诊断，本批未修、未跳过。证据：[B1 交付记录](docs/checks/B1-2026-11-04.md)、[B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md)。
 
+2026-11-06 独立复验完整自检仍为 **1248/4、退出码 1**，原三种异步场景与 N02 已关闭，B1 工程验收通过；浏览器 25/0 为交付方证据，Independent Chrome/Edge 未启动，详见 [独立报告](docs/checks/review-B1R1-2026-11-06.md)。
+
+2026-11-06 B2 实测：`node tools/test_all.mjs` 为 **1334 PASS / 4 FAIL，退出码 1**（引擎 603/4、编辑器 225/0、贴图 126/0、数据 139/0、修复自检 98/0、世界/会话 41/0、B1-R1 24/0、B2 78/0）；`node tools/browser_b2.mjs` 为 **23 PASS / 0 FAIL**（Chrome headless：开发短塔、光环、暂停、跨层、死亡重试、编辑器接口/对象/路径、标准试玩页）。4 条失败仍是 floor09/floor11 旧诊断。证据见 [B2 交付记录](docs/checks/B2-2026-11-06.md)。
+
 历史：T01-R 复验为 1188/4；T02A 为 1089/4；T02A-R 为 1143/4。编辑器测试数变化来自旧 TXT/旧池断言被替换与新增草稿/试玩回归，不是删断言凑数。
 
 迁移工具 `tools/migrate_levels.mjs` 现在是“先规划后写入”：`--in` 与 `--out` 相同（含大小写/别名）、输出 id 碰撞、报告落到源文件上都会在写入前失败；内容不同的既有输出默认不覆盖，需显式 `--force`。报告必须放在输入目录之外，例如默认的 `docs/checks/`。本次没有重写已交付的 `levels/v2/`（12 张全部幂等跳过）。
@@ -118,36 +124,39 @@ node tools/check_levels.mjs
 
 1. 打开游戏，检查左右移动、短跳、二段跳、单向平台与弹簧。
 2. 通过出口，观察旧版淡出换层；坠落后观察回本层起点。
-3. 编辑器「打开 JSON…」载入 [开发样例 A](levels/dev/floor-a.json)，改一笔，点「保存草稿」；刷新页面，在草稿下拉里找回并「打开草稿」。
-4. 点「▶ 开发试玩(两层)」，用 `A/D` + `Space` 二段跳穿过顶部虚线开口；HUD 应变成第 2/2 层，再按 `P` 暂停、等几秒点「继续」，模拟时间不应跳一大段。
-5. 也可直接打开 `devplay.html`，玩内置样例 A+B。
+3. 打开 `short.html`，点「开发短塔(未认证模板)」；用 `A/D` + `Space` 爬大厅/普通层，按 `K` 看 14/20 秒光环，暂停/恢复，死亡后「重试同一座塔」。
+4. 编辑器「打开 JSON…」载入 [普通层模板](levels/b2/normal-1.json)，改接口/对象/路径，保存草稿；刷新找回。
+5. 点「标准试玩」从生成入口真实通关；通关后回到编辑器打开该草稿，点「发布」，再打开 `short.html` 点「正式短塔」。**这一步必须由作者实际完成，自动化不会代打生成认证。**
 6. 打开浏览器开发者工具，记录异常、复现步骤和所在关卡。
 
-B1 主链路已用真实 Chrome headless 跑过 25/25（截图与 JSON 在 [B1 交付记录](docs/checks/B1-2026-11-04.md) 与 [B1-R1 记录](docs/checks/B1-R1-2026-11-06.md)）；系统文件选择对话框、真实双窗口并发、真实手感、安卓与性能仍未人工验证，见“当前重要限制”。
+B2 页面已用真实 Chrome headless 跑过 23/23（截图与 JSON 在 [B2 交付记录](docs/checks/B2-2026-11-06.md)）；标准试玩实际通关/人工认证、完整短塔手感、系统文件选择对话框、真实双窗口并发、安卓与性能仍未人工验证，见“当前重要限制”。
 
-## 开发样例与编辑器现状
+## 开发样例、短塔与编辑器现状
 
 - [levels/dev/floor-a.json](levels/dev/floor-a.json)：14×8，出生点在平台，出口 col=5；二段跳可穿过顶部开口。直接 `devplay.html` 时它是下层。
 - [levels/dev/floor-b.json](levels/dev/floor-b.json)：10×5，入口 col=2、出口 col=4；与 A 不同宽高、接口偏置。直接 `devplay.html` 时它是上层。
 - [levels/demo/t02a-demo.json](levels/demo/t02a-demo.json)：未认证 T02A 演示草稿，含未知对象/路线/extensions，`ports=null`，只能编辑，不能试玩/发布。
+- `levels/b2/lobby.json`、`normal-1/2/3.json`、`rest.json`、`boss.json`：B2 开发短塔的 6 层固定/普通模板，全部**未认证**；`js/b2-samples.js` 由 `node tools/sync_b2_levels.mjs` 生成。
 - `js/dev-samples.js` 由 `node tools/sync_dev_levels.mjs` 从 `levels/dev/*.json` 生成；测试会检查同步。开发样例不进 `levels/levels.js`、不进正式池。
 
 编辑器已经做到：完整 LevelData 为唯一真值；画地块/出生点/S·x·y 机关；同格同类机关幂等；撤销/重做整份数据（100 步 / 32 MiB）；结构错误导入零替换；IndexedDB 草稿保存/打开/刷新恢复/revision 冲突；缩图先算影响并在候选副本上做容量预检，失效接口完整存进 `extensions.retiredPorts`；「开发试玩(两层)」走新 GameSession。
 
-新运行时 `devplay.html`：两层不同宽高、接口对齐、同一玩家连续攀爬；当前层完整模拟，下一层预热（不攻击），上一层只保留地形快照到再上一层；脚底过线一次只提交一次；底边梯板防回落；`P/Esc` 暂停冻结、恢复不追算。**没有**伤害、敌人、技能、Boss、认证发布或安卓。
+B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害 20、1 秒无敌；光环 `K` 14 秒/冷却 20 秒、跨层保留、暂停冻结、命中 Boss 消耗本次光环；六类对象（弹簧/门/浮石/火球/地刺/齿轮）实际运行；下一层预热不攻击、上一层地形到再上一层才释放；休整首次回复 40；两阶段 Boss（护盾→暴露→下一阶段/击败），暴露停攻清场；死亡/异常越界回大厅并重试同一座塔。`devplay.html` 仍保留 B1 两层开发试玩。
 
 ## 当前重要限制
 
 - B1-R1 已修：保存/读取/试玩回包会核对工作区令牌与内容 hash；保存/读取期间编辑或切图不会丢新工作、不会错误绑定草稿，试玩不会带未保存内容离开。真实双窗口并发仍未浏览器自动化验证。暂停菜单重开已清遮罩（N02）。
-- B1 是开发试玩，不是正式发布：没有伤害/敌人/技能/Boss，没有认证/发布；开发样例未认证、不进正式池。
-- 没有端口编辑：编辑器不能改接口；没有接口的草稿试玩会被明确拒绝。缩图退役接口只保存到 `extensions.retiredPorts`，修复入口仍未做（T04 后续）。
-- 两层是默认样例；四层只用于 Node 生命周期夹具。编辑器试玩的下一层固定为开发样例 B，不是可配置塔。
+- B2 已实现生命/光环/六类对象/休整/两阶段 Boss/标准试玩/本地发布抽选；没有安卓、40 层、遗物/NPC/联网。
+- **标准试玩实际通关与人工认证尚未由作者/用户完成**。干净环境的正式池为空；自动化不代打、不伪造 passed。开发短塔使用未认证模板。
+- 固定大厅/休整/Boss 场景与三个普通模板是首版开发数据，未经过真人完整通关调参；Boss/伤害/接口数值是提案初值，可能需按实测调整。
+- 正式池与认证只存在当前浏览器 IndexedDB;换浏览器/清站点数据会丢，发布不是服务器/商店发布。
+- 草稿/发布冲突只做了 Node 双实例与隔离浏览器;真实双窗口并发、系统文件选择对话框未自动验证。
 - 草稿冲突有 Node 双实例回归；真实浏览器只验证了保存→刷新恢复，没有自动双窗口冲突复现。
 - 刷新不会恢复**未保存**改动（保存草稿后才恢复）；导出只发起下载，没有“已写入磁盘”的确认。
-- 对象只能摆 `S/x/y`（弹簧/门方块/浮石）；火球、地刺、齿轮还没有参数面板/路径绘制/运行行为，演示 JSON 里的这些对象只是保留数据。
-- `verified` 未构成可靠发布门槛；旧正式池仍可能抽到未验证关卡；`monsters.js` 只是参数表雏形。
-- 当前种子依赖关卡池顺序与内容，不承诺修改池后仍重现旧塔。
-- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 `9f2a4e3`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
+- 编辑器已能编辑六类对象参数/路径/接口，但路径工具是首版列表编辑器,不是可视化拖点;未知/不支持的旧内容仍可能阻止标准试玩/发布(会明确报错)。
+- 旧原型主菜单的 `verified`/旧池逻辑保留在 `index.html`，不是 B2 正式池；B2 正式池只认本地已认证发布。
+- 旧 `floor09/floor11` 自动可达性诊断仍失败，未改旧图；这不代表 B2 短塔人工不可通。
+- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 `9f2a4e3`、B2 见下方提交记录。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
 
 ## 文档与目录
 
@@ -163,10 +172,14 @@ B1 主链路已用真实 Chrome headless 跑过 25/25（截图与 JSON 在 [B1 �
 | [美术资产接入](docs/art/asset-integration.md) | 当前图片路径、替换规格、角色/图集接线、素材生成与测试注意项 |
 | [B1 交付记录](docs/checks/B1-2026-11-04.md) | 草稿/会话/连续楼层/A3-C 的证据与未测项 |
 | [B1-R1 交付记录](docs/checks/B1-R1-2026-11-06.md) | 异步保存/读取/试玩与 N02 的修复证据 |
+| [B2 交付记录](docs/checks/B2-2026-11-06.md) | 短塔/战斗/Boss/发布/调参与未测项 |
 | `js/` | 引擎、旧游戏、编辑器、草稿仓库、World/GameSession、开发试玩代码 |
-| `devplay.html` | 连续两层开发试玩入口（新 GameSession） |
+| `short.html` | B2 PC 短塔入口(开发/正式) |
+| `standard.html` | 标准试玩(由编辑器进入) |
+| `devplay.html` | 连续两层开发试玩入口(新 GameSession) |
 | `levels/` | 当前 12 张内置 JSON、模板和生成副本 |
 | `levels/dev/` | 两张开发样例（A/B，未认证，不进正式池） |
+| `levels/b2/` | B2 开发短塔 6 层模板（未认证） |
 | `levels/demo/t02a-demo.json` | T02A 未认证演示草稿（完整 LevelData，含未知对象） |
 | `levels/v2/` | 12 张旧图的未认证迁移草稿（ports=null） |
 | `assets/` | 当前贴图 |

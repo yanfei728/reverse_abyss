@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>reverse_abyss · PC 短塔</title>
+<style>
+  html,body{margin:0;height:100%;background:#05060c;color:#cfd8ea;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;overflow:hidden}
+  #app{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #wrap{position:relative;width:min(100vw,177.78vh);aspect-ratio:16/9}
+  #short-canvas{display:block;width:100%;height:100%;background:#05060c;image-rendering:pixelated;outline:none}
+  #menu{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#141b2f 0,#05060c 70%);z-index:8}
+  #menu .box{width:min(620px,86%);background:rgba(12,16,28,.92);border:1px solid #2c3752;border-radius:14px;padding:22px 24px}
+  #menu h1{margin:0 0 6px;font-size:24px}
+  #menu p{color:#9fb0cc;font-size:13px;line-height:1.7}
+  #menu button{font:inherit;font-size:14px;margin:6px 6px 0 0;padding:9px 14px;border-radius:9px;border:1px solid #40557f;background:#1d283d;color:#e8eefb;cursor:pointer}
+  #menu button:hover{border-color:#7ea7e8}
+  #menu-status{min-height:1.4em;color:#ffd98a;font-size:12.5px}
+  #hud{position:absolute;left:12px;top:10px;right:12px;display:none;align-items:center;gap:12px;font-size:12.5px;pointer-events:none;z-index:4}
+  #hpbar{width:180px;height:14px;border:1px solid #2c3752;border-radius:8px;background:#170c0c;overflow:hidden}
+  #hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#e05c4a,#ff9c8a);transition:width .12s}
+  .hudbox{background:rgba(8,11,20,.72);border:1px solid #26324a;border-radius:8px;padding:5px 9px;color:#dfe7f5}
+  #controls{position:absolute;right:12px;bottom:10px;display:flex;gap:6px;z-index:5}
+  #controls button,#controls a{font:inherit;font-size:12px;color:#cfd8ea;background:#121a2b;border:1px solid #2c3752;border-radius:8px;padding:5px 9px;text-decoration:none;cursor:pointer}
+  #pause-overlay,#result-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,6,12,.74);z-index:7}
+  #pause-overlay .box,#result-overlay .box{background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:20px 24px;text-align:center;min-width:280px}
+  #pause-overlay h2,#result-overlay h2{margin:0 0 8px;font-size:20px}
+  #pause-overlay p,#result-overlay p{color:#9fb0cc;font-size:12.5px;line-height:1.7}
+  #pause-overlay button,#result-overlay button{font:inherit;margin:6px 4px 0;padding:7px 14px;border-radius:8px;background:#1d283d;color:#e8eefb;border:1px solid #40557f;cursor:pointer}
+  #help{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#7787a6;background:rgba(8,11,20,.6);border-radius:8px;padding:4px 9px;z-index:3}
+</style>
+</head>
+<body>
+<div id="app"><div id="wrap">
+  <canvas id="short-canvas" width="960" height="540"></canvas>
+  <div id="hud">
+    <div class="hudbox">生命 <span id="hp-text">100/100</span></div>
+    <div id="hpbar"><div id="hp-fill"></div></div>
+    <div class="hudbox" id="halo-text">光环就绪 (K)</div>
+    <div class="hudbox" id="floor-text">第 1/6 层</div>
+    <div class="hudbox" id="boss-text"></div>
+  </div>
+  <div id="help">A/D 移动 · Space 跳(二段) · K 光环 · P/Esc 暂停 · E 交互(预留)</div>
+  <div id="controls">
+    <button id="btn-pause">暂停</button>
+    <button id="btn-restart">重开本塔</button>
+    <a href="editor.html">编辑器</a>
+  </div>
+  <div id="menu">
+    <div class="box">
+      <h1>短塔 · PC 试玩</h1>
+      <p>目标:大厅 → 三个普通层 → 休整 → 两阶段 Boss。死亡/异常越界回大厅,重试同一座塔;
+        只有编辑器里的<b>标准试玩</b>通关并发布的内容才会进入正式池。</p>
+      <p id="menu-status"></p>
+      <button id="btn-dev">开发短塔(未认证模板)</button>
+      <button id="btn-formal">正式短塔(已认证发布)</button>
+      <p style="margin-top:14px">开发短塔使用 <code>levels/b2/</code> 的未认证模板,不会写入正式池,也不会生成认证回执。</p>
+    </div>
+  </div>
+  <div id="pause-overlay"><div class="box">
+    <h2>已暂停</h2><p id="pause-reason">手动暂停</p>
+    <button id="btn-resume">继续</button><button id="btn-menu-pause">回大厅</button>
+  </div></div>
+  <div id="result-overlay"><div class="box">
+    <h2 id="result-title">结果</h2><p id="result-text"></p>
+    <button id="btn-retry">重试同一座塔</button><button id="btn-menu">回大厅</button>
+  </div></div>
+</div></div>
+
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/text.js"></script>
+<script src="js/level.js"></script>
+<script src="js/entity-registry.js"></script>
+<script src="js/level-data.js"></script>
+<script src="js/legacy-import.js"></script>
+<script src="js/entities/base.js"></script>
+<script src="js/entities/player.js"></script>
+<script src="js/entities/goal.js"></script>
+<script src="js/entities/spring.js"></script>
+<script src="js/entities/ghost.js"></script>
+<script src="js/entities/blink.js"></script>
+<script src="js/monsters.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/tower.js"></script>
+<script src="js/levelpack.js"></script>
+<script src="js/content-repository.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/world.js"></script>
+<script src="js/session.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/tower-planner.js"></script>
+<script src="js/reach.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script src="js/smoke.js"></script>
+<script src="levels/levels.js"></script>
+<script src="js/dev-samples.js"></script>
+<script src="js/b2-samples.js"></script>
+<script src="js/short.js"></script>
+</body>
+</html>

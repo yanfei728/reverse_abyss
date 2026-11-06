@@ -1,0 +1,3 @@
+启动失败:C:\Program Files\Google\Chrome\Application\chrome.exe — DevTools 端口没有起来(C:\Program Files\Google\Chrome\Application\chrome.exe)
+启动失败:C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe — DevTools 端口没有起来(C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe)
+所有浏览器都起不来:DevTools 端口没有起来(C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe)

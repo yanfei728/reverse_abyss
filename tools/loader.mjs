@@ -40,14 +40,18 @@ export const ENGINE = [
   'js/tower.js',
   'js/levelpack.js',
   'js/content-repository.js',
+  'js/rules.js',
   'js/world.js',
   'js/session.js',
+  'js/boss.js',
+  'js/tower-planner.js',
   'js/reach.js',
   'js/ui.js',
   'js/game.js',
   'js/smoke.js',
   'levels/levels.js',
-  'js/dev-samples.js'
+  'js/dev-samples.js',
+  'js/b2-samples.js'
 ];
 
 // ---------------- canvas / DOM 替身 ----------------
@@ -275,6 +279,12 @@ export const PLAYTEST_SCRIPTS = ENGINE.concat(['js/playtest.js']);
 
 /** 开发试玩页 = 引擎 + js/devplay.js(顺序和 devplay.html 一致) */
 export const DEVPLAY_SCRIPTS = ENGINE.concat(['js/devplay.js']);
+
+/** PC 短塔 = 引擎 + js/short.js */
+export const SHORT_SCRIPTS = ENGINE.concat(['js/short.js']);
+
+/** 标准试玩 = 引擎 + js/standard.js */
+export const STANDARD_SCRIPTS = ENGINE.concat(['js/standard.js']);
 
 /**
  * 额外把关卡编辑器也装进来(自检编辑器用)。
