@@ -8,7 +8,7 @@
  *   · document / Image / requestAnimationFrame 都有,但不连真屏幕
  * 于是所有逻辑(物理、塔、关卡解析、绘制调用)都能在命令行里验证。
  *
- * 这里的脚本顺序必须和 index.html 里的 <script> 顺序一致。
+ * 这里的脚本顺序必须和 legacy.html 里的 <script> 顺序一致(index.html 只做默认跳转)。
  */
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
