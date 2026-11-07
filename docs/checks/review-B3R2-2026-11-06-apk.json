@@ -1,0 +1,31 @@
+{
+  "apk": "C:\\Users\\beilu\\Documents\\blwork\\reverse_abyss\\docs\\checks\\B3-reverse-abyss-0.3.2-debug.apk",
+  "bytes": 4553627,
+  "sha256": "6DFDAE1D8081A8AF95D4E572E81294D54F96461860673ADCD3CC170E802A502E",
+  "checks": [
+    {
+      "entry": "assets/public/index.html",
+      "source": "www/index.html",
+      "sha256": "E9207D2BB16313651197B59523892821513906647A21CA47A823795611638BC2",
+      "matches": true
+    },
+    {
+      "entry": "assets/public/js/short.js",
+      "source": "js/short.js",
+      "sha256": "2D197FD7D09D1E99DB1B049EA6AA1237F3117BFE980819851F44AA529BB59337",
+      "matches": true
+    },
+    {
+      "entry": "assets/public/js/platform/action-input.js",
+      "source": "js/platform/action-input.js",
+      "sha256": "0E0459BFEC0E695DA047E5B7EE0A0F9EF2C5DDE857D28BC0D426EA1AF7617962",
+      "matches": true
+    },
+    {
+      "entry": "assets/public/js/content-repository.js",
+      "source": "js/content-repository.js",
+      "sha256": "107C79B3E8AC1AA2813CE1E732CA42041E74B0306D093B456964B7536FE9FA39",
+      "matches": true
+    }
+  ]
+}

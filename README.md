@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**B3-R2 工程修复完成（2026-11-06）：安卓启动/视口裁切已修，补基础 CSS/确定尺寸回退、短屏面板和屏幕坐标点击/可见性回归；新 0.3.2 debug APK 已构建并验签，0.3.0/0.3.1 保留。** OPD2101 / Android 11 真机尚未复测，系统文件往返与 PC 标准认证/发布仍未完成，不能写成安卓版已发布。见 [STATUS.md](STATUS.md)、[B3-R2 记录](docs/checks/B3-R2-2026-11-06.md)、[新 APK](docs/checks/B3-reverse-abyss-0.3.2-debug.apk)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
+**B4 PC 交付（2026-11-07）：云板端点/2×3 石管、作者 test1/2/3 六层短塔、普通编辑器对象/尺寸/裁空白/固定场景只读与现代双主题已完成；PC 离线包已同步。** 按用户最新指令**本轮不构建新 APK**，Android 仍为 B3-R2 0.3.2，不含 B4。完整人工通关/手感、PC 标准认证发布与手机 B4 未验。见 [B4 记录](docs/checks/B4-2026-11-07.md)、[STATUS.md](STATUS.md)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
@@ -10,7 +10,7 @@ PC 端没有安装包，也没有 npm 运行依赖；取得整个项目文件夹
 
 - 游玩：使用桌面浏览器，目前按键操作为主。
 - 命令行检查：需要 Node.js；本次使用 Node.js `v24.21.0`。
-- Android：Capacitor 7 工程与 debug APK（新版 `docs/checks/B3-reverse-abyss-0.3.2-debug.apk`，0.3.0/0.3.1 保留）；**用户在 OPD2101/Android 11 安装 0.3.1 后启动裁切，0.3.2 尚未在同设备复测**。无正式签名/商店发布。
+- Android：Capacitor 7 工程与 debug APK `docs/checks/B3-reverse-abyss-0.3.2-debug.apk`（0.3.0/0.3.1 保留）；用户确认 0.3.2 安卓人工验收无问题。**B4 只在 PC，未打进 0.3.2**；本轮不构建新 APK。无正式签名/商店发布。
 
 ## 启动
 
@@ -83,9 +83,9 @@ $env:JAVA_HOME='C:\Users\beilu\jdk21\jdk-21.0.12.1+1'
 .\android\gradlew.bat -p android assembleDebug --console=plain --no-daemon "-Pandroid.builder.sdkDownload=false"
 ```
 
-当前交付包：`docs/checks/B3-reverse-abyss-0.3.2-debug.apk`（versionCode 5，debug，非正式发布）；`0.3.0`/`0.3.1` 保留。校验值/版本/工具链见 [B3 工具链记录](docs/checks/B3-toolchain.md) 与 [B3-R2 记录](docs/checks/B3-R2-2026-11-06.md)。用户已在 OPD2101 / Android 11 安装 0.3.1，出现大厅/布局裁切，暂不能正常游玩；系统文件选择/分享和锁屏仍未验。
+当前 Android 包：`docs/checks/B3-reverse-abyss-0.3.2-debug.apk`（versionCode 5，debug，非正式发布）；`0.3.0`/`0.3.1` 保留。B4 不在此包，PC 入口为 `short.html`/`editor.html`，离线 PC 包为 `www/`。校验值/版本/工具链见 [B3 工具链记录](docs/checks/B3-toolchain.md) 与 [B3-R2 记录](docs/checks/B3-R2-2026-11-06.md)。OPD2101 / Android 11 的本轮人工反馈通过；未单独记录的系统文件/锁屏等专项继续待补。
 
-0.3.2 包含 B3-R2 的视口/基础 CSS/短屏/屏幕坐标修复；0.3.0/0.3.1 原样保留。`assembleDebug` 的原始输出在 `android/app/build/outputs/apk/debug/app-debug.apk`，历史交付包不会被自动覆盖。目标设备复测步骤见 [14 号卡](docs/tasks/14-b3-android-viewport-fix.md)。入口恢复后再复测：完整大厅 → 点击开发短塔 → 地图/角色与移动跳跃 → 布局开关 → 暂停/继续 → 后台返回。PC 标准认证发布仍待作者实测。
+0.3.2 包含 B3-R2 的视口/基础 CSS/短屏修复，安卓人工验收通过；B4 未同步到 APK。0.3.0/0.3.1 原样保留。`assembleDebug` 的原始输出在 `android/app/build/outputs/apk/debug/app-debug.apk`，历史交付包不会被自动覆盖。覆盖安装时保留应用数据；基本操作仍为左右按钮、跳跃、K 技能与布局设置。PC 标准认证发布与真实文件往返仍待作者补实测记录。
 
 ## 检查方法
 
@@ -113,10 +113,12 @@ node tools/browser_b1.mjs
 node tools/browser_b2.mjs
 node tools/browser_b3.mjs
 node tools/browser_b3r2.mjs
+node tools/test_b4.mjs
+node tools/browser_b4.mjs
 node tools/check_levels.mjs
 ```
 
-`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。`test_world_session.mjs` 用四层夹具验证 n−1/n/n+1 生命周期、跨层与暂停；`test_b1r.mjs` 用可控 Promise 验证异步保存/读取/试玩不丢工作；`test_b2.mjs` 验证生命/光环/六类对象/休整/Boss/抽选/发布/编辑工具；`browser_b2.mjs` 走短塔与编辑器工具的真实页面。`browser_t02a*.mjs`/`browser_b1.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`），用 headless + DevTools 做真实鼠标/键盘/下载；B1 脚本验证编辑保存→刷新恢复→试玩跨层→暂停恢复。
+`node tools/test_all.mjs --fast` 可用于快速反馈，但跳过了逐跳模拟，不代替完整检查。`check_levels.mjs` 的寻路结果是辅助诊断，不是人工通关认证。`test_b4.mjs` 验证云板端点/石管几何/作者三图/编辑器模型；`browser_b4.mjs` 走六层短塔、编辑器屏幕拖选/对象/裁剪/只读/双主题与标准夹具。`test_world_session.mjs` 用四层夹具验证 n−1/n/n+1 生命周期、跨层与暂停；`test_b1r.mjs` 用可控 Promise 验证异步保存/读取/试玩不丢工作；`test_b2.mjs` 验证生命/光环/六类对象/休整/Boss/抽选/发布/编辑工具；`browser_b2.mjs` 走短塔与编辑器工具的真实页面。`browser_t02a*.mjs`/`browser_b1.mjs` 需要本机 Chrome/Edge（默认先找 `C:\Program Files\Google\Chrome\Application\chrome.exe`），用 headless + DevTools 做真实鼠标/键盘/下载；B1 脚本验证编辑保存→刷新恢复→试玩跨层→暂停恢复。
 
 2026-10-30 在本次会话实测的完整自检基线：
 
@@ -139,7 +141,7 @@ node tools/check_levels.mjs
 
 2026-11-06 B2-R1 独立复跑：完整 **1355 PASS / 4 FAIL，退出码 1**，4 条仍为旧 floor09/floor11；原点/上层对象与标准技能独立探针退出 0，R1～R3 关闭。独立 DevTools 未启动，Chrome 25/0 为交付方证据；用户另确认短塔人工游玩基本正常。详见 [独立复验](docs/checks/review-B2R1-2026-11-06.md)。
 
-2026-11-06 B3-R2 交付方实测：`test_b3` **60/0**；完整 **1415/4**（旧 floor09/floor11）；`browser_b3r2` **47/0**（960×540/800×360/960×600、DPR1/2/3、屏幕坐标点击、短屏面板、基础回退、离线 www）；`browser_b3` 35/0（R1 回归）。0.3.2 APK 构建/验签成功，OPD2101 尚未复测。本轮独立全量同为 **1415/4**，原三项探针退出 0；独立 DevTools 未启动，未冒充重现 35/0。0.3.1 APK 独立验签/包内对照通过，但用户真机启动界面裁切、无法游玩，见 [最新复验与截图](docs/checks/review-B3R1-2026-11-06.md)。系统文件往返仍未验。
+2026-11-07 B4：`test_b4` **14/0**、`browser_b4` **24/0**（作者六层/真实步进、屏幕拖选端点、放火球、尺寸/裁剪/撤销、Boss 只读、双主题、标准云板夹具、PC 离线 www）；`browser_b3r2` **47/0**、回归 **35/0**；完整 **1434 PASS / 4 FAIL**。B4 仅 PC，未构建新 APK。2026-11-06 B3-R2：交付方 `browser_b3r2` **47/0**、R1 浏览器回归 **35/0**；本轮独立完整自检 **1415 PASS / 4 FAIL，退出码 1**（B3 60/0，4 条旧 floor09/floor11）。独立 DevTools 未启动，未冒充重现浏览器结果；0.3.2 APK 独立验签/包内对照通过，用户本轮安卓人工验收没有问题，R4 关闭。见 [最新复验](docs/checks/review-B3R2-2026-11-06.md)。系统文件与 PC 制作发布专项仍待补。
 
 2026-11-06 B2 独立复跑原完整自检为 **1334/4**；非零原点探针发现上层机关触发/伤害/安全恢复失效和标准技能永久禁用，故 B2 暂不通过。B2-R1 修复后：`test_b2` **96/0**、完整 **1355/4**（引擎 606/4，其余全绿）、真实 Chrome **25/0**；修复后 reviewer 探针的新运行时门/浮石/火球/恢复和 CD 后施法均符合预期。原 23/0 与 1334/4 保留为 B2 历史证据。详见 [B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。
 
@@ -171,13 +173,13 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 
 ## 当前重要限制
 
-- **B3-R2 已修**：旧 overlay 仅用 `inset:0`、wrap 仅靠 `aspect-ratio/min()`，无回退；现改为显式四方定位 + JS 确定 16:9 视口 + 短屏滚动/压缩 + 屏幕坐标可见性回归。0.3.2 APK 已构建/验签，**OPD2101/Android 11 仍未复测**；实际 WebView 版本未知。上一轮触点/重认证/草稿保真已独立复验通过，旧包保留。
+- **B3-R2 已验收**：0.3.2 的定位/视口/短屏修复通过工程与本轮用户人工验收，R4 关闭；实际 WebView 版本仍未知。隐藏摇杆 Q05 后续再改，当前操作未替换。
 - **B2-R1 已验收**：默认入口、上层对象坐标与标准 CD 后施法通过独立工程复验；用户短塔游玩基本正常。标准认证/发布/正式实抽人工待测，不能写成已完成；可先推进独立安卓适配，正式内容与认证文件往返验收前补齐真实样本。
 - 美术粗糙、缺音效、AI 地图质量与 Boss 技能打磨，用户明确允许后置，见 [改进待办](docs/design/followups.md)，不阻塞本轮工程验收。
 - B1-R1 已修：保存/读取/试玩回包会核对工作区令牌与内容 hash；保存/读取期间编辑或切图不会丢新工作、不会错误绑定草稿，试玩不会带未保存内容离开。真实双窗口并发仍未浏览器自动化验证。暂停菜单重开已清遮罩（N02）。
-- B2 已实现生命/光环/六类对象/休整/两阶段 Boss/标准试玩/本地发布抽选；B3 已接安卓触控/布局/生命周期/JSON/离线包/debug APK。用户已在 OPD2101 安装 0.3.1 并反馈启动裁切；0.3.2 未复测，无正式签名或 40 层扩展。
+- B2 已实现生命/光环/六类对象/休整/两阶段 Boss/标准试玩/本地发布抽选；B3 已接安卓触控/布局/生命周期/JSON/离线包，0.3.2 本轮人工验收通过；无正式签名或 40 层扩展。
 - **标准试玩实际通关与人工认证尚未由作者/用户完成**。干净环境的正式池为空；自动化不代打、不伪造 passed。开发短塔使用未认证模板。B3 导入的认证只标 imported-declaration，不生成 local-playtest。
-- **0.3.1 真机安装已确认但游玩失败；0.3.2 尚未在 OPD2101 复测**。完整短塔、系统文件选择/分享、锁屏/返回、真实多指、安全区域与性能仍待验证。桌面视口/触控模拟不能代替目标设备复测。
+- **本轮安卓人工验收通过，专项记录仍需按实际补齐**：系统文件选择/分享、PC↔手机往返、完整通关与锁屏等未逐项记录；性能没有测量，不声明帧率或所有设备兼容。
 - 固定大厅/休整/Boss 场景与三个普通模板是首版开发数据，未经过真人完整通关调参；Boss/伤害/接口数值是提案初值，可能需按实测调整。
 - 正式池与认证只存在当前浏览器 IndexedDB;换浏览器/清站点数据会丢，发布不是服务器/商店发布。
 - 草稿/发布冲突只做了 Node 双实例与隔离浏览器;真实双窗口并发、系统文件选择对话框未自动验证。
@@ -186,7 +188,7 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 - 编辑器已能编辑六类对象参数/路径/接口，但路径工具是首版列表编辑器,不是可视化拖点;未知/不支持的旧内容仍可能阻止标准试玩/发布(会明确报错)。
 - 旧原型主菜单的 `verified`/旧池逻辑保留在 `legacy.html`，不是 B2 正式池；默认 `index.html`/B2 正式池只认本地已认证发布。
 - 旧 `floor09/floor11` 自动可达性诊断仍失败，未改旧图；这不代表 B2 短塔人工不可通。
-- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 `9f2a4e3`、B2 `9a17f99`、B2-R1 `71e3219`、B3 `43fd30b`、B3-R1 `5dc5fb2`、B3-R2 `61a0b2d`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
+- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 `9f2a4e3`、B2 `9a17f99`、B2-R1 `71e3219`、B3 `43fd30b`、B3-R1 `5dc5fb2`、B3-R2 `61a0b2d`、B4 `见提交记录`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
 
 ## 文档与目录
 
@@ -210,6 +212,7 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 | [B3 交付记录](docs/checks/B3-2026-11-06.md) / [工具链](docs/checks/B3-toolchain.md) | 平台壳/旧 APK 证据与待验项 |
 | [B3-R1 记录](docs/checks/B3-R1-2026-11-06.md) | 触点释放/重认证/草稿保真与 0.3.1 APK |
 | [B3-R2 记录](docs/checks/B3-R2-2026-11-06.md) | 安卓启动/视口裁切修复与 0.3.2 APK |
+| [B4 记录](docs/checks/B4-2026-11-07.md) | 云板/石管、作者三图、编辑器与双主题（仅 PC） |
 | [B3-R1 独立复验](docs/checks/review-B3R1-2026-11-06.md) / [B3-R2 修复卡](docs/tasks/14-b3-android-viewport-fix.md) | 当前安卓启动故障、真机截图、一次修复与新包要求 |
 | `js/` | 引擎、旧游戏、编辑器、草稿仓库、World/GameSession、开发试玩代码 |
 | `index.html` | 默认入口，自动进入 short.html |

@@ -1,0 +1,10 @@
+{
+  "test_all": {
+    "exitCode": 1,
+    "error": null
+  },
+  "browser": {
+    "exitCode": 1,
+    "error": null
+  }
+}

@@ -13,7 +13,7 @@
   <aside id="left">
     <h1>关卡编辑器</h1>
     <p class="dim small">
-      B1:编辑<b>完整 LevelData</b>(地形 / 对象 / 路线 / 出生点 / 背景 / 装饰 / extensions),
+      编辑<b>完整 LevelData</b>(地形 / 对象 / 路线 / 云板端点 / 背景 / 装饰 / extensions),
       导出/打开都走同一份 JSON 契约;浏览器草稿存 IndexedDB,刷新后可找回。
       开发试玩用新运行时,不再转旧 TXT。
     </p>
@@ -32,8 +32,8 @@
 
     <h2>视图 / 历史</h2>
     <label class="chk"><input type="checkbox" id="chk-grid" checked> 网格</label>
-    <label class="chk"><input type="checkbox" id="chk-entities" checked> 显示出生点 / 对象 / 旧出口</label>
-    <label class="chk"><input type="checkbox" id="chk-autogrow" checked> 画到界外自动扩展</label>
+    <label class="chk"><input type="checkbox" id="chk-entities" checked> 显示端点 / 对象 / 旧迁移信息</label>
+    <label class="chk"><input type="checkbox" id="chk-autogrow"> 画到界外自动扩展(默认关)</label>
     <div class="row">
       <button id="btn-fit" title="把整层缩放到刚好放得下">适应窗口</button>
       <button id="btn-undo" title="Ctrl+Z">撤销</button>
@@ -50,6 +50,7 @@
 
   <!-- ============ 中:画布 ============ -->
   <main>
+    <div id="readonly-banner" class="readonly-banner" hidden>固定场景只读预览 · 可查看/导出原数据,不可编辑或发布</div>
     <div id="toolbar">
       <input id="name" type="text" placeholder="显示名(可以重名;逻辑身份是 id)" spellcheck="false"
              title="显示名写进 LevelData.title,不影响逻辑 id。另存为新模板才需要新的 id">
@@ -73,6 +74,7 @@
 
   <!-- ============ 右:关卡 + 检查 ============ -->
   <aside id="right">
+    <div class="row"><button id="btn-theme" type="button" title="切换编辑器深浅主题" onclick="RA.editor&&RA.editor.toggleTheme()">◐ 浅色</button></div>
     <h2>关卡</h2>
     <div class="row">
       <button id="btn-new">新建(空)</button>
@@ -109,6 +111,7 @@
       <input type="number" id="h-input" min="1" max="4096" step="1">
       <span class="unit">格</span>
     </div>
+    <div class="row"><button id="btn-apply-size">应用尺寸</button><button id="btn-crop">裁去外侧空白…</button></div>
     <p class="dim small" id="world-label">世界 675 × 1080 px</p>
     <p class="dim small">
       缩小会移除界外内容:先弹窗列出影响,取消则零变更,确认后可撤销。
@@ -146,16 +149,22 @@
       草稿不会自动发布,也不改旧正式池。
     </p>
 
-    <h2>接口(vertical-v1)</h2>
-    <div class="row">
-      <span class="lab">入口 col</span><input type="number" id="port-entry" min="0" max="599" step="1">
-      <span class="lab">出口 col</span><input type="number" id="port-exit" min="0" max="599" step="1">
+    <h2>云板接口</h2>
+    <div class="card">
+      <p class="dim small">框选/输入连续两格云板(5)的左格。出口=本层起点,入口=本层终点。</p>
+      <div class="row"><span class="lab">起点 出口</span>
+        <input type="number" id="port-start-col" min="0" max="599" step="1" placeholder="col">
+        <input type="number" id="port-start-row" min="0" max="599" step="1" placeholder="row">
+        <button id="btn-start-apply">标记</button>
+      </div>
+      <div class="row"><span class="lab">终点 入口</span>
+        <input type="number" id="port-finish-col" min="0" max="599" step="1" placeholder="col">
+        <input type="number" id="port-finish-row" min="0" max="599" step="1" placeholder="row">
+        <button id="btn-finish-apply">标记</button>
+      </div>
+      <div class="row"><button id="btn-ports-clear">清除端点</button></div>
+      <p class="dim small" id="ports-note">两端各 2×1 云板;左右各一格要实心;试玩前共享检查。</p>
     </div>
-    <div class="row">
-      <button id="btn-ports-apply">应用接口</button>
-      <button id="btn-ports-clear">清空接口</button>
-    </div>
-    <p class="dim small" id="ports-note">接口开口 4 格;两个 col 都要让开口落在地图内。</p>
 
     <h2>对象 / 参数 / 路径</h2>
     <div class="row">
@@ -189,11 +198,10 @@
 
     <h2>怎么用</h2>
     <p class="dim small">
-      1. 选地块/机关,在中间画。每层最多一个出生点 <b>P</b>;对象用 <b>S / x / y</b> 摆放。
-      出口 G 不再是画笔:新格式的出口是顶边接口,完整端口工具仍在 T04;<b>旧 G 只作为迁移信息显示</b>。<br>
+      1. 选地块/机关/怪物放置;起点/终点用两块连续云板,在右侧标记。<b>不再使用 P/G 旧工具</b>,旧字段只保真。<br>
       2. 撤销/重做保存整份 LevelData(对象、路线、元信息一起),最多 100 步 / 32 MiB;<br>
       3. 「保存草稿」写进浏览器 IndexedDB,刷新后可在列表里找回;「导出 JSON」仍是独立文件备份;<br>
-      4. 「开发试玩(两层)」先按 play 用途检查接口/出生点,保存草稿后进入新 GameSession;当前层 + 开发样例 B 连续攀爬,暂停用 P/Esc;<br>
+      4. 「开发试玩」先按 play 用途检查云板端点/净空;短塔使用作者三图,管道实际渲染与碰撞;<br>
       5. 打开 JSON / 旧图失败不会替换当前图;未知对象与未知字段会保留并显示,不会被自动补成"可运行"。
     </p>
   </aside>
@@ -215,6 +223,7 @@
 <script src="js/level.js"></script>
 <script src="js/entity-registry.js"></script>
 <script src="js/level-data.js"></script>
+<script src="js/cloud-pipe.js"></script>
 <script src="js/legacy-import.js"></script>
 <script src="js/entities/base.js"></script>
 <script src="js/entities/player.js"></script>
@@ -242,6 +251,7 @@
 <script src="levels/levels.js"></script>
 <script src="js/dev-samples.js"></script>
 <script src="js/b2-samples.js"></script>
+<script src="js/b4-samples.js"></script>
 <!-- 编辑器本体 -->
 <script src="js/editor.js"></script>
 </body>

@@ -42,6 +42,8 @@ function main() {
   // 运行所需的生成数据与贴图
   copyIf(join(ROOT, 'levels/levels.js'), join(WWW, 'levels/levels.js'));
   copyIf(join(ROOT, 'levels/b2'), join(WWW, 'levels/b2'));
+  copyIf(join(ROOT, 'levels/authored/short'), join(WWW, 'levels/authored/short'));
+  copyIf(join(ROOT, 'levels/b4/fixed'), join(WWW, 'levels/b4/fixed'));
   copyIf(join(ROOT, 'assets'), join(WWW, 'assets'));
   // 不被页面引用、但 assets 初始化可能探测的 CSS 不需要;不打包 editor/tests/docs
   const meta = {
@@ -55,7 +57,7 @@ function main() {
     }
   };
   writeFileSync(join(WWW, 'build-meta.json'), JSON.stringify(meta, null, 2) + '\n', 'utf8');
-  console.log('已生成 www: ' + scripts.length + ' 个脚本 + levels/levels.js + levels/b2 + assets');
+  console.log('已生成 www: ' + scripts.length + ' 个脚本 + levels/levels.js + levels/b2 + authored + b4 + assets');
 }
 
 main();

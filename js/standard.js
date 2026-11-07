@@ -35,7 +35,28 @@
     };
   }
 
-  RA.standard = { supportFloor: supportFloor };
+  /** B4 云板标准试玩夹具:2×1 起终点云板 + 两侧支撑,无地面/无隐形整条底板 */
+  function supportCloud(id, title, startCol, finishCol) {
+    var cols = Math.max(8, Math.max(startCol, finishCol) + 4);
+    var rows = 5, tiles = blank(cols, rows);
+    function cloud(col, row) {
+      tiles[row][col] = 5; tiles[row][col + 1] = 5;
+      if (col - 1 >= 0) tiles[row][col - 1] = 1;
+      if (col + 2 < cols) tiles[row][col + 2] = 1;
+    }
+    cloud(startCol, rows - 1);
+    cloud(finishCol, 0);
+    return {
+      schemaVersion: 2, id: id, kind: 'lobby', title: title, difficulty: null,
+      size: { cols: cols, rows: rows }, spawn: null,
+      ports: { profile: 'cloud-pipe-v2', start: { col: startCol, row: rows - 1 }, finish: { col: finishCol, row: 0 } },
+      terrain: { tiles: tiles }, objects: [], paths: [],
+      visuals: { backgroundId: 'sky1', decorations: [] },
+      extensions: { standardSupport: true }, certification: null, contentHash: null
+    };
+  }
+
+  RA.standard = { supportFloor: supportFloor, supportCloud: supportCloud };
 
   function loadHandoff() {
     try {
@@ -58,8 +79,11 @@
       return;
     }
     var t = h.template;
-    var entry = supportFloor('std_entry', '标准入口', t.ports.entry.col, t.ports.entry.col, 6);
-    var exit = supportFloor('std_exit', '标准出口', t.ports.exit.col, t.ports.exit.col, 6);
+    var cloud = RA.CloudPipe && RA.CloudPipe.isCloud(t.ports);
+    var entry = cloud ? supportCloud('std_entry', '标准入口', t.ports.start.col, t.ports.start.col)
+      : supportFloor('std_entry', '标准入口', t.ports.entry.col, t.ports.entry.col, 6);
+    var exit = cloud ? supportCloud('std_exit', '标准出口', t.ports.finish.col, t.ports.finish.col)
+      : supportFloor('std_exit', '标准出口', t.ports.exit.col, t.ports.exit.col, 6);
     var floors = [entry, t, exit];
     var res = RA.GameSession.create({
       floors: floors, mode: 'standard', profile: 'standard-v1',
@@ -94,6 +118,12 @@
     var g = ctx.createLinearGradient(0, 0, 0, state.ch);
     g.addColorStop(0, '#0a0f1e'); g.addColorStop(1, '#05060c');
     ctx.fillStyle = g; ctx.fillRect(0, 0, state.cw, state.ch);
+    (s.world.links || []).forEach(function (link) {
+      if (!link || link.kind !== 'stone-pipe' || !link.walls) return;
+      ctx.fillStyle = 'rgba(8,10,16,.9)'; ctx.fillRect(link.inner.x - cam.x, link.inner.y - cam.y, link.inner.w, link.inner.h);
+      ctx.fillStyle = '#4b5563';
+      link.walls.forEach(function (w) { ctx.fillRect(w.x - cam.x, w.y - cam.y, w.w, w.h); });
+    });
     s.world.instances.forEach(function (inst) {
       inst.level.draw(ctx, { ox: cam.x - inst.origin.x, oy: cam.y - inst.origin.y, vw: state.cw, vh: state.ch }, state.assets);
       inst.objects.forEach(function (o) {

@@ -33,6 +33,7 @@ const floorB = readDev('floor-b.json');
 function makeFloor(cols, rows, entry, exit, title) {
   const m = RA.EditorModel.create({ cols, rows, withGround: true, title: title || 'fixture' });
   m.data.ports = { profile: 'vertical-v1', entry: { col: entry }, exit: { col: exit } };
+  m.data.spawn = { col: 1, row: rows - 2 };
   const enc = LD.encode(m.toData());
   if (!enc.ok) throw new Error('fixture encode: ' + enc.error.message);
   return JSON.parse(enc.value);

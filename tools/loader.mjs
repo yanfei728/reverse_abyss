@@ -25,6 +25,7 @@ export const ENGINE = [
   'js/level.js',
   'js/entity-registry.js',
   'js/level-data.js',
+  'js/cloud-pipe.js',
   'js/legacy-import.js',
   'js/entities/base.js',
   'js/entities/player.js',
@@ -51,7 +52,8 @@ export const ENGINE = [
   'js/smoke.js',
   'levels/levels.js',
   'js/dev-samples.js',
-  'js/b2-samples.js'
+  'js/b2-samples.js',
+  'js/b4-samples.js'
 ];
 
 // ---------------- canvas / DOM 替身 ----------------

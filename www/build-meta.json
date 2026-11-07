@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T13:39:09.943Z",
+  "generatedAt": "2026-11-07T12:27:58.569Z",
   "source": "short.html",
   "scripts": [
     "js/config.js",
@@ -8,6 +8,7 @@
     "js/level.js",
     "js/entity-registry.js",
     "js/level-data.js",
+    "js/cloud-pipe.js",
     "js/legacy-import.js",
     "js/entities/base.js",
     "js/entities/player.js",
@@ -35,6 +36,7 @@
     "levels/levels.js",
     "js/dev-samples.js",
     "js/b2-samples.js",
+    "js/b4-samples.js",
     "js/platform/action-input.js",
     "js/platform/control-layout.js",
     "js/platform/files.js",

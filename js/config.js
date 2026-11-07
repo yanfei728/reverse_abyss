@@ -106,9 +106,16 @@
     // T01 只校验结构;真正的接缝几何、梯板生成与编辑器可视化在 T04 冻结。
     PORT: {
       PROFILE: 'vertical-v1',
+      CLOUD_PROFILE: 'cloud-pipe-v2',
       OPENING_COLS: 4,
       SAFE_ROWS: 3,
-      SIDE_MARGIN_COLS: 1
+      SIDE_MARGIN_COLS: 1,
+      CLOUD_BOARD_WIDTH: 2,
+      CLOUD_BOARD_HEIGHT: 1,
+      CLOUD_INNER_HEIGHT: 3,
+      CLOUD_WALL: 1,
+      CLOUD_GAP: 4,
+      CLOUD_CLEARANCE: 2
     },
 
     /*

@@ -8,7 +8,7 @@
 (function (RA) {
   'use strict';
   var C = RA.C;
-  var RULES_VERSION = 'b2-2';
+  var RULES_VERSION = 'b4-1';
   var PROFILE = 'standard-v1';
   var TUNING = {
     hp: 100,
@@ -34,7 +34,8 @@
     'halo=' + TUNING.haloSeconds + '/' + TUNING.haloCooldown,
     'radius=' + TUNING.haloRadiusTiles,
     'boss=' + TUNING.bossShieldSeconds1 + '/' + TUNING.bossShieldSeconds2,
-    'objects=' + Object.keys(C.OBJECT_PARAMS || {}).sort().join(',')
+    'objects=' + Object.keys(C.OBJECT_PARAMS || {}).sort().join(','),
+    'interface=cloud-pipe-v2/2x3/gap4'
   ].join('|');
 
   RA.RULES = {

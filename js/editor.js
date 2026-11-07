@@ -89,7 +89,8 @@
     { id: 'erase', name: '橡皮', key: 'KeyE', hint: '把地形擦成空气,同时移除这一格的对象/出生点' },
     { id: 'rect', name: '矩形', key: 'KeyR', hint: '拖一个方框,松手填满' },
     { id: 'fill', name: '油漆桶', key: 'KeyF', hint: '点一下,把连成一片的同种内容换掉' },
-    { id: 'pick', name: '吸管', key: 'KeyK', hint: '点一下取走那一格的画笔' }
+    { id: 'pick', name: '吸管', key: 'KeyK', hint: '点一下取走那一格的画笔' },
+    { id: 'select', name: '选段', key: 'KeyQ', hint: '框选 2×1 云板,再在右侧标记起点/终点' }
   ];
 
   /** 缩得很小的时候,地块用近似色画 */
@@ -123,12 +124,10 @@
           image: (RA.TILE_IMAGES[t.ch] || [])[0], tileId: t.id
         });
       });
-      out.push({ ch: 'P', name: '出生点(每层一个)', kind: 'spawn' });
       RA.EntityRegistry.list().forEach(function (t) {
-        if (!t.letter) return;
         out.push({
-          ch: t.letter, name: t.name + '(' + t.letter + ')', kind: 'object',
-          type: t.type, implemented: t.implemented
+          ch: t.letter || ('~' + t.type), name: t.name + (t.letter ? '(' + t.letter + ')' : ''), kind: 'object',
+          type: t.type, short: t.letter || t.name, implemented: t.implemented
         });
       });
       return out;
@@ -138,10 +137,25 @@
     known: function (ch) {
       if (ch === AIR || ch === ' ') return true;
       if (LD.idOf(ch) !== null) return true;
-      if ('P'.indexOf(ch) >= 0) return true;
+      if (ch && ch.charAt(0) === '~') return !!RA.EntityRegistry;
       return !!(RA.EntityRegistry && RA.EntityRegistry.typeOfLetter(ch));
     }
   };
+
+  function loadTheme() {
+    try {
+      var raw = globalThis.localStorage && localStorage.getItem('ra_editor_preferences_v1');
+      if (!raw) return (globalThis.matchMedia && globalThis.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      var p = JSON.parse(raw);
+      return p && p.theme === 'dark' ? 'dark' : 'light';
+    } catch (e) { return 'light'; }
+  }
+  function applyTheme(theme) {
+    var light = theme !== 'dark';
+    if (globalThis.document && document.body) document.body.dataset.theme = light ? 'light' : 'dark';
+    var b = globalThis.document && document.getElementById('btn-theme');
+    if (b) b.textContent = light ? '◐ 深色' : '◐ 浅色';
+  }
 
   // ===================== 关卡数据(唯一真值) =====================
   class EditorModel {
@@ -151,6 +165,8 @@
      */
     constructor(data) {
       this.data = data;
+      this.readOnly = !!(data && (data.kind === 'boss' || data.kind === 'lobby' || data.kind === 'rest' ||
+        (data.extensions && data.extensions.fixedScene)));
       this.importWarnings = [];      // 迁移/导入时的说明,只展示,不写回数据
       this.importSource = '';        // 来源说明(文件名 / 内置关卡 id)
     }
@@ -170,7 +186,7 @@
           tiles[ground][c] = 1;       // 草
           tiles[ground + 1][c] = 4;   // 石
         }
-        spawn = { col: 1, row: ground - 1 };
+        spawn = null; // B4:起点由云板端点承担,不再自动放旧 P
       }
       var data = {
         schemaVersion: LD.SCHEMA_VERSION,
@@ -346,7 +362,7 @@
      * 返回是否产生了变化。
      */
     applyChar(c, r, ch) {
-      if (!this.inBounds(c, r)) return false;
+      if (this.readOnly || !this.inBounds(c, r)) return false;
       if (ch === AIR || ch === ' ') return this.eraseCell(c, r);
       var tileId = LD.idOf(ch);
       if (tileId !== null) {
@@ -357,7 +373,7 @@
         this.invalidate();
         return before !== tileId || removed > 0 || cleared;
       }
-      if ('P'.indexOf(ch) >= 0) return this.setSpawn(c, r);
+      if (ch && ch.charAt(0) === '~') return this.brushObject(ch.slice(1), c, r);
       var type = RA.EntityRegistry.typeOfLetter(ch);
       if (type) return this.brushObject(type, c, r);
       return false;                  // G 与未知字符不再能画
@@ -520,8 +536,53 @@
       return LD.ok(o);
     }
 
+    /** B4:把一个 2×1 云板锚点设为 start/finish;只写元信息,不改地形真值 */
+    setCloudEndpoint(role, col, row) {
+      if (this.readOnly) return LD.fail('READ_ONLY', '固定场景只读', []);
+      if (role !== 'start' && role !== 'finish') return LD.fail('INVALID_FIELD', '端点角色必须是 start/finish', []);
+      if (!isInt(col) || !isInt(row)) return LD.fail('INVALID_FIELD', '端点 col/row 必须是整数', []);
+      var cols = this.data.size.cols, rows = this.data.size.rows;
+      if (col < 0 || row < 0 || col + 1 >= cols || row >= rows) {
+        return LD.fail('INVALID_PORT', role + ' 的 2×1 云板在地图外', []);
+      }
+      var tiles = this.data.terrain.tiles;
+      if (tiles[row][col] !== 5 || tiles[row][col + 1] !== 5) {
+        return LD.fail('INVALID_PORT', role + ' 必须从连续两格云板(5)开始', []);
+      }
+      var support = function (c) { return c >= 0 && c < cols && tiles[row][c] >= 1 && tiles[row][c] <= 4; };
+      if (!support(col - 1) || !support(col + 2)) {
+        return LD.fail('INVALID_PORT', role + ' 云板左右各一格必须是普通实心地形', []);
+      }
+      var prev = this.data.ports;
+      var next = {};
+      if (prev && prev.profile === RA.CloudPipe.CLOUD.profile) {
+        Object.keys(prev).forEach(function (k) {
+          if (k !== 'start' && k !== 'finish' && k !== 'profile') next[k] = LD.cloneJson(prev[k], '/ports/' + k);
+        });
+        next.start = prev.start ? LD.cloneJson(prev.start, '/ports/start') : null;
+        next.finish = prev.finish ? LD.cloneJson(prev.finish, '/ports/finish') : null;
+      }
+      next.profile = RA.CloudPipe.CLOUD.profile;
+      next[role] = { col: col, row: row };
+      if (next.start && next.finish && !(next.start.row > next.finish.row)) {
+        return LD.fail('INVALID_PORT', 'start 必须低于 finish(start.row > finish.row)', []);
+      }
+      this.data.ports = next;
+      this.invalidate();
+      return LD.ok(this.data.ports);
+    }
+
+    clearCloudPorts() {
+      if (this.readOnly) return LD.fail('READ_ONLY', '固定场景只读', []);
+      if (!this.data.ports) return LD.ok({ changed: false });
+      this.data.ports = null;
+      this.invalidate();
+      return LD.ok({ changed: true });
+    }
+
     /** 设置 vertical-v1 接口;缺失时创建,已有时只改 col */
     setPorts(entryCol, exitCol) {
+      if (this.readOnly) return LD.fail('READ_ONLY', '固定场景只读', []);
       if (!isInt(entryCol) || !isInt(exitCol)) {
         return LD.fail('INVALID_FIELD', '入口/出口 col 必须是整数', []);
       }
@@ -539,6 +600,7 @@
     }
 
     clearPorts() {
+      if (this.readOnly) return LD.fail('READ_ONLY', '固定场景只读', []);
       if (!this.data.ports) return LD.ok({ changed: false });
       this.data.ports = null;
       this.invalidate();
@@ -877,6 +939,11 @@
         ['entry', 'exit'].forEach(function (k) {
           if (ports[k] && isInt(ports[k].col)) ports[k].col += dc;
         });
+        ['start', 'finish'].forEach(function (k) {
+          if (ports[k] && isInt(ports[k].col) && isInt(ports[k].row)) {
+            ports[k].col += dc; ports[k].row += dr;
+          }
+        });
       }
     }
 
@@ -890,6 +957,58 @@
       var res = this.grow(left, right, top, bottom);
       if (!res.ok) return false;
       return { dc: left, dr: top };
+    }
+
+    /** 内容包络:地形/对象/路径/端点/出生/装饰;未知对象仍按坐标计入,不静默丢 */
+    contentBounds() {
+      var minC = this.cols, minR = this.rows, maxC = -1, maxR = -1;
+      function add(col, row) {
+        if (!isInt(col) || !isInt(row)) return;
+        if (col < minC) minC = col; if (col > maxC) maxC = col;
+        if (row < minR) minR = row; if (row > maxR) maxR = row;
+      }
+      for (var r = 0; r < this.rows; r++) for (var c = 0; c < this.cols; c++) if (this.getTile(c, r)) add(c, r);
+      (this.data.objects || []).forEach(function (o) { add(o.col, o.row); });
+      (this.data.paths || []).forEach(function (p) { (p.points || []).forEach(function (pt) { add(pt.col, pt.row); }); });
+      (this.data.visuals && this.data.visuals.decorations || []).forEach(function (d) { add(d.col, d.row); });
+      if (this.data.spawn) add(this.data.spawn.col, this.data.spawn.row);
+      var ports = this.data.ports;
+      if (ports && RA.CloudPipe && RA.CloudPipe.isCloud(ports)) {
+        ['start', 'finish'].forEach(function (k) {
+          if (ports[k]) { add(ports[k].col, ports[k].row); add(ports[k].col + 1, ports[k].row); }
+        });
+      }
+      if (maxC < 0) return { col: 0, row: 0, cols: 1, rows: 1, empty: true };
+      return { col: minC, row: minR, cols: maxC - minC + 1, rows: maxR - minR + 1, empty: false };
+    }
+
+    cropCandidate() {
+      var b = this.contentBounds();
+      if (b.empty || (b.col === 0 && b.row === 0 && b.cols === this.cols && b.rows === this.rows)) {
+        return LD.ok({ changed: false, bounds: b, offset: { col: 0, row: 0 } });
+      }
+      var candidate = EditorModel.fromTrusted(this.toData());
+      var left = b.col, top = b.row;
+      var next = blankTiles(b.cols, b.rows);
+      for (var r = 0; r < b.rows; r++) for (var c = 0; c < b.cols; c++) next[r][c] = this.getTile(c + left, r + top);
+      candidate.data.size.cols = b.cols; candidate.data.size.rows = b.rows;
+      candidate.data.terrain.tiles = next;
+      candidate._shiftCoords(-left, -top);
+      if (candidate.data.ports && RA.CloudPipe && RA.CloudPipe.isCloud(candidate.data.ports)) {
+        var ci = RA.CloudPipe.validate(candidate.data, 'play');
+        if (ci.length) return LD.fail('CROP_INVALID', '裁剪会破坏云板端点/净空,已取消:' + ci[0].message, ci);
+      }
+      candidate.invalidate();
+      var enc = candidate.toJSON();
+      if (!enc.ok) return LD.fail(enc.error.code || 'CROP_ENCODE', '裁剪候选无法编码,已保持原图:' + enc.error.message, enc.error.issues || []);
+      return LD.ok({ changed: true, bounds: b, offset: { col: left ? -left : 0, row: top ? -top : 0 },
+        beforeSize: { cols: this.cols, rows: this.rows }, afterSize: { cols: b.cols, rows: b.rows }, model: candidate });
+    }
+
+    applyCrop(plan) {
+      if (!plan || !plan.changed) return LD.ok({ changed: false });
+      this.data = plan.model.data;
+      return LD.ok({ changed: true, offset: plan.offset, afterSize: plan.afterSize });
     }
 
     // ---------- 检查 ----------
@@ -976,13 +1095,14 @@
       this.paletteItems = [];
       this.grid = true;
       this.showEntities = true;
-      this.autoGrow = true;
+      this.autoGrow = false;
 
       this.undoStack = [];      // [{json, bytes}]
       this.redoStack = [];
       this.undoBytes = 0;
       this.redoBytes = 0;
       this.stroke = null;
+      this.selection = null;
       this.mouse = { x: 0, y: 0, outside: true };
       this.prevMouse = null;
       this.prevCodes = {};
@@ -990,6 +1110,8 @@
       this.msg = '';
       this.msgT = 0;
       this.dirty = false;
+      this.theme = loadTheme();
+      applyTheme(this.theme);
 
       // 浏览器草稿仓库(IndexedDB;不可用时内存兜底)
       this.repo = opts.repo || (RA.ContentRepository ? RA.ContentRepository.create() : null);
@@ -1045,6 +1167,7 @@
       click('btn-brush-minus', () => self.setBrush(self.brush - 1));
       click('btn-brush-plus', () => self.setBrush(self.brush + 1));
 
+      click('btn-theme', () => self.toggleTheme());
       on('chk-grid', 'change', () => { self.grid = !!self.$('chk-grid').checked; });
       on('chk-entities', 'change', () => { self.showEntities = !!self.$('chk-entities').checked; });
       on('chk-autogrow', 'change', () => { self.autoGrow = !!self.$('chk-autogrow').checked; });
@@ -1062,8 +1185,7 @@
       });
       on('name', 'change', () => { self._nameUndoArmed = false; self.syncUI(); });
       on('name', 'blur', () => { self._nameUndoArmed = false; });
-      on('w-input', 'change', () => self.changeSize(parseInt(self.$('w-input').value, 10), self.model.rows));
-      on('h-input', 'change', () => self.changeSize(self.model.cols, parseInt(self.$('h-input').value, 10)));
+
       on('difficulty-select', 'change', () => {
         var nv = parseInt(self.$('difficulty-select').value, 10);
         if (nv === self.model.difficulty) return;
@@ -1089,13 +1211,16 @@
         }
       });
 
+      click('btn-apply-size', () => self.applySizeUI());
+      click('btn-crop', () => self.cropUI());
       click('btn-export', () => self.downloadJSON());
       click('btn-copy', () => self.copyJSON());
       click('btn-view-json', () => self.showJSON());
       click('btn-play', () => { self.openPlaytest(); });
       click('btn-standard', () => { self.openStandardPlaytest(); });
       click('btn-publish', () => { self.publishCurrent(); });
-      click('btn-ports-apply', () => self.applyPorts());
+      click('btn-start-apply', () => self.applyCloudEndpoint('start'));
+      click('btn-finish-apply', () => self.applyCloudEndpoint('finish'));
       click('btn-ports-clear', () => self.clearPortsUI());
       click('btn-obj-apply', () => self.applyObjectForm());
       click('btn-obj-del', () => self.deleteObjectUI());
@@ -1137,7 +1262,7 @@
         icon.className = 'picon';
         b.appendChild(icon);
         var lab = globalThis.document.createElement('span');
-        lab.textContent = item.ch === AIR ? '空' : item.ch;
+        lab.textContent = item.ch === AIR ? '空' : (item.short || item.ch);
         b.appendChild(lab);
         b.addEventListener('click', function () { self.selectChar(item.ch); });
         if (host) host.appendChild(b);
@@ -1173,12 +1298,23 @@
         RA.text(ctx, 'P', Math.round(S * 0.24), [255, 255, 255], S / 2, S * 0.68,
           { bold: true, shadow: false });
       } else if (item.kind === 'object') {
-        var cls = RA.BY_LETTER[item.ch];
+        var cls = RA.BY_LETTER[item.ch] || (RA.EntityRegistry && RA.EntityRegistry.classFor ? RA.EntityRegistry.classFor(item.type) : null);
         if (cls) {
           cls.prototype.drawIcon(ctx, 0, 0, S);
+        } else if (item.type === 'fireball_static') {
+          RA.rect(ctx, 0, 0, S, S, [44, 30, 26], 6);
+          ctx.fillStyle = '#ff7043'; ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.28, 0, Math.PI * 2); ctx.fill();
+        } else if (item.type === 'spike') {
+          RA.rect(ctx, 0, 0, S, S, [28, 34, 46], 6);
+          ctx.fillStyle = '#9aa8c7';
+          for (var k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(S * (0.2 + k * 0.22), S * 0.75); ctx.lineTo(S * (0.3 + k * 0.22), S * 0.3); ctx.lineTo(S * (0.4 + k * 0.22), S * 0.75); ctx.fill(); }
+        } else if (item.type === 'gear') {
+          RA.rect(ctx, 0, 0, S, S, [36, 32, 20], 6);
+          ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.26, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(S * 0.5, S * 0.18); ctx.lineTo(S * 0.5, S * 0.82); ctx.stroke();
         } else {
           RA.rect(ctx, 0, 0, S, S, [30, 36, 54], 6);
-          RA.text(ctx, item.ch, Math.round(S * 0.5), [255, 255, 255], S / 2, S / 2,
+          RA.text(ctx, (item.short || '?').slice(0, 1), Math.round(S * 0.5), [255, 255, 255], S / 2, S / 2,
             { bold: true, shadow: false });
         }
       }
@@ -1563,6 +1699,13 @@
       var sel = this.$('pool-select');
       var id = sel ? sel.value : '';
       if (!id) { this.say('先在下拉框里选一张内置关卡', 'bad'); return; }
+      if (id.indexOf('b4-fixed:') === 0) {
+        var key = id.slice('b4-fixed:'.length);
+        var sample = RA.B4_SAMPLES && RA.B4_SAMPLES[key];
+        if (!sample) { this.say('读不到 B4 固定场景「' + key + '」', 'bad'); return; }
+        this.openJSONText(JSON.stringify(sample, null, 2), 'B4 固定场景 ' + key + '(只读)');
+        return;
+      }
       var text = (RA.LEVEL_TEXT || {})[id];
       if (!text) { this.say('读不到内置关卡「' + id + '」', 'bad'); return; }
       this.importLegacyText(text, { id: id, fallbackId: id, source: '内置关卡 ' + id });
@@ -1671,15 +1814,20 @@
       try {
         var model = this.model;
         var ports = model.data.ports;
-        var entryCol = ports && ports.entry && isInt(ports.entry.col) ? ports.entry.col : null;
-        var exitCol = ports && ports.exit && isInt(ports.exit.col) ? ports.exit.col : null;
-        var pe = this.$('port-entry'), px = this.$('port-exit');
-        if (pe && document.activeElement !== pe) pe.value = entryCol === null ? '' : entryCol;
-        if (px && document.activeElement !== px) px.value = exitCol === null ? '' : exitCol;
+        var cloud = ports && RA.CloudPipe && RA.CloudPipe.isCloud(ports);
+        var sc = cloud && ports.start ? ports.start.col : null;
+        var sr = cloud && ports.start ? ports.start.row : null;
+        var fc = cloud && ports.finish ? ports.finish.col : null;
+        var fr = cloud && ports.finish ? ports.finish.row : null;
+        [['port-start-col', sc], ['port-start-row', sr], ['port-finish-col', fc], ['port-finish-row', fr]].forEach(function (pair) {
+          var inp = document.getElementById(pair[0]);
+          if (inp && document.activeElement !== inp) inp.value = pair[1] === null ? '' : pair[1];
+        });
         var note = this.$('ports-note');
-        if (note) note.textContent = ports && entryCol !== null && exitCol !== null
-          ? '接口 vertical-v1:入口 col ' + entryCol + ' / 出口 col ' + exitCol
-          : (ports ? '接口结构损坏;共享校验会报告具体字段' : '接口未设置(ports=null);可在此补上。');
+        if (note) note.textContent = cloud
+          ? 'cloud-pipe-v2:起点 ' + (sc === null ? '未设' : '(' + sc + ',' + sr + ')') +
+            ' / 终点 ' + (fc === null ? '未设' : '(' + fc + ',' + fr + ')') + ';管内 2×3,两端顶面差 4 格。'
+          : (ports ? '旧接口/' + (ports.profile || '未知') + ' 仅保真;请重新标记两格云板。' : '未设置云板端点;草稿可保存,试玩/发布会被拦截。');
         var typeSel = this.$('obj-type');
         if (typeSel) {
           var cur = typeSel.value;
@@ -1804,13 +1952,20 @@
       return true;
     }
 
-    applyPorts() {
-      var e = parseInt(this.$('port-entry') ? this.$('port-entry').value : '', 10);
-      var x = parseInt(this.$('port-exit') ? this.$('port-exit').value : '', 10);
+    applyCloudEndpoint(role) {
+      var c, r;
+      if (this.selection && this.selection.c1 - this.selection.c0 === 1 && this.selection.r1 === this.selection.r0) {
+        c = this.selection.c0; r = this.selection.r0;
+      } else {
+        c = parseInt(this.$('port-' + role + '-col') ? this.$('port-' + role + '-col').value : '', 10);
+        r = parseInt(this.$('port-' + role + '-row') ? this.$('port-' + role + '-row').value : '', 10);
+      }
       this.pushUndo();
-      var res = this.model.setPorts(e, x);
-      if (!res.ok) { this.popUndo(); this.say('接口保存失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
-      this.markDirty(); this.syncUI(); this.say('接口已保存;试玩/发布前共享校验会检查开口和安全区');
+      if (this.model.readOnly) { this.say('固定场景只读,不能修改端点', 'warn'); return false; }
+      var res = this.model.setCloudEndpoint(role, c, r);
+      if (!res.ok) { this.popUndo(); this.say('端点保存失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
+      this.markDirty(); this.syncUI();
+      this.say(role === 'start' ? '起点/出口已标记;保存草稿后可试玩' : '终点/入口已标记;试玩前共享检查', 'ok');
       return true;
     }
 
@@ -2015,6 +2170,33 @@
         try { loc.href = 'index.html'; return true; } catch (e) { /* 有些环境不让改 */ }
       }
       return false;
+    }
+
+    applySizeUI() {
+      var c = parseInt(this.$('w-input') ? this.$('w-input').value : '', 10);
+      var r = parseInt(this.$('h-input') ? this.$('h-input').value : '', 10);
+      if (isNaN(c) || isNaN(r)) { this.say('宽/高必须是整数', 'bad'); this.syncUI(); return false; }
+      return this.changeSize(c, r);
+    }
+
+    cropUI() {
+      if (this.model.readOnly) { this.say('固定场景只读,不能裁剪', 'warn'); return false; }
+      var plan = this.model.cropCandidate();
+      if (!plan.ok) { this.say('裁剪预检失败:[' + plan.error.code + '] ' + plan.error.message, 'bad'); return false; }
+      var p = plan.value;
+      if (!p.changed) { this.say('没有可安全裁掉的外侧空白', 'warn'); return false; }
+      var msg = '裁去外侧空白:\n原尺寸 ' + p.beforeSize.cols + '×' + p.beforeSize.rows +
+        ' → ' + p.afterSize.cols + '×' + p.afterSize.rows +
+        '\n偏移 (' + p.offset.col + ',' + p.offset.row + ');端点/对象/路径同步,认证失效。\n确定应用吗?(可撤销)';
+      if (typeof globalThis.confirm === 'function' && !globalThis.confirm(msg)) {
+        this.say('已取消裁剪,地图没有改动', 'warn'); return false;
+      }
+      this.pushUndo();
+      var res = this.model.applyCrop(p);
+      if (!res.ok) { this.popUndo(); this.say('裁剪失败:' + res.error.message, 'bad'); return false; }
+      this.markDirty(); this.fitView(); this.syncUI();
+      this.say('已裁到 ' + p.afterSize.cols + '×' + p.afterSize.rows + '(可撤销)');
+      return true;
     }
 
     // ================= 尺寸 =================
@@ -2295,6 +2477,11 @@
       var cell = this.cellAt(mouse.x, mouse.y);
       var tool = this.stroke ? this.stroke.tool : this.tool;
       var ch = tool === 'erase' ? AIR : this.ch;
+      if (tool === 'select') {
+        if (!this.stroke) this.stroke = { tool: 'select', start: cell, end: cell, last: cell };
+        this.stroke.end = cell;
+        return;
+      }
 
       if (!this.stroke) {
         if (tool === 'pick') {
@@ -2382,6 +2569,12 @@
       var s = this.stroke;
       this.stroke = null;
       if (!s) return;
+      if (s.tool === 'select') {
+        this.selection = { c0: Math.min(s.start.c, s.end.c), r0: Math.min(s.start.r, s.end.r),
+          c1: Math.max(s.start.c, s.end.c), r1: Math.max(s.start.r, s.end.r) };
+        this.say('已选 ' + (this.selection.c1 - this.selection.c0 + 1) + '×' + (this.selection.r1 - this.selection.r0 + 1) + ';右侧标记端点');
+        return;
+      }
       if (s.tool === 'rect') {
         var ch = s.tool === 'erase' ? AIR : this.ch;
         if (this.autoGrow) {
@@ -2407,7 +2600,8 @@
     // ================= 绘制 =================
     draw() {
       var ctx = this.ctx;
-      RA.rect(ctx, 0, 0, this.W, this.H, [13, 15, 24]);
+      var light = globalThis.document && document.body && document.body.dataset.theme === 'light';
+      RA.rect(ctx, 0, 0, this.W, this.H, light ? [243, 244, 246] : [9, 13, 19]);
       this.drawBoard(ctx);
     }
 
@@ -2418,7 +2612,8 @@
       var B = { x: 0, y: 0, w: this.W, h: this.H };
 
       var o = this.cellToScreen(0, 0);
-      RA.rect(ctx, o.x, o.y, m.worldW() * z, m.worldH() * z, [22, 26, 40]);
+      var light = globalThis.document && document.body && document.body.dataset.theme === 'light';
+      RA.rect(ctx, o.x, o.y, m.worldW() * z, m.worldH() * z, light ? [249, 250, 251] : [22, 26, 40]);
 
       // 空气底纹(棋盘格)
       if (ts >= 4) {
@@ -2430,7 +2625,7 @@
           for (var c = c0; c <= c1; c++) {
             if (((c + r) % 2) === 0) {
               var p = this.cellToScreen(c, r);
-              RA.rect(ctx, p.x, p.y, ts + 0.5, ts + 0.5, [27, 31, 46]);
+              RA.rect(ctx, p.x, p.y, ts + 0.5, ts + 0.5, light ? [243, 244, 246] : [27, 31, 46]);
             }
           }
         }
@@ -2564,6 +2759,13 @@
           [255, 205, 110], 2, 3);
       }
 
+      if (this.selection) {
+        var q0 = this.cellToScreen(this.selection.c0, this.selection.r0);
+        var q1 = this.cellToScreen(this.selection.c1 + 1, this.selection.r1 + 1);
+        ctx.save(); ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]); ctx.strokeRect(q0.x, q0.y, q1.x - q0.x, q1.y - q0.y); ctx.restore();
+      }
+
       RA.strokeRect(ctx, o.x, o.y, m.worldW() * z, m.worldH() * z, [120, 150, 200], 2, 0);
     }
 
@@ -2607,6 +2809,20 @@
       this.announce(text, kind);
     }
 
+    toggleTheme() {
+      var next = this.theme === 'dark' ? 'light' : 'dark';
+      this.theme = next;
+      applyTheme(next);
+      var saved = true;
+      try {
+        if (!globalThis.localStorage) saved = false;
+        else localStorage.setItem('ra_editor_preferences_v1', JSON.stringify({ schemaVersion: 1, theme: next, autoGrow: this.autoGrow }));
+      } catch (e) { saved = false; }
+      this.syncUI();
+      this.say(saved ? ('已切换到' + (next === 'dark' ? '深色' : '浅色') + '主题') : '本次已切换,但偏好保存失败(刷新后可能回退)', saved ? 'ok' : 'warn');
+      return saved;
+    }
+
     /** 把关卡列表 / 尺寸 / 检查面板刷成当前状态 */
     syncUI() {
       this._needSync = false;
@@ -2640,7 +2856,8 @@
       var sel = this.$('pool-select');
       if (sel && sel.tagName !== undefined) {
         var ids = Object.keys(RA.LEVEL_TEXT || {});
-        var want = ids.join(',');
+        var b4 = RA.B4_SAMPLES ? [['lobby', '大厅'], ['rest', '休整'], ['boss', 'Boss']] : [];
+        var want = ids.join(',') + '|' + b4.map(function (x) { return x[0]; }).join(',');
         if (sel.__want !== want) {
           sel.__want = want;
           sel.innerHTML = '';
@@ -2650,12 +2867,29 @@
             op.textContent = id + ' · ' + RA.LevelPack.levelName(RA.LEVEL_TEXT[id], id);
             sel.appendChild(op);
           });
+          b4.forEach(function (x) {
+            var op = globalThis.document.createElement('option');
+            op.value = 'b4-fixed:' + x[0];
+            op.textContent = 'B4 ' + x[1] + ' · 固定场景只读';
+            sel.appendChild(op);
+          });
         }
       }
       var pl = this.$('pool-label');
       if (pl) {
         pl.textContent = '内置关卡 ' + Object.keys(RA.LEVEL_TEXT || {}).length +
           ' 张:打开后是可编辑的迁移副本;导出为新的 JSON,不回写 levels/';
+      }
+
+      var ro = this.model.readOnly;
+      var banner = this.$('readonly-banner');
+      if (banner) banner.hidden = !ro;
+      ['name', 'w-input', 'h-input', 'btn-apply-size', 'btn-crop', 'btn-play', 'btn-standard', 'btn-publish', 'btn-start-apply', 'btn-finish-apply', 'btn-ports-clear', 'btn-obj-apply', 'btn-obj-del', 'btn-path-apply', 'btn-path-new', 'btn-path-del', 'btn-undo', 'btn-redo'].forEach(function (id) {
+        var el = self.$(id); if (el) el.disabled = ro;
+      });
+      if (ro) {
+        var note = this.$('ports-note');
+        if (note) note.textContent = '固定场景只读;导出保留原 Boss/出生/未知信息,不转普通图。';
       }
 
       // 检查面板:直接来自共用 LevelData.validate(draft)

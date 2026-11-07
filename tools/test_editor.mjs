@@ -48,23 +48,24 @@ head('调色板:地块与已注册机关,不再有出口 G 画笔');
   const chars = items.map((i) => i.ch);
   check('有空气笔刷', chars.indexOf(AIR) >= 0);
   check('五种地块都在调色板里', ['^', '_', '~', '=', '-'].every((ch) => chars.indexOf(ch) >= 0));
-  check('出生点 P 在调色板里', chars.indexOf('P') >= 0);
+  check('旧出生点 P 已移除', chars.indexOf('P') < 0);
   check('已注册的机关 S / x / y 都在调色板里',
     ['S', 'x', 'y'].every((ch) => chars.indexOf(ch) >= 0));
   check('出口 G 不再是画笔', chars.indexOf('G') < 0 && RA.EditorPalette.known('G') === false);
   check('机关名字来自 EntityRegistry',
     items.filter((i) => i.ch === 'x')[0].name.indexOf(RA.EntityRegistry.get('crumble_door').name) === 0);
   check('调色板里的对象笔刷带 type', items.filter((i) => i.ch === 'S')[0].type === 'spring');
-  check('没有字母的注册对象(火球/地刺/齿轮)不冒充画笔',
-    !items.some((i) => i.type === 'fireball_static' || i.type === 'gear'));
+  check('没有旧字母的注册对象(火球/地刺/齿轮)用 type 工具摆放',
+    items.some((i) => i.type === 'fireball_static') && items.some((i) => i.type === 'spike') &&
+    items.some((i) => i.type === 'gear') && items.some((i) => i.ch.charAt(0) === '~'));
   check('调色板图标都画得出来', (() => {
     try {
       items.forEach((it) => {
         const cv = makeCanvas(38, 38);
         const ctx = cv.getContext('2d');
-        if (it.kind === 'object') {
+        if (it.kind === 'object' && it.ch.charAt(0) !== '~') {
           const cls = RA.BY_LETTER[it.ch];
-          cls.prototype.drawIcon(ctx, 0, 0, 38);
+          if (cls) cls.prototype.drawIcon(ctx, 0, 0, 38);
         }
       });
       return true;
@@ -120,10 +121,8 @@ head('画笔:字符只是边界适配,写进数据的仍然是 LevelData');
 {
   const m = RA.EditorModel.create({ cols: 8, rows: 6 });
   check('地块字符 → 整数地块', m.applyChar(1, 1, '=') === true && m.getTile(1, 1) === 4);
-  check('P → spawn,且每层只有一个', m.applyChar(2, 2, 'P') === true &&
-    m.spawn.col === 2 && m.spawn.row === 2 &&
-    m.applyChar(3, 2, 'P') === true && m.spawn.col === 3 &&
-    m.data.spawn !== null);
+  check('P 不再能画,旧 spawn 字段保持未设置', m.applyChar(2, 2, 'P') === false &&
+    m.data.spawn === null);
   check('S → spring 对象(默认参数)', m.applyChar(4, 2, 'S') === true &&
     m.objects.length === 1 && m.objects[0].type === 'spring' &&
     JSON.stringify(m.objects[0].params) === '{}');
@@ -133,8 +132,7 @@ head('画笔:字符只是边界适配,写进数据的仍然是 LevelData');
   check('x / y 映射到 crumble_door / blink_platform,并带注册默认参数',
     m.objects.some((o) => o.type === 'crumble_door') && !!blink &&
     blink.params.warningSeconds === RA.C.OBJECT_PARAMS.blink_platform.warningSeconds.def);
-  check('对象格子上不能再有地形/出生点', m.getTile(4, 2) === 0 &&
-    !(m.spawn.col === 4 && m.spawn.row === 2));
+  check('对象格子上不能再有地形/旧出生点', m.getTile(4, 2) === 0 && m.data.spawn === null);
   check('橡皮擦掉地形、对象和出生点', (() => {
     m.applyChar(1, 1, AIR);
     m.applyChar(4, 2, AIR);
@@ -386,7 +384,10 @@ if (ed) {
   ed.setTool('brush');
   ed.selectChar('^');
   clickCell(cols0 + 2, 2);
-  check('画到界外会自动扩展地图', ed.model.cols > cols0 && ed.model.getTile(cols0 + 2, 2) === 1);
+  check('默认关闭自动扩展', ed.autoGrow === false);
+  ed.autoGrow = true;
+  clickCell(cols0 + 2, 2);
+  check('显式启用后画到界外会扩展地图', ed.model.cols > cols0 && ed.model.getTile(cols0 + 2, 2) === 1);
 
   // 对象画笔 + 撤销覆盖对象
   ed.newLevel(10, 8, true);
@@ -1013,11 +1014,7 @@ head('T02B:草稿仓库保存 / 恢复 / revision 冲突 / 失败 / 保存期间
 
 head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
 {
-  const data = (() => {
-    const m = RA.EditorModel.create({ cols: 10, rows: 8, withGround: true, title: '试玩样例' });
-    m.data.ports = { profile: 'vertical-v1', entry: { col: 2 }, exit: { col: 2 } };
-    return m.toData();
-  })();
+  const data = clone(RA.B4_SAMPLES.normal1);
   check('试玩样例按 play 用途校验通过',
     LD.errorsOf(LD.validate(data, { purpose: 'play' })).length === 0);
   const savedSamples = RA.DEV_SAMPLES;

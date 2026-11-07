@@ -39,18 +39,20 @@
   };
   RA.short = { state: state };
 
+  function sampleSet() { return RA.B4_SAMPLES || RA.B2_SAMPLES; }
+
   function hasSamples() {
-    var s = RA.B2_SAMPLES;
+    var s = sampleSet();
     return s && s.lobby && s.normal1 && s.normal2 && s.normal3 && s.rest && s.boss;
   }
 
   function fixedFloors() {
-    var s = RA.B2_SAMPLES;
+    var s = sampleSet();
     return { lobby: clone(s.lobby), rest: clone(s.rest), boss: clone(s.boss) };
   }
 
   function devFloors() {
-    var s = RA.B2_SAMPLES;
+    var s = sampleSet();
     return ['lobby', 'normal1', 'normal2', 'normal3', 'rest', 'boss'].map(function (k) {
       return clone(s[k]);
     });
@@ -116,7 +118,7 @@
     var floors = devFloors();
     var manifest = {
       manifestId: 'dev-short-v1',
-      profile: 'short-v1',
+      profile: 'short-v2',
       dev: true,
       floors: floors.map(function (f) { return { levelId: f.id, contentHash: f.contentHash }; })
     };
@@ -592,6 +594,20 @@
       ctx.strokeStyle = inst.exitOpen === false ? 'rgba(255,120,100,.7)' : 'rgba(255,205,110,.45)';
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(openL, inst.origin.y - cam.y); ctx.lineTo(openR, inst.origin.y - cam.y); ctx.stroke();
+    });
+    // 云板石管:管内只读几何,按 World 生成坐标画,不写回模板
+    (state.session.world.links || []).forEach(function (link) {
+      if (!link || link.kind !== 'stone-pipe' || !link.walls) return;
+      ctx.fillStyle = 'rgba(8,10,16,.9)';
+      ctx.fillRect(link.inner.x - cam.x, link.inner.y - cam.y, link.inner.w, link.inner.h);
+      ctx.fillStyle = '#4b5563';
+      link.walls.forEach(function (w) {
+        ctx.fillRect(w.x - cam.x, w.y - cam.y, w.w, w.h);
+      });
+      ctx.strokeStyle = 'rgba(150,165,190,.45)'; ctx.lineWidth = 1;
+      link.walls.forEach(function (w) {
+        ctx.strokeRect(w.x - cam.x, w.y - cam.y, w.w, w.h);
+      });
     });
     // boss + hazards
     var boss = state.session.boss;

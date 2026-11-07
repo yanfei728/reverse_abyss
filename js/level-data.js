@@ -901,8 +901,8 @@
     var rows = isPlainObject(size) && isInt(size.rows) ? size.rows : 0;
 
     // ---- 接口 / 出生点 ----
-    validatePorts(data.ports, data.kind, cols, rows, purpose, bad, need);
-    validateSpawn(data.spawn, cols, rows, data.kind, purpose, add, bad, need);
+    validatePorts(data, data.ports, data.kind, cols, rows, purpose, bad, need);
+    validateSpawn(data, data.spawn, cols, rows, data.kind, purpose, add, bad, need);
 
     // ---- 对象 / 路径 ----
     var pathById = dict();
@@ -969,7 +969,13 @@
     return issues;
   }
 
-  function validatePorts(ports, kind, cols, rows, purpose, bad, need) {
+  function validatePorts(data, ports, kind, cols, rows, purpose, bad, need) {
+    if (RA.CloudPipe && RA.CloudPipe.isCloud(ports)) {
+      if (purpose === 'draft') return; // 草稿可先保留不完整端点
+      var ci = RA.CloudPipe.validate(data, purpose);
+      ci.forEach(function (e) { bad(e.code, e.path, e.message); });
+      return;
+    }
     var required = kind === 'normal';           // 固定场景的进出由场景控制器处理
     if (ports === null || ports === undefined) {
       need(!required, 'INVALID_PORT', '/ports',
@@ -1008,10 +1014,11 @@
     void rows;
   }
 
-  function validateSpawn(spawn, cols, rows, kind, purpose, add, bad, need) {
+  function validateSpawn(data, spawn, cols, rows, kind, purpose, add, bad, need) {
     var required = kind === 'normal';
     if (spawn === null || spawn === undefined) {
-      need(!required, 'INVALID_FIELD', '/spawn', '普通层必须有出生点 spawn');
+      if (RA.CloudPipe && RA.CloudPipe.isCloud(data.ports) && data.ports.start) return;
+      need(!required, 'INVALID_FIELD', '/spawn', '普通层必须有出生点 spawn(或云板 start)');
       return;
     }
     if (!isPlainObject(spawn) || !isInt(spawn.col) || !isInt(spawn.row)) {

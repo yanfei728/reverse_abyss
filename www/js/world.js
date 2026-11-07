@@ -49,8 +49,18 @@
       this.rows = data.size.rows;
       this.spawn = data.spawn;
       this.ports = data.ports;
-      this.entryCol = data.ports.entry.col;
-      this.exitCol = data.ports.exit.col;
+      this.cloud = !!(RA.CloudPipe && RA.CloudPipe.isCloud(data.ports));
+      if (this.cloud) {
+        this.start = data.ports.start;
+        this.finish = data.ports.finish;
+        this.entryCol = this.start.col;
+        this.exitCol = this.finish.col;
+      } else {
+        this.start = null;
+        this.finish = null;
+        this.entryCol = data.ports.entry.col;
+        this.exitCol = data.ports.exit.col;
+      }
       this.origin = { x: 0, y: 0 };
       this.state = 'preview';
       this.activeTime = 0;
@@ -78,10 +88,20 @@
         asc: tilesToAsc(data.terrain.tiles),
         size: { cols: this.cols, rows: this.rows }
       }, { id: data.id + '_runtime' });
-      level.startX = this.spawn.col * TS + 8;
-      level.startFeet = (this.spawn.row + 1) * TS;
-      level.spawnCol = this.spawn.col;
-      level.spawnRow = this.spawn.row;
+      var pose = this.cloud && RA.CloudPipe ? RA.CloudPipe.startPose(data, { w: 20, h: 36 }) : null;
+      if (pose) {
+        level.startX = this.origin.x + pose.x;
+        level.startFeet = this.origin.y + pose.feet;
+        level.startLocalX = pose.x;
+        level.startLocalFeet = pose.feet;
+        level.spawnCol = pose.col;
+        level.spawnRow = Math.max(0, pose.row - 1);
+      } else {
+        level.startX = this.spawn.col * TS + 8;
+        level.startFeet = (this.spawn.row + 1) * TS;
+        level.spawnCol = this.spawn.col;
+        level.spawnRow = this.spawn.row;
+      }
       var self = this;
       level.solidEntityAt = function (r, c) { return self.solidAt(r, c); };
       this.level = level;
@@ -150,6 +170,7 @@
 
     /** 对象是否提供实心碰撞(门/浮石/地刺底座) */
     solidAt(localRow, localCol) {
+      if (this.wallCells && this.wallCells[localRow + ':' + localCol]) return true;
       for (var i = 0; i < this.objects.length; i++) {
         var o = this.objects[i];
         if (o.col !== localCol || o.row !== localRow) continue;
@@ -250,10 +271,10 @@
       this.inst = inst;
       this.tile = TS;
       this.worldW = Infinity;            // Player 自己不再把 x 夹到单层宽度
-      this.spawnCol = inst.spawn.col;
-      this.spawnRow = inst.spawn.row;
-      this.startX = inst.origin.x + inst.spawn.col * TS + 8;
-      this.startFeet = inst.origin.y + (inst.spawn.row + 1) * TS;
+      this.spawnCol = inst.cloud && inst.start ? inst.start.col : (inst.spawn ? inst.spawn.col : 0);
+      this.spawnRow = inst.cloud && inst.start ? Math.max(0, inst.start.row - 1) : (inst.spawn ? inst.spawn.row : 0);
+      this.startX = inst.origin.x + (inst.level.startLocalX !== undefined ? inst.level.startLocalX : inst.spawn.col * TS + 8);
+      this.startFeet = inst.origin.y + (inst.level.startLocalFeet !== undefined ? inst.level.startLocalFeet : (inst.spawn.row + 1) * TS);
     }
     _lr(worldRow) { return worldRow - this.inst.originTileY; }
     _lc(worldCol) { return worldCol - this.inst.originTileX; }
@@ -318,16 +339,32 @@
 
       // 先算所有原点;再整体平移到 x>=0
       var origins = [{ x: 0, y: 0 }];
+      var links = [];
       for (var i = 1; i < floors.length; i++) {
-        origins.push({
-          x: origins[i - 1].x + (floors[i - 1].ports.exit.col - floors[i].ports.entry.col) * TS,
-          y: origins[i - 1].y - floors[i].size.rows * TS
-        });
+        var lower = floors[i - 1], upper = floors[i];
+        if (RA.CloudPipe && RA.CloudPipe.isCloud(lower.ports) && RA.CloudPipe.isCloud(upper.ports)) {
+          var no = RA.CloudPipe.nextOrigin(lower, upper, origins[i - 1]);
+          origins.push(no);
+        } else {
+          origins.push({
+            x: origins[i - 1].x + (lower.ports.exit.col - upper.ports.entry.col) * TS,
+            y: origins[i - 1].y - upper.size.rows * TS
+          });
+        }
       }
       var minX = Math.min.apply(null, origins.map(function (o) { return o.x; }));
       var shift = minX < 0 ? -minX : 0;
       origins.forEach(function (o) { o.x += shift; });
       this.origins = origins;
+      for (var k = 1; k < floors.length; k++) {
+        var lf = floors[k - 1], uf = floors[k];
+        var kind = k === 1 ? 'lobby-direct' : 'stone-pipe';
+        var link = (RA.CloudPipe && RA.CloudPipe.isCloud(lf.ports) && RA.CloudPipe.isCloud(uf.ports))
+          ? RA.CloudPipe.buildLink(lf, uf, origins[k - 1], kind) : null;
+        if (link) { link.lowerIndex = k - 1; link.upperIndex = k; }
+        links.push(link);
+      }
+      this.links = links;
 
       var self = this;
       this._spawn = function (index, state) {
@@ -335,6 +372,20 @@
           hasNext: index < floors.length - 1
         });
         inst.origin = { x: origins[index].x, y: origins[index].y };
+        inst.linkUp = links[index] || null;
+        inst.linkDown = links[index - 1] || null;
+        inst.wallCells = {};
+        if (inst.linkUp && inst.linkUp.kind === 'stone-pipe' && inst.cloud && inst.finish) {
+          var set = function (r, c) { inst.wallCells[r + ':' + c] = true; };
+          for (var wr = inst.finish.row - 3; wr <= inst.finish.row - 1; wr++) {
+            set(wr, inst.finish.col - 1);
+            set(wr, inst.finish.col + 2);
+          }
+        }
+        if (inst.cloud && inst.level.startLocalX !== undefined) {
+          inst.level.startX = inst.origin.x + inst.level.startLocalX;
+          inst.level.startFeet = inst.origin.y + inst.level.startLocalFeet;
+        }
         inst.state = state;
         inst.view = new FloorView(inst);
         self.instances.set(index, inst);
@@ -381,6 +432,12 @@
       var active = this.currentFloor;
       var next = this.instances.get(this.current + 1);
       if (!active || !next) return null;
+      if (active.cloud && active.linkUp) {
+        var link = active.linkUp;
+        if (!(prevFeet >= link.commitY && player.feet < link.commitY)) return null;
+        if (player.x < link.openingLeft - 0.01 || player.x + player.w > link.openingRight + 0.01) return null;
+        return this.commitNext();
+      }
       if (!(prevFeet >= active.seamY && player.feet < active.seamY)) return null;
       var openL = active.origin.x + active.exitCol * TS;
       var openR = openL + OPEN * TS;

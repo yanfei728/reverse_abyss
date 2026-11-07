@@ -2,6 +2,10 @@
 
 这是目标技术契约，不是所有 API 均已实现；当前状态见 [STATUS](../../STATUS.md)。设计提案依据见 [decisions.md](decisions.md)。新代码仍使用原生 JS 与 `RA`；下列类型写法仅用于说明，不要求迁移 TypeScript。
 
+2026-11-07 新增 B4：下一版接口以 [cloud-pipe-v2 专项设计](cloud-pipe-interfaces.md) 为准，ports 改为带 col+row 的 start/finish，两格云板与2×3净空石管；本页原 vertical-v1 字段/四格约束记录0.3.2现有行为，不能继续用来约束新图。schemaVersion 2 继续，旧草稿保真但不按旧连接运行。当前程序尚未切换，实施见 [15 号卡](../tasks/15-cloud-pipe-authored-tower.md)。
+
+同日本轮增加 [普通编辑器配套方案](editor-workbench-v2.md)／[16号卡](../tasks/16-editor-workbench.md)：15→16连续实施。Boss/大厅固定场景不开放自由编辑，旧P/G工具移除但旧数据保真。地图size是导出唯一尺寸真值，视口/主题不进LevelData；裁剪先在完整候选副本校验并同步所有活动坐标，确认后原子提交、可撤销、旧认证失效。EditorPreferences独立存储 `{schemaVersion:1,theme:'light'|'dark',autoGrow:boolean}`，不影响hash/dirty；设置失败不能报已保存。不得在导出分支悄悄裁文件或只按非零地形丢对象/路径/端点。
+
 ## 1. 数据所有权
 
 | 数据 | 所有者 | 可变性 / 生命周期 |
@@ -309,11 +313,11 @@ B1/B1-R1、B2-R1 已通过工程验收，用户短塔游玩基本正常；标准
 
 异常越界判死亡回大厅、同塔重试已由 B2 实现：重试重置 runId 与可变本局状态、沿用精确内容版本的 manifest；只有显式重构才重新规划。
 
-## 10. B3 平台边界（R1～R3 复验通过，B3-R2 待修）
+## 10. B3 平台边界（0.3.2 工程与本轮人工验收通过）
 
 完整拟定签名、错误结果与检查见 [B3 卡](../tasks/12-b3-android-short-tower.md)。平台包装、DOM/原生文件与生命周期只放适配层，核心 GameSession/World/Codec/Repository 不依赖 Capacitor。模板、认证、本局与设置各自独立，沿用 Result，不自造手机版关卡格式。
 
-2026-11-06：平台层与 APK 已交付，[B3-R1](../tasks/13-b3-review-fixes.md) 三项工程复验通过；用户在 OPD2101 / Android 11 安装 0.3.1 后启动裁切，当前按 [B3-R2](../tasks/14-b3-android-viewport-fix.md) 修复。以下仍是行为契约，不能把已存在 API 等同于契约已全部通过；完整真机游玩与真实认证文件往返未验。
+2026-11-06：[B3-R1](../tasks/13-b3-review-fixes.md) 三项与 [B3-R2](../tasks/14-b3-android-viewport-fix.md) 启动修复已通过本轮工程/人工验收；真实认证文件往返与 PC 制作发布专项仍待补。以下仍是行为契约，不能把总体人工通过扩写为未执行的逐项结果。用户提出隐藏摇杆 Q05，明确之后再改；当前 ControlLayout schemaVersion 1、左右按钮和语义输入接口保持现有实现，后续输入方案另行细化。
 
 - **ActionInput**：以键码/pointerId 标识每个来源；held 合并、pressed 一次消费，释放单来源不取消其他来源。连接现有 setActions/pressSkill/pressInteract；后台、取消、失焦 clearAll 后暂停，恢复等待用户继续，不重建会话、不追算。
 - **PlatformFiles**：pickJSON 返回 `{name,text}`；取消返回 CANCELLED。exportJSON 返回 written 或 share-opened 等真实状态，只在已确认写入目的地时称已保存；分享面板打开不等于完成导出。
@@ -323,7 +327,7 @@ B1/B1-R1、B2-R1 已通过工程验收，用户短塔游玩基本正常；标准
 
 B3-R1 补充：按钮层同样按 pointerId 保存/释放来源，不能在 ActionInput 多来源正确时用一个按钮 source 变量丢失身份；导入对最终持久化记录核定 revision/eligible，旧认证更新需完整规则匹配与 revision 保护；草稿保存按 draft 门槛保真，play/publish 校验单独决定可选性。错误或冲突不能显示已保存有效认证，未知内容不能因不能运行而被拒绝保真留存。
 
-### 10.1 B3-R2 页面视口约定（待实现，不改存档）
+### 10.1 B3-R2 页面视口约定（行为已落地，参考结构不改存档）
 
 页面层测量可用视口并应用布局；可拆私有 `measureViewport()` / `applyViewport(metrics)`，名称可按现有结构调整，核心 GameSession 不接收 DOM/UA。建议临时结构如下，仅为显示度量，不序列化到关卡、本局或 ControlLayout：
 
