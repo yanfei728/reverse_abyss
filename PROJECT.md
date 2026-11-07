@@ -490,6 +490,8 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 ### 2026-11-07 · B4-R1：作者六图 PC 短塔
 
+实现提交：`7fff152`。
+
 按 [17 号卡](docs/tasks/17-b4-review-and-fixed-scenes.md) 完成，证据见 [B4-R1 记录](docs/checks/B4R1-2026-11-07.md)。
 
 - 固定作者 level0/rest_level/boss + 现有 test1/2/3；level0 仅精确两格 x→0，其余地形/尺寸/空白保真；运行 id 独立、cert=null。
