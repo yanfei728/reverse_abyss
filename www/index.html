@@ -27,6 +27,7 @@
   #pause-overlay h2,#result-overlay h2{margin:0 0 8px;font-size:20px}
   #pause-overlay p,#result-overlay p{color:#9fb0cc;font-size:12.5px;line-height:1.7}
   #pause-overlay button,#result-overlay button{font:inherit;margin:6px 4px 0;padding:7px 14px;border-radius:8px;background:#1d283d;color:#e8eefb;border:1px solid #40557f;cursor:pointer}
+  #interact-prompt{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);display:none;padding:8px 14px;border-radius:10px;background:rgba(12,16,28,.9);border:1px solid #ffd166;color:#ffe7a6;font-size:14px;z-index:6;pointer-events:none;text-align:center;max-width:80%;box-sizing:border-box}
   #help{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#7787a6;background:rgba(8,11,20,.6);border-radius:8px;padding:4px 9px;z-index:3}
 
   body.touch #help{display:none}
@@ -88,6 +89,7 @@
     </div>
   </div>
 
+  <div id="interact-prompt">按 F 开始挑战</div>
   <div id="touch-controls" aria-label="触控操作"></div>
   <button id="btn-settings" title="调整触控按钮">布局</button>
   <div id="rotate-hint">请横屏游玩<br><span style="font-size:12px;color:#7f90b0">旋转设备后按钮会重新夹到安全区域</span></div>

@@ -66,6 +66,13 @@
     if (!data || !data.ports) return out;
     if (!isCloud(data.ports)) return out; // 旧格式由旧校验/迁移处理
     var start = data.ports.start, finish = data.ports.finish;
+    if (data.kind === 'boss') {
+      if (!start) return [issue('INVALID_PORT', '/ports/start', 'Boss 必须有底部 start 云板')];
+      var be = endpointValid(data, 'start');
+      if (be) out.push(be);
+      if (finish) out.push(issue('INVALID_PORT', '/ports/finish', '终局 Boss 不应有 finish/顶出口'));
+      return out;
+    }
     [['start', start], ['finish', finish]].forEach(function (x) {
       var e = endpointValid(data, x[0]);
       if (e) out.push(e);
@@ -129,6 +136,11 @@
 
   function startPose(data, playerSize) {
     var w = (playerSize && playerSize.w) || 26;
+    var fixed = data && data.extensions && data.extensions.fixedScene;
+    if (fixed && fixed.playerSpawn) {
+      var fs = fixed.playerSpawn;
+      return { x: fs.centerCol * TS - w / 2, feet: fs.feetRow * TS, fixed: true };
+    }
     if (!isCloud(data.ports) || !data.ports.start) return null;
     var p = data.ports.start;
     return {
@@ -181,6 +193,11 @@
     isCloud: isCloud,
     validate: validate,
     startPose: startPose,
+    bossPose: function (data, bossSize) {
+      var f = data && data.extensions && data.extensions.fixedScene && data.extensions.fixedScene.boss;
+      if (!f) return null;
+      return { x: f.centerCol * TS - bossSize.w / 2, y: f.centerRow * TS - bossSize.h / 2 };
+    },
     nextOrigin: nextOrigin,
     buildLink: buildLink
   };

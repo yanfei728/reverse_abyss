@@ -77,6 +77,15 @@
       if (!Array.isArray(floors) || !floors.length) {
         return fail('NO_FLOORS', '连续世界至少需要一层');
       }
+      if (opts.requireCloud) {
+        for (var ci = 0; ci < floors.length; ci++) {
+          var cf = floors[ci];
+          var lobbyFixed = cf.kind === 'lobby' && !cf.ports && cf.extensions && cf.extensions.fixedScene;
+          if (!lobbyFixed && !(RA.CloudPipe && RA.CloudPipe.isCloud(cf.ports))) {
+            return fail('LEGACY_PORT', '第 ' + (ci + 1) + ' 层不是 cloud-pipe-v2;新短塔不接受旧 vertical-v1 接口');
+          }
+        }
+      }
       for (var i = 0; i < floors.length; i++) {
         var issues = LD.validate(floors[i], { purpose: 'play' });
         var errors = LD.errorsOf(issues);
@@ -102,6 +111,22 @@
       // 技能/交互是边沿:页面按一次真,固定步只消费一次
       if (next.skillPressed) this.actions.skillPressed = true;
       if (next.interactPressed) this.actions.interactPressed = true;
+    }
+
+    /** 大厅固定入口提示:靠近作者出生锚点才显示;F 一次进入第1层 */
+    interactionPrompt() {
+      if (!this.world || this.world.current !== 0 || this.run.status !== 'running') return null;
+      var f = this.world.currentFloor;
+      if (!f || !f.fixedLobby) return null;
+      var fs = f.data.extensions && f.data.extensions.fixedScene;
+      var p = fs && fs.playerSpawn;
+      if (!p) return null;
+      var cx = f.origin.x + p.centerCol * RA.C.TS;
+      var cy = f.origin.y + (p.feetRow - 0.5) * RA.C.TS;
+      var dx = (this.player.x + this.player.w / 2) - cx;
+      var dy = (this.player.feet - cy);
+      if (Math.abs(dx) > RA.C.TS * 1.5 || Math.abs(dy) > RA.C.TS * 1.5) return null;
+      return { kind: 'start-tower', text: '按 F 开始挑战', action: 'interact' };
     }
 
     pressSkill() { this.actions.skillPressed = true; }
@@ -146,6 +171,14 @@
 
     stepOnce() {
       if (this.paused || this.disposed || this.run.status !== 'running') return;
+      if (this.actions.interactPressed && this.interactionPrompt()) {
+        this.actions.interactPressed = false;
+        var tr = this.world.enterFirstFloor(this.player);
+        if (tr.ok) {
+          this.events.push(tr.value);
+          this._event('towerStarted', { floor: 1 });
+        }
+      }
       this.time += STEP;
       this.run.elapsed += STEP;
       this._damagedThisStep = false;

@@ -60,6 +60,7 @@
 
   function showMenu() {
     state.session = null;
+    var ip0 = $('interact-prompt'); if (ip0) ip0.style.display = 'none';
     state.overlay = '';
     if (state.input) state.input.clearAll();
     clearTouchInput();
@@ -84,7 +85,7 @@
       return false;
     }
     var res = RA.GameSession.create({
-      floors: floors, mode: mode, manifest: manifest || null, profile: 'run-v1'
+      floors: floors, mode: mode, manifest: manifest || null, profile: 'run-v1', requireCloud: true
     });
     if (!res.ok) {
       $('menu-status').textContent = '短塔启动失败:[' + res.error.code + '] ' + res.error.message;
@@ -352,7 +353,7 @@
       var a = keyAction(e.code);
       if (a) { e.preventDefault(); state.input.setHeld('key:' + e.code, a, true); return; }
       if (e.code === 'KeyK') { e.preventDefault(); state.input.press('skill'); return; }
-      if (e.code === 'KeyE') { e.preventDefault(); state.input.press('interact'); return; }
+      if (e.code === 'KeyF' || e.code === 'KeyE') { e.preventDefault(); state.input.press('interact'); return; }
       if (e.code === 'KeyP' || e.code === 'Escape') { e.preventDefault(); state.input.press('pause'); }
     });
     globalThis.addEventListener('keyup', function (e) {
@@ -600,13 +601,12 @@
       if (!link || link.kind !== 'stone-pipe' || !link.walls) return;
       ctx.fillStyle = 'rgba(8,10,16,.9)';
       ctx.fillRect(link.inner.x - cam.x, link.inner.y - cam.y, link.inner.w, link.inner.h);
-      ctx.fillStyle = '#4b5563';
+      var stone = state.assets && RA.TILE_IMAGES['='] ? state.assets.image(RA.TILE_IMAGES['='][0]) : null;
       link.walls.forEach(function (w) {
-        ctx.fillRect(w.x - cam.x, w.y - cam.y, w.w, w.h);
-      });
-      ctx.strokeStyle = 'rgba(150,165,190,.45)'; ctx.lineWidth = 1;
-      link.walls.forEach(function (w) {
-        ctx.strokeRect(w.x - cam.x, w.y - cam.y, w.w, w.h);
+        for (var row = 0; row < 3; row++) {
+          if (stone) RA.drawTile(ctx, '=', stone, w.x - cam.x, w.y - cam.y + row * TS, TS);
+          else { ctx.fillStyle = '#8a6a4a'; ctx.fillRect(w.x - cam.x, w.y - cam.y + row * TS, TS, TS); }
+        }
       });
     });
     // boss + hazards
@@ -645,7 +645,20 @@
       else halo.textContent = '光环就绪 (K)';
     }
     var fl = $('floor-text');
-    if (fl) fl.textContent = '第 ' + (snap.floorIndex + 1) + '/' + snap.floorCount + ' 层 · ' + (snap.floor ? snap.floor.kind : '');
+    if (fl) {
+      var fi = snap.floorIndex, label;
+      if (fi === 0) label = '大厅（0层）';
+      else if (fi >= 1 && fi <= 3) label = '第 ' + fi + '/3 层 · 普通';
+      else if (fi === 4) label = '休整层';
+      else label = 'Boss层';
+      fl.textContent = label + ' · ' + (snap.floor ? snap.floor.kind : '');
+    }
+    var prompt = $('interact-prompt');
+    if (prompt) {
+      var ip = (!s.paused && s.status === 'running' && s.interactionPrompt) ? s.interactionPrompt() : null;
+      prompt.style.display = ip ? 'block' : 'none';
+      if (ip) prompt.textContent = ip.text;
+    }
     var bs = $('boss-text');
     if (bs) {
       if (snap.boss) bs.textContent = 'Boss 阶段 ' + snap.boss.phase + ' · ' + snap.boss.state +

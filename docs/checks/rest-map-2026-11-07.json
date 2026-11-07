@@ -1,0 +1,28 @@
+{
+  "source": "C:/Users/beilu/Documents/blcreate/开发示例关卡/rest_level.json",
+  "snapshot": "levels/authored/source-fixed-2026-11-07/rest_level.json",
+  "bytes": 2038,
+  "sha256": "3e35e2570379bb0fae2895b02bde39f6490c39caa45ad90ef9d704316bbbf136",
+  "sourceId": "level_mw6h1p51_7n",
+  "sourceKind": "normal",
+  "size": {
+    "cols": 19,
+    "rows": 24
+  },
+  "sourceHashMatches": true,
+  "proposedRuntimeKind": "rest",
+  "proposedPorts": {
+    "profile": "cloud-pipe-v2",
+    "start": {
+      "col": 13,
+      "row": 18
+    },
+    "finish": {
+      "col": 1,
+      "row": 8
+    }
+  },
+  "geometryIssues": [],
+  "scope": "Read-only source audit and in-memory endpoint check; no runtime copy, playthrough or certification created",
+  "note": "Top/right edges have open air. Preserve authored terrain; do not silently add walls or require the author to fix the editor first."
+}

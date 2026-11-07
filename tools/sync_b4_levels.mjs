@@ -11,19 +11,19 @@ import { join } from 'node:path';
 import { ROOT } from './loader.mjs';
 
 const files = {
-  lobby: 'levels/b4/fixed/lobby.json',
+  lobby: 'levels/authored/fixed/level0.json',
   normal1: 'levels/authored/short/test1.json',
   normal2: 'levels/authored/short/test2.json',
   normal3: 'levels/authored/short/test3.json',
-  rest: 'levels/b4/fixed/rest.json',
-  boss: 'levels/b4/fixed/boss.json'
+  rest: 'levels/authored/fixed/rest_level.json',
+  boss: 'levels/authored/fixed/boss.json'
 };
 const out = {};
 for (const k of Object.keys(files)) {
   out[k] = JSON.parse(readFileSync(join(ROOT, files[k]), 'utf8'));
 }
 const text = '/* -*- coding: utf-8 -*- */\n' +
-  '/* 由 tools/sync_b4_levels.mjs 从 levels/authored/short 与 levels/b4/fixed 生成;不要手改。 */\n' +
+  '/* 由 tools/sync_b4_levels.mjs 从 levels/authored/short 与 levels/authored/fixed 生成;不要手改。 */\n' +
   '(function (RA) {\n  \'use strict\';\n  RA.B4_SAMPLES = ' +
   JSON.stringify(out, null, 2) + ';\n})(globalThis.RA = globalThis.RA || {});\n';
 if (process.argv.includes('--check')) {

@@ -95,8 +95,9 @@ check('石管几何:两端顶面相距 4 格、内宽2高3、两侧墙、commitY
   const w = r.value.world;
   w.links.forEach((link, i) => {
     if (i === 0) {
-      assert.equal(link.kind, 'lobby-direct');
+      assert.equal(link.kind, 'lobby-transfer');
       assert.equal(link.walls, null);
+      return;
     } else {
       assert.equal(link.kind, 'stone-pipe');
       assert.equal(link.inner.w, 2 * TS);
@@ -118,7 +119,10 @@ check('六层短塔实际换层:同一 Player、逐层提交、预热/快照/连
   assert.equal(w.floorCount, 6);
   const ids = floors.map((f) => f.id);
   assert.deepEqual(ids, ['b4_lobby', 'author_test_1', 'author_test_2', 'author_test_3', 'b4_rest', 'b4_boss']);
-  for (let i = 0; i < 5; i++) {
+  s.pressInteract();
+  s.stepOnce();
+  assert.equal(w.current, 1, 'F transfer');
+  for (let i = 1; i < 5; i++) {
     const link = w.links[i];
     player.x = (link.openingLeft + link.openingRight) / 2 - player.w / 2;
     player.y = link.commitY - player.h + 20;
@@ -199,9 +203,10 @@ check('对象调色板包含已有火球/地刺/齿轮/弹簧/门/浮石', () =>
   });
 });
 check('B4 rulesVersion/fingerprint 已升级并覆盖接口', () => {
-  assert.equal(RA.RULES.rulesVersion, 'b4-1');
+  assert.equal(RA.RULES.rulesVersion, 'b4-2');
   assert.ok(RA.RULES.rulesFingerprint.indexOf('cloud-pipe-v2') >= 0);
   assert.ok(RA.RULES.rulesFingerprint.indexOf('gap4') >= 0);
+  assert.ok(RA.RULES.rulesFingerprint.indexOf('fixed=short-fixed-v1') >= 0);
 });
 
 console.log('\nB4 自检:合计 PASS ' + pass + '  FAIL ' + fail);

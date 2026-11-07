@@ -1,0 +1,305 @@
+{
+  "head": "4b997df",
+  "date": "2026-11-07",
+  "scope": "PC independent logic probes; no human clear, certification or APK",
+  "records": [
+    {
+      "name": "R2: before commit, preview endpoint stone is ignored by active collision",
+      "reproduced": true,
+      "current": 1,
+      "previewState": "preview",
+      "previewStone": 2,
+      "startY": -720,
+      "openingLeft": 1260,
+      "before": {
+        "x": 1261,
+        "y": -718,
+        "feet": -682
+      },
+      "after": {
+        "x": 1256,
+        "y": -717.3611111111111,
+        "feet": -681.3611111111111
+      },
+      "wall": {
+        "x": 1215,
+        "y": -720,
+        "w": 45,
+        "h": 45
+      }
+    },
+    {
+      "name": "R2: test3 generated pipe wall outside raw grid is not collidable",
+      "reproduced": true,
+      "localRow": -1,
+      "recordedSolid": true,
+      "current": 3,
+      "origin": {
+        "x": 1215,
+        "y": -2520
+      },
+      "wall": {
+        "x": 1215,
+        "y": -2565,
+        "w": 45,
+        "h": 135
+      },
+      "after": {
+        "x": 1256,
+        "y": -2520,
+        "feet": -2484
+      }
+    },
+    {
+      "name": "control: centered ascent remains possible in this one step",
+      "movedUp": true,
+      "beforeFeet": -2600,
+      "afterFeet": -2606.027777777778,
+      "commitY": -2610,
+      "current": 3,
+      "localTop": -2520
+    },
+    {
+      "name": "control: descending from within a one-way cloud remains passable",
+      "movedDown": true,
+      "oldFeet": -719.8,
+      "nextFeet": -717.8,
+      "cloudY": -720,
+      "previewCloud": 5,
+      "note": "Descending from below the cloud top should remain passable; this probe records coverage, not a defect by itself."
+    },
+    {
+      "name": "R4: crop ignores the known fireball radius",
+      "reproduced": true,
+      "ok": true,
+      "afterSize": {
+        "cols": 4,
+        "rows": 4
+      },
+      "offset": {
+        "col": -5,
+        "row": -5
+      },
+      "bounds": {
+        "col": 5,
+        "row": 5,
+        "cols": 4,
+        "rows": 4,
+        "empty": false
+      },
+      "object": {
+        "id": "fb",
+        "type": "fireball_static",
+        "col": 8,
+        "row": 8,
+        "params": {
+          "radiusTiles": 1
+        },
+        "pathId": null
+      },
+      "note": "Object center is (8.5,8.5), radius 1; crop ends at 9 in each axis, excluding half a tile of its live footprint."
+    },
+    {
+      "name": "R4: crop accepts unknown spatial semantics instead of refusing",
+      "reproduced": true,
+      "ok": true,
+      "afterSize": {
+        "cols": 4,
+        "rows": 4
+      },
+      "preservedUnknown": {
+        "id": "future",
+        "type": "future_spatial",
+        "col": 3,
+        "row": 3,
+        "params": {
+          "anchor": {
+            "col": 15,
+            "row": 15
+          }
+        },
+        "pathId": null
+      }
+    },
+    {
+      "name": "R3: editor development handoff mixes cloud and old sample B",
+      "reproduced": true,
+      "error": "TypeError: Cannot read properties of undefined (reading 'col')",
+      "stack": "TypeError: Cannot read properties of undefined (reading 'col')\n    at new World (js/world.js:350:53)\n    at GameSession.create (js/session.js:89:19)\n    at file:///C:/Users/beilu/Documents/blwork/reverse_abyss/docs/checks/review-B4-2026-11-07-probes.mjs:100:31\n    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n    at async node:internal/modules/esm/loader:647:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+      "note": "The delivered Editor.openPlaytest constructs exactly this floor pair."
+    },
+    {
+      "name": "source: level0",
+      "bytes": 2182,
+      "sha256": "fcaf59ad30d603042dd4770a62baa303c1cb2841311aac480b2bbeda5d337953",
+      "validJSON": false,
+      "parseError": "Unexpected token 'x', ...\" 0, 0, 0, x, x, 0, 0\"... is not valid JSON",
+      "id": "level_mw6fz3dq_7p",
+      "kind": "normal",
+      "size": {
+        "cols": 21,
+        "rows": 24
+      },
+      "ports": null,
+      "spawn": null,
+      "markers": [
+        {
+          "col": 9,
+          "row": 19
+        },
+        {
+          "col": 10,
+          "row": 19
+        }
+      ],
+      "clouds": []
+    },
+    {
+      "name": "source: boss",
+      "bytes": 2182,
+      "sha256": "f3b0e3fb0c0e43ac51ecbd4d168de38ffe3898ea0c342c4424757dd2225acaea",
+      "validJSON": true,
+      "id": "level_mw6fz3dq_7p",
+      "kind": "normal",
+      "size": {
+        "cols": 21,
+        "rows": 24
+      },
+      "ports": null,
+      "spawn": null,
+      "markers": [],
+      "clouds": [
+        {
+          "col": 1,
+          "row": 20
+        },
+        {
+          "col": 2,
+          "row": 20
+        }
+      ],
+      "draftErrors": [],
+      "hashMatches": true
+    },
+    {
+      "name": "source: test1",
+      "bytes": 2110,
+      "sha256": "4332b9cbe7045955f74087d6ad7382ac1351944fe6325a1ec97b4621aca74989",
+      "validJSON": true,
+      "id": "level_mw6arbjv_1l",
+      "kind": "normal",
+      "size": {
+        "cols": 20,
+        "rows": 24
+      },
+      "ports": null,
+      "spawn": null,
+      "markers": [],
+      "clouds": [
+        {
+          "col": 15,
+          "row": 7
+        },
+        {
+          "col": 16,
+          "row": 7
+        },
+        {
+          "col": 2,
+          "row": 22
+        },
+        {
+          "col": 3,
+          "row": 22
+        }
+      ],
+      "draftErrors": [],
+      "hashMatches": true,
+      "matchesPreviousOriginal": true
+    },
+    {
+      "name": "source: test2",
+      "bytes": 2110,
+      "sha256": "3c9fadb7439e179d21d73c9b5e703b0a3c29ba02586db06842d741d41d28f66f",
+      "validJSON": true,
+      "id": "level_mw6arbjv_1l",
+      "kind": "normal",
+      "size": {
+        "cols": 20,
+        "rows": 24
+      },
+      "ports": null,
+      "spawn": null,
+      "markers": [],
+      "clouds": [
+        {
+          "col": 9,
+          "row": 5
+        },
+        {
+          "col": 10,
+          "row": 5
+        },
+        {
+          "col": 9,
+          "row": 21
+        },
+        {
+          "col": 10,
+          "row": 21
+        }
+      ],
+      "draftErrors": [],
+      "hashMatches": true,
+      "matchesPreviousOriginal": true
+    },
+    {
+      "name": "source: test3",
+      "bytes": 2182,
+      "sha256": "d3db1a0b4526b2ef7a0ef868f26cbd8045f7cf8682da8d528e3232647dbb7aaf",
+      "validJSON": true,
+      "id": "level_mw6arbjv_1l",
+      "kind": "normal",
+      "size": {
+        "cols": 21,
+        "rows": 24
+      },
+      "ports": null,
+      "spawn": null,
+      "markers": [],
+      "clouds": [
+        {
+          "col": 1,
+          "row": 2
+        },
+        {
+          "col": 2,
+          "row": 2
+        },
+        {
+          "col": 1,
+          "row": 20
+        },
+        {
+          "col": 2,
+          "row": 20
+        }
+      ],
+      "draftErrors": [],
+      "hashMatches": true,
+      "matchesPreviousOriginal": true
+    },
+    {
+      "name": "R1: pipe renderer uses its own rectangle style",
+      "reproduced": true,
+      "existingStone": {
+        "id": 4,
+        "ch": "=",
+        "name": "石块",
+        "solid": true,
+        "oneway": false
+      },
+      "existingTexture": "tiles/stone"
+    }
+  ]
+}

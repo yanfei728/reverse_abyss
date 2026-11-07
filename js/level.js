@@ -480,14 +480,13 @@
      */
     _hitTiles(x, y, w, h, includeOneway) {
       var t = this.tile, out = [];
-      var c0 = Math.max(0, Math.floor(x / t));
-      var c1 = Math.min(this.cols - 1, Math.floor((x + w - 1) / t));
-      var r0 = Math.max(0, Math.floor(y / t));
-      var r1 = Math.min(this.rows - 1, Math.floor((y + h - 1) / t));
+      var c0 = Math.floor(x / t), c1 = Math.floor((x + w - 1) / t);
+      var r0 = Math.floor(y / t), r1 = Math.floor((y + h - 1) / t);
       for (var r = r0; r <= r1; r++) {
         for (var c = c0; c <= c1; c++) {
-          if (this.grid[r][c]) out.push([r, c, false]);
-          else if (includeOneway && this.oneway[r][c]) out.push([r, c, true]);
+          var inMap = r >= 0 && r < this.rows && c >= 0 && c < this.cols;
+          if (inMap && this.grid[r][c]) out.push([r, c, false]);
+          else if (inMap && includeOneway && this.oneway[r][c]) out.push([r, c, true]);
           else if (this.solidEntityAt(r, c)) out.push([r, c, false]);
         }
       }

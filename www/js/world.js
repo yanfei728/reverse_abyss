@@ -50,11 +50,17 @@
       this.spawn = data.spawn;
       this.ports = data.ports;
       this.cloud = !!(RA.CloudPipe && RA.CloudPipe.isCloud(data.ports));
+      this.fixedLobby = !!(data.kind === 'lobby' && !data.ports && data.extensions && data.extensions.fixedScene);
       if (this.cloud) {
         this.start = data.ports.start;
-        this.finish = data.ports.finish;
+        this.finish = data.ports.finish || null;
         this.entryCol = this.start.col;
-        this.exitCol = this.finish.col;
+        this.exitCol = this.finish ? this.finish.col : this.start.col;
+      } else if (this.fixedLobby) {
+        this.start = null;
+        this.finish = null;
+        this.entryCol = 0;
+        this.exitCol = 0;
       } else {
         this.start = null;
         this.finish = null;
@@ -88,14 +94,14 @@
         asc: tilesToAsc(data.terrain.tiles),
         size: { cols: this.cols, rows: this.rows }
       }, { id: data.id + '_runtime' });
-      var pose = this.cloud && RA.CloudPipe ? RA.CloudPipe.startPose(data, { w: 20, h: 36 }) : null;
+      var pose = RA.CloudPipe ? RA.CloudPipe.startPose(data, { w: 20, h: 36 }) : null;
       if (pose) {
         level.startX = this.origin.x + pose.x;
         level.startFeet = this.origin.y + pose.feet;
         level.startLocalX = pose.x;
         level.startLocalFeet = pose.feet;
-        level.spawnCol = pose.col;
-        level.spawnRow = Math.max(0, pose.row - 1);
+        level.spawnCol = pose.col !== undefined ? pose.col : (this.start ? this.start.col : 0);
+        level.spawnRow = pose.row !== undefined ? Math.max(0, pose.row - 1) : 0;
       } else {
         level.startX = this.spawn.col * TS + 8;
         level.startFeet = (this.spawn.row + 1) * TS;
@@ -282,8 +288,8 @@
     /** Player/落脚容错用世界行列查询;越界按地面边界处理 */
     blockedAt(worldRow, worldCol) {
       var lr = this._lr(worldRow), lc = this._lc(worldCol);
-      if (lc < 0 || lc >= this.inst.cols) return lr >= 0 && lr < this.inst.rows;
-      if (lr < 0) return false;                   // 地图上方没有地块;顶边由 move 处理
+      if (lc < 0 || lc >= this.inst.cols) return false;
+      if (lr < 0) return this.inst.solidAt(lr, lc);                   // 地图上方没有地块;顶边由 move 处理
       if (lr >= this.inst.rows) return true;      // 底边:防回落/防掉出世界
       return !!this.inst.level.grid[lr][lc] || !!this.inst.level.oneway[lr][lc] || this.inst.solidAt(lr, lc);
     }
@@ -292,7 +298,7 @@
       var inst = this.inst;
       var lx = worldX - inst.origin.x;
       var lf = feet - inst.origin.y;
-      if (lf >= inst.rows * TS - 0.6) return true;  // 底部梯板(接口处也不回落到下一层)
+      if (!inst.cloud && !inst.fixedLobby && lf >= inst.rows * TS - 0.6) return true;
       return inst.level.standingOn(lx, lf, w);
     }
 
@@ -302,23 +308,21 @@
       var r = inst.level.move(worldX - origin.x, worldY - origin.y, w, h, vx, vy, dt);
       var nx = r.x, ny = r.y, nvx = r.vx, nvy = r.vy, grounded = r.grounded;
 
-      // 左右外墙
-      if (nx < 0) { nx = 0; nvx = 0; }
-      if (nx > inst.cols * TS - w) { nx = inst.cols * TS - w; nvx = 0; }
-
-      // 顶边:只有身体完全在出口开口内才允许越线;否则当天花板
-      if (ny < 0) {
-        var openL = inst.exitCol * TS;
-        var openR = openL + OPEN * TS;
-        var inside = nx >= openL - 0.01 && nx + w <= openR + 0.01;
-        if (!inside || !inst.hasNext || !inst.exitOpen) { ny = 0; nvy = 0; }
-      }
-
-      // 底边:进入本层后是一块单向梯板,防止从入口回落到下一层
-      if (ny + h > inst.rows * TS) {
-        ny = inst.rows * TS - h;
-        nvy = 0;
-        grounded = true;
+      // 云板场景/固定大厅不使用旧数组边框隐形墙;真实地形/连接墙负责碰撞
+      if (!inst.cloud && !inst.fixedLobby) {
+        if (nx < 0) { nx = 0; nvx = 0; }
+        if (nx > inst.cols * TS - w) { nx = inst.cols * TS - w; nvx = 0; }
+        if (ny < 0) {
+          var openL = inst.exitCol * TS;
+          var openR = openL + OPEN * TS;
+          var inside = nx >= openL - 0.01 && nx + w <= openR + 0.01;
+          if (!inside || !inst.hasNext || !inst.exitOpen) { ny = 0; nvy = 0; }
+        }
+        if (ny + h > inst.rows * TS) {
+          ny = inst.rows * TS - h;
+          nvy = 0;
+          grounded = true;
+        }
       }
 
       return {
@@ -342,9 +346,10 @@
       var links = [];
       for (var i = 1; i < floors.length; i++) {
         var lower = floors[i - 1], upper = floors[i];
-        if (RA.CloudPipe && RA.CloudPipe.isCloud(lower.ports) && RA.CloudPipe.isCloud(upper.ports)) {
-          var no = RA.CloudPipe.nextOrigin(lower, upper, origins[i - 1]);
-          origins.push(no);
+        if (i === 1 && lower.kind === 'lobby' && !lower.ports) {
+          origins.push({ x: 0, y: -2000 });
+        } else if (RA.CloudPipe && RA.CloudPipe.isCloud(lower.ports) && RA.CloudPipe.isCloud(upper.ports)) {
+          origins.push(RA.CloudPipe.nextOrigin(lower, upper, origins[i - 1]));
         } else {
           origins.push({
             x: origins[i - 1].x + (lower.ports.exit.col - upper.ports.entry.col) * TS,
@@ -358,10 +363,15 @@
       this.origins = origins;
       for (var k = 1; k < floors.length; k++) {
         var lf = floors[k - 1], uf = floors[k];
-        var kind = k === 1 ? 'lobby-direct' : 'stone-pipe';
-        var link = (RA.CloudPipe && RA.CloudPipe.isCloud(lf.ports) && RA.CloudPipe.isCloud(uf.ports))
-          ? RA.CloudPipe.buildLink(lf, uf, origins[k - 1], kind) : null;
-        if (link) { link.lowerIndex = k - 1; link.upperIndex = k; }
+        var kind = 'stone-pipe';
+        var link;
+        if (k === 1 && lf.kind === 'lobby' && !lf.ports) {
+          link = { kind: 'lobby-transfer', lowerIndex: 0, upperIndex: 1, commitY: null, walls: null };
+        } else {
+          link = (RA.CloudPipe && RA.CloudPipe.isCloud(lf.ports) && RA.CloudPipe.isCloud(uf.ports))
+            ? RA.CloudPipe.buildLink(lf, uf, origins[k - 1], kind) : null;
+          if (link) { link.lowerIndex = k - 1; link.upperIndex = k; }
+        }
         links.push(link);
       }
       this.links = links;
@@ -470,6 +480,32 @@
       var ev = { type: 'floorEntered', from: from.index, to: to.index, simTime: this.simTime || 0 };
       this.events.push(ev);
       return ev;
+    }
+
+    /** 仅大厅固定入口:F 显式传送到第1层;不生成物理连接,保留同一 Player */
+    enterFirstFloor(player) {
+      var from = this.instances.get(0), to = this.instances.get(1);
+      if (!from || !to) return { ok: false, error: { code: 'NO_FLOOR', message: '缺少大厅或第1层' } };
+      if (!(from.data.kind === 'lobby' && from.fixedLobby)) return { ok: false, error: { code: 'NOT_LOBBY', message: '只能从作者大厅 F 出发' } };
+      from.state = 'snapshot';
+      to.state = 'active';
+      to.entered = true;
+      to.activeTime = 0;
+      this.current = 1;
+      if (player) {
+        player.level = to.view;
+        player.x = to.level.startX;
+        player.y = to.level.startFeet - player.h;
+        player.vx = 0; player.vy = 0;
+        player.onGround = false;
+        player.coyote = 0; player.jumpBuffer = 0;
+        player.jumpsUsed = 0;
+      }
+      this.transferred = true;
+      if (this.instances.get(2) === undefined && this.floors[2]) this._spawn(2, 'preview');
+      var ev = { type: 'floorEntered', from: 0, to: 1, simTime: this.simTime || 0, transfer: true };
+      this.events.push(ev);
+      return { ok: true, value: ev };
     }
 
     /** Session 注入 player 引用,用于提交后切换适配层与过界判定 */

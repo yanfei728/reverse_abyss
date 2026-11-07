@@ -1,0 +1,15 @@
+B4-R1 固定六图短塔
+  PASS  三张固定源字节 SHA 不变
+  PASS  level0 仅精确两格裸 x 转0,其余地形/尺寸/空白不变
+  PASS  rest/boss 地形、尺寸、空白保真且固定身份独立
+  PASS  共享校验:lobby无ports/Boss仅start可跑,normal缺端点拒绝
+  PASS  大厅出生中心/脚底与 F 提示
+  PASS  F 单次传送到第1层,保留生命/光环/同一Player
+  PASS  四条连接可用真实二段跳从下端云板穿到上层 start
+  PASS  石管六块墙:逐格 tileId=4,上层未激活时四向阻挡
+  PASS  test3 finish.row=2 的负行管壁仍参与碰撞
+  PASS  休整入场一次回复40/封顶100,平台跳跃不重复
+  PASS  Boss 固定中心(10.5,14.5),只有start/无finish/无后续管
+  PASS  短塔规则 b4-2 指纹覆盖固定场景/碰撞
+
+B4-R1 自检:合计 PASS 12  FAIL 0

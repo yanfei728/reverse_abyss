@@ -1,6 +1,6 @@
 # 普通关卡编辑器：工具补齐、尺寸与双主题工作台
 
-日期：2026-11-07；状态：**B4 PC 已实现（编辑器仅 PC），Android 未同步**。与 [云板/石管接口](cloud-pipe-interfaces.md)、[15 号卡](../tasks/15-cloud-pipe-authored-tower.md) 配套，实施见 [16 号卡](../tasks/16-editor-workbench.md)。本轮 15→16 按依赖连续完成、集中验收，最终同步一次新 APK；当前运行版本仍0.3.2。
+日期：2026-11-07；状态：**用户最新决定编辑器后置**。已交付工作台保留，R3开发试玩旧夹具/R4安全裁剪留后续批次；本轮 [17号卡](../tasks/17-b4-review-and-fixed-scenes.md)只做PC六图短塔，不实施本页编辑器要求，也不以标准认证发布为验收门槛。固定场景/碰撞契约见 [设计](short-tower-fixed-scenes-and-collision.md)。本页保留后续目标，不表示各项已验；不构建APK，Android仍0.3.2。
 
 ## 1. 用户决定与边界
 

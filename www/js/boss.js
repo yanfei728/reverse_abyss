@@ -28,8 +28,9 @@
       this.resolvingTimer = 0;
       this.w = TS * 2.2;
       this.h = TS * 2.2;
-      this.x = floor.origin.x + floor.cols * TS / 2 - this.w / 2;
-      this.y = floor.origin.y + TS * 2.5;
+      var fp = RA.CloudPipe && RA.CloudPipe.bossPose ? RA.CloudPipe.bossPose(floor.data, { w: this.w, h: this.h }) : null;
+      this.x = floor.origin.x + (fp ? fp.x : (floor.cols * TS / 2 - this.w / 2));
+      this.y = floor.origin.y + (fp ? fp.y : TS * 2.5);
       this.contactDamage = tuning.bossContactDamage || 20;
       this.tuning = tuning;
     }

@@ -2,7 +2,7 @@
 
 这是目标技术契约，不是所有 API 均已实现；当前状态见 [STATUS](../../STATUS.md)。设计提案依据见 [decisions.md](decisions.md)。新代码仍使用原生 JS 与 `RA`；下列类型写法仅用于说明，不要求迁移 TypeScript。
 
-2026-11-07 新增 B4：下一版接口以 [cloud-pipe-v2 专项设计](cloud-pipe-interfaces.md) 为准，ports 改为带 col+row 的 start/finish，两格云板与2×3净空石管；本页原 vertical-v1 字段/四格约束记录0.3.2现有行为，不能继续用来约束新图。schemaVersion 2 继续，旧草稿保真但不按旧连接运行。当前程序尚未切换，实施见 [15 号卡](../tasks/15-cloud-pipe-authored-tower.md)。
+2026-11-07 B4已交付PC、验收暂不通过。接口为 [cloud-pipe-v2](cloud-pipe-interfaces.md)，ports以col+row标记start/finish；schemaVersion仍2，旧vertical-v1只保真存草稿、新play/publish拒绝。当前修复契约以 [固定场景与碰撞](short-tower-fixed-scenes-and-collision.md) 为准：lobby无端口、程序维护extensions.fixedScene.playerSpawn与F交互；终局boss仅start、finish=null，固定Boss中心入hash；normal/rest仍双端点。跨层碰撞由世界适配统一查询。上述修复待17号卡实现；Android仍0.3.2、不构建APK。
 
 同日本轮增加 [普通编辑器配套方案](editor-workbench-v2.md)／[16号卡](../tasks/16-editor-workbench.md)：15→16连续实施。Boss/大厅固定场景不开放自由编辑，旧P/G工具移除但旧数据保真。地图size是导出唯一尺寸真值，视口/主题不进LevelData；裁剪先在完整候选副本校验并同步所有活动坐标，确认后原子提交、可撤销、旧认证失效。EditorPreferences独立存储 `{schemaVersion:1,theme:'light'|'dark',autoGrow:boolean}`，不影响hash/dirty；设置失败不能报已保存。不得在导出分支悄悄裁文件或只按非零地形丢对象/路径/端点。
 
