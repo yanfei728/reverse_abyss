@@ -467,6 +467,8 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 ### 2026-11-07 · B4 PC：云板/石管、作者三图与编辑器
 
+实现提交：`dfbe10d`。
+
 按 [15 号卡](docs/tasks/15-cloud-pipe-authored-tower.md)→[16 号卡](docs/tasks/16-editor-workbench.md) 完成，证据见 [B4 记录](docs/checks/B4-2026-11-07.md)。
 
 - **接口**：cloud-pipe-v2 start/finish 2×1 云板；2×3 净空、两侧石墙、顶面差 4 格；World 派生只读碰撞/渲染；0→1 direct，其余 stone-pipe；start 生成玩家，spawn:null 合法。
