@@ -8,7 +8,7 @@
 (function (RA) {
   'use strict';
   var C = RA.C;
-  var RULES_VERSION = 'b4-3';
+  var RULES_VERSION = 'b4-4';
   var PROFILE = 'standard-v1';
   var TUNING = {
     hp: 100,
@@ -37,7 +37,9 @@
     'objects=' + Object.keys(C.OBJECT_PARAMS || {}).sort().join(','),
     'interface=cloud-pipe-v2/2x3/gap4',
     'fixed=short-fixed-v1',
-    'collision=world-v3'
+    'collision=world-v3',
+    'path=orth-v1',
+    'trial=single-map-v1'
   ].join('|');
 
   RA.RULES = {

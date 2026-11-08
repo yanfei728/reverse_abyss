@@ -53,7 +53,7 @@ head('R1a:试玩自动保存期间编辑,不离开、不把新改动当已保存
 {
   const { repo, release } = delayedSaveRepo();
   const ed = editor(repo);
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
+  globalThis.sessionStorage.removeItem('RA_TRIAL_V3');
   const oldHref = globalThis.location.href;
   globalThis.location.href = 'editor.html';
   const pending = ed.openPlaytest();
@@ -62,14 +62,14 @@ head('R1a:试玩自动保存期间编辑,不离开、不把新改动当已保存
   release();
   const result = await pending;
   const stored = (await repo.loadDraft(sample.id)).value;
-  const handoff = globalThis.sessionStorage.getItem('RA_DEVPLAY_V2');
+  const handoff = globalThis.sessionStorage.getItem('RA_TRIAL_V3');
   check('保存期间编辑时试玩被取消', result === false);
   check('没有离开编辑器', globalThis.location.href === 'editor.html', globalThis.location.href);
   check('新改动仍在、dirty 未清', ed.model.title === '试玩保存期间的新改动' && ed.dirty === true);
   check('草稿里是发起时快照(旧标题)', stored.data.title === sample.title, stored.data.title);
   check('没有写 handoff 把未保存内容带走', handoff === null);
   globalThis.location.href = oldHref;
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
+  globalThis.sessionStorage.removeItem('RA_TRIAL_V3');
 }
 
 head('R1b:保存 A 期间切到 B,旧回包不绑定 B');
@@ -159,19 +159,19 @@ head('正常试玩 handoff 与刚保存的草稿内容一致');
     adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory'
   });
   const ed = editor(repo);
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
+  globalThis.sessionStorage.removeItem('RA_TRIAL_V3');
   const oldHref = globalThis.location.href;
   globalThis.location.href = 'editor.html';
   const ok = await ed.openPlaytest();
-  const handoff = JSON.parse(globalThis.sessionStorage.getItem('RA_DEVPLAY_V2') || 'null');
+  const handoff = JSON.parse(globalThis.sessionStorage.getItem('RA_TRIAL_V3') || 'null');
   const stored = (await repo.loadDraft(sample.id)).value;
-  check('正常试玩成功导航', ok === true && globalThis.location.href.indexOf('devplay.html') >= 0);
+  check('正常试玩成功导航', ok === true && globalThis.location.href.indexOf('trial.html') >= 0);
   check('handoff 是规范快照,与草稿逐项一致',
     !!handoff && LD.canonical(handoff.template) === LD.canonical(stored.data));
   check('handoff 通过 play 校验',
     LD.errorsOf(LD.validate(handoff.template, { purpose: 'play' })).length === 0);
   globalThis.location.href = oldHref;
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
+  globalThis.sessionStorage.removeItem('RA_TRIAL_V3');
 }
 
 head('N02:暂停菜单重开清掉遮罩与输入');

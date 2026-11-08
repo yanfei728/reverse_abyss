@@ -1,0 +1,23 @@
+[
+  {
+    "name": "full",
+    "command": "node tools/test_all.mjs",
+    "exitCode": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "name": "gestures",
+    "command": "node tools/test_editor_gestures.mjs",
+    "exitCode": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "name": "probes",
+    "command": "node docs/checks/review-B4R4-2026-11-08-probes.mjs",
+    "exitCode": 0,
+    "signal": null,
+    "error": null
+  }
+]

@@ -1256,7 +1256,7 @@
       click('btn-copy', () => self.copyJSON());
       click('btn-view-json', () => self.showJSON());
       click('btn-play', () => { self.openPlaytest(); });
-      click('btn-standard', () => { self.openStandardPlaytest(); });
+      click('btn-standard', () => { self.openPlaytest(); });
       click('btn-publish', () => { self.publishCurrent(); });
       click('btn-start-mark', () => self.beginPortMark('start'));
       click('btn-finish-mark', () => self.beginPortMark('finish'));
@@ -2260,30 +2260,30 @@
         return false;
       }
       var handoff = {
-        version: 2,
-        kind: 'editor-single-level',
-        mode: 'development',
+        version: 3,
+        kind: 'editor-validation',
+        profileId: 'standard-v1',
         template: handoffTemplate,
         subjectRef: { levelId: handoffTemplate.id, contentHash: handoffTemplate.contentHash || null },
         draftRef: { draftId: this.draftId, revision: this.draftRevision },
         rules: { rulesVersion: RA.RULES && RA.RULES.rulesVersion, rulesFingerprint: RA.RULES && RA.RULES.rulesFingerprint },
-        requestId: 'dev_' + Date.now().toString(36)
+        requestId: 'trial_' + Date.now().toString(36)
       };
-      var planCheck = RA.TrialPlan && RA.TrialPlan.build(handoff);
+      var planCheck = RA.TrialSession && RA.TrialSession.build(handoff);
       if (!planCheck || !planCheck.ok) {
-        this.say('单关试玩计划无效:' + (planCheck && planCheck.error ? planCheck.error.message : '缺少 TrialPlan'), 'bad');
+        this.say('单关试玩数据无效:' + (planCheck && planCheck.error ? planCheck.error.message : '缺少 TrialSession'), 'bad');
         return false;
       }
       try {
-        globalThis.sessionStorage.setItem('RA_DEVPLAY_V2', JSON.stringify(handoff));
+        globalThis.sessionStorage.setItem('RA_TRIAL_V3', JSON.stringify(handoff));
       } catch (e) {
         this.say('浏览器不允许暂存试玩数据(' + (e && e.message) +
           ');请检查隐私模式后重试', 'bad');
         return false;
       }
-      this.say('已保存草稿 revision ' + this.draftRevision + ',正在打开开发试玩…');
+      this.say('已保存草稿 revision ' + this.draftRevision + ',正在打开试玩验证…');
       var loc = globalThis.location;
-      if (loc) loc.href = 'devplay.html?from=editor';
+      if (loc) loc.href = 'trial.html?from=editor';
       return true;
     }
 

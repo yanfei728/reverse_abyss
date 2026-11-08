@@ -2,9 +2,9 @@
 
 这是目标技术契约，不是所有 API 均已实现；当前状态见 [STATUS](../../STATUS.md)。设计提案依据见 [decisions.md](decisions.md)。新代码仍使用原生 JS 与 `RA`；下列类型写法仅用于说明，不要求迁移 TypeScript。
 
-**当前20号卡补充（2026-11-08）**：19号卡已交付、齿轮人工正常，但开发试玩仍接作者图且无结束、标记持按可刷坏云板。新的显式mode/subjectRef/生成支撑/共享完成事件及输入消费契约见 [单关试玩](single-level-trials.md)。handoff与LevelData分离：开发不认证、标准保留hash/rules/revision，短塔不启用单关结束；不静默回退旧两层演示或写入运行状态。自动云板是工具暂态，不修改端口/地图格式。
+**当前21号卡补充（2026-11-08，已获用户确认，待实施）**：20号卡试玩未通过；原生成三层支撑/石管方案撤回。新契约见 [独立单关试玩](independent-level-trials.md)：一个试玩验证入口，TrialSession独立于塔World/GameSession，仅复用基础模块；本图start中心顶面出生，完整向上跨本图finish顶面即通过/冻结。handoff建议V3且无floors/next；schema2不变，现有Certification保留hash/rules/revision/profile保护，实施时升级规则指纹；通过后显式发布、草稿保存/JSON备份不限。下文旧“共用Session/入口支撑/楼层结束”由本补充覆盖。标记自动云板/消费按压已入实现，齿轮人工正常，不重做。
 
-**2026-11-08当前补充**：18号卡R2已验收，当前执行 [19号编辑器卡](../tasks/19-editor-markers-and-gear-paths.md)。新契约见 [鼠标工作流](editor-mouse-workflow.md)：schema2/pathId/mode/整数points继续；一点路径允许静止，往返/闭合仅水平垂直与90°转角，旧斜线/未知信息保真草稿、不静默改写。端点坐标只从模型显示，鼠标候选写入；裁剪含半径/线段扫掠并检查工作区版本，编辑器/校验/运行共用路径几何。旧至少两点/手填端点约束由新契约覆盖，固定场景/已修世界碰撞不重做。
+**19号卡已交付规则**：18号卡R2已验收，19号编辑器齿轮人工正常。见 [鼠标工作流](editor-mouse-workflow.md)：schema2/pathId/mode/整数points继续；一点静止，往返/闭合仅水平垂直与90°转角，旧斜线/未知信息保真草稿。端点只读显示模型坐标、鼠标标记；裁剪含包络与工作区保护。旧手填端点/至少两点约束已替代，固定场景/已修世界碰撞不重做。
 
 2026-11-07 B4已交付PC、验收暂不通过。接口为 [cloud-pipe-v2](cloud-pipe-interfaces.md)，ports以col+row标记start/finish；schemaVersion仍2，旧vertical-v1只保真存草稿、新play/publish拒绝。当前修复契约以 [固定场景与碰撞](short-tower-fixed-scenes-and-collision.md) 为准：lobby无端口、程序维护extensions.fixedScene.playerSpawn与F交互；终局boss仅start、finish=null，固定Boss中心入hash；normal/rest仍双端点。跨层碰撞由世界适配统一查询。上述修复待17号卡实现；Android仍0.3.2、不构建APK。
 
@@ -52,7 +52,7 @@ LevelData {
 - 瓦片格均为整数 ID，矩阵行列必须与 size 精确一致。初始字典：0 空、1 草、2 土、3 砖、4 石、5 单向梯板。禁止另一份可编辑 asc 真值。
 - 门、浮石、弹簧、地刺等动态/参数化对象放 objects；起点放 spawn；出口由 ports 表示，不再以 P/G 字符定义正式逻辑。
 - `ports=null`、`spawn=null` 可用于未完成/旧图迁移草稿，阻止试玩和发布；保存草稿不要求可通。
-- spawn 的格子表示玩家脚底所在格底边：x=(col+0.5)*TS−player.w/2，feet=(row+1)*TS。标准认证生成在入口安全区，不能由作者选在出口附近跳过整关。大厅起点由固定场景指定。
+- 旧spawn格表示脚底所在格底边：x=(col+0.5)*TS−player.w/2，feet=(row+1)*TS，仅作旧迁移/兼容。B4普通模板试玩只认ports.start，x=(start.col+1)*TS−player.w/2、feet=start.row*TS，不生成入口支撑。大厅出生由固定场景指定。
 - 认证普通模板必须有底入口与顶出口；大厅/最终 Boss 的实际进出许可由场景控制器处理，不把已关闭出口改成实心模板真值。
 - 资源使用稳定资源 ID，首版仅接内置资源，不直接执行 JSON 中的脚本或请求任意资源地址。未知 visuals 资源可显示占位，但发布要报告缺失。
 - extensions 只保存 JSON 数据，不执行；用于保留额外元信息，不能偷渡未注册玩法逻辑。首版不提供任意插件系统。

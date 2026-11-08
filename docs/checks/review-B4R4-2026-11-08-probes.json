@@ -1,0 +1,110 @@
+{
+  "date": "2026-11-08",
+  "head": "ed05f2a",
+  "implementation": "34569a2",
+  "scope": "Real controller/page RAF/input/simulation; DOM/canvas substituted, no screen or full-level clear.",
+  "records": [
+    {
+      "name": "Real editor handoff and page start",
+      "handoffVersion": 2,
+      "requestedTemplate": "author_test_1",
+      "actualInitialFloor": "trial_entry",
+      "floors": [
+        "trial_entry",
+        "author_test_1",
+        "trial_exit"
+      ],
+      "linkCount": 2,
+      "actualSpawn": {
+        "x": 125,
+        "feet": 180
+      },
+      "expectedAuthoredStart": {
+        "x": 125,
+        "feet": 990,
+        "col": 2,
+        "row": 22
+      },
+      "note": "Actual spawn is on a generated entry floor, not the authored start."
+    },
+    {
+      "name": "Entry fixture to authored map",
+      "frames": 28,
+      "finishY": 0,
+      "oldPipeCompletionY": -180,
+      "crossedOwnFinish": {
+        "floorIndex": 0,
+        "id": "trial_entry",
+        "status": "running",
+        "trialCompleted": null,
+        "time": 0.016666666666666666,
+        "feet": -13.194444444444443
+      },
+      "afterOldPipeBoundary": {
+        "floorIndex": 1,
+        "id": "author_test_1",
+        "status": "running",
+        "trialCompleted": null,
+        "time": 0.44999999999999996,
+        "feet": -187.38888888888877
+      }
+    },
+    {
+      "name": "Authored finish to exit fixture",
+      "frames": 28,
+      "finishY": -855,
+      "oldPipeCompletionY": -1035,
+      "crossedOwnFinish": {
+        "floorIndex": 1,
+        "id": "author_test_1",
+        "status": "running",
+        "trialCompleted": null,
+        "time": 0.4666666666666666,
+        "feet": -868.1944444444445
+      },
+      "afterOldPipeBoundary": {
+        "floorIndex": 2,
+        "id": "trial_exit",
+        "status": "running",
+        "trialCompleted": null,
+        "time": 0.9166666666666679,
+        "feet": -1042.1666666666663
+      }
+    },
+    {
+      "name": "After old advertised completion boundary, simulation still runs",
+      "before": {
+        "floorIndex": 2,
+        "id": "trial_exit",
+        "status": "running",
+        "trialCompleted": null,
+        "time": 0.9166666666666679,
+        "feet": -1042.1666666666663
+      },
+      "afterOneSecond": {
+        "floorIndex": 2,
+        "id": "trial_exit",
+        "status": "running",
+        "trialCompleted": null,
+        "time": 1.8999999999999981,
+        "feet": -1035
+      },
+      "statusText": "进入第 3 层;上一层地形保留到再上一层才释放",
+      "hud": "第 3/3 层 · 模拟 1.8s · 地面 · 单关试玩:生成入口 → 当前模板 → 生成出口",
+      "doneOverlayDisplay": null
+    },
+    {
+      "name": "Delivered GameSession has only storage fields, no trial completion consumer",
+      "trialPlanOccurrences": 2,
+      "trialCompletedOccurrences": 1
+    },
+    {
+      "name": "Standard remains a separate old V1/three-floor implementation",
+      "v1Key": true,
+      "usesTrialPlan": false,
+      "generatesEntryAndExit": true,
+      "floor2Win": true,
+      "note": "Source inspection only; standard success and certification were not simulated."
+    }
+  ]
+}
