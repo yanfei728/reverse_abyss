@@ -105,6 +105,17 @@ check('正常居中二段跳四连接仍能入层(同一Player)', () => {
     assert.equal(s.player, p);
   }
 });
+check('同层云板两侧实心:从云板顶向左/右移动被挡,云板本身不横向挡', () => {
+  const s = session();
+  const f = s.world.currentFloor, p = s.player;
+  p.x = (f.start.col + 0.5) * TS; p.y = f.start.row * TS - p.h;
+  const left = f.view.move(p.x, p.y, p.w, p.h, -900, 0, 1 / 60);
+  assert.ok(left.x >= (f.start.col) * TS - 0.01, 'left solid edge x=' + left.x);
+  p.x = (f.start.col + 1.0) * TS; p.y = f.start.row * TS - p.h;
+  const right = f.view.move(p.x, p.y, p.w, p.h, 900, 0, 1 / 60);
+  assert.ok(right.x + p.w <= (f.start.col + 2) * TS + 0.01, 'right solid edge x=' + right.x);
+});
+
 check('预热/暂停/生命/光环不因侧墙查询被提前启动', () => {
   const s = session();
   const next = s.world.instances.get(2);

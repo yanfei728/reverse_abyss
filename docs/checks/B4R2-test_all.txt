@@ -1,4 +1,4 @@
-
+﻿
 ▌ 关卡数据:levels/*.json 与内嵌 levels.js 是否一致
   PASS  levels.js 存在并且有内容    12 个关卡
   PASS  levels.js 里的 floor01 和 floor01.json 一模一样
@@ -239,7 +239,7 @@
   PASS  gapX 算的是两块落脚面之间的空隙(重叠 = 0)
 [levelpack] 关卡池 12 个模板(内嵌 levels.js): floor01 floor02 floor03 floor04 floor05 floor06 floor07 floor08 floor09 floor10 floor11 floor12
 === reverse_abyss 自检 ===
-塔:种子 RA-1FH78AX · 8 层 · 关卡池 12 个模板
+塔:种子 RA-1822P0J · 8 层 · 关卡池 12 个模板
 ▌ 物理:floor01
   PASS  起点站立不下陷
   PASS  静止时只显示待机帧
@@ -632,7 +632,7 @@
   PASS  开局界面默认不显示设置
   PASS  开局界面不显示种子 / 塔高这些(它们只在设置里)    start,quit,gear
   PASS  点右下角齿轮打开设置
-  PASS  设置里点「重构塔」会换一座塔    RA-1RR3C37 → RA-1DG0F7H
+  PASS  设置里点「重构塔」会换一座塔    RA-CEDG7A → RA-PISZ6D
   PASS  设置里点「＋」塔高 +1    8 → 9
   PASS  设置里点「−」塔高 -1
   PASS  设置里点「镜像」会开关
@@ -685,7 +685,7 @@
   PASS  调色板图标都画得出来
 
 ▌ 模型:一份 LevelData 真值,地形 / 出生点 / 对象 / 元信息
-  PASS  新建有合法 id    level_mw7o947v_2q
+  PASS  新建有合法 id    level_mw7off7v_4q
   PASS  新建尺寸 / 标题 / 难度 / 接口
   PASS  模型没有第二份 cells 真值
   PASS  getTile 界外返回空气
@@ -1030,12 +1030,12 @@
   PASS  实体兜底图尺寸也对(弹簧板/浮石 45×45、出口 34×96)
   PASS  没真的加载到文件时 hasFile 是 false
 node.exe : [assets] 读不到 assets/tiles/grass_top.png,先用现画的兜底
-At line:10 char:104
-+ ... move-Item tools\_patch.mjs; $a=& node tools/test_all.mjs 2>&1; $ac=$L ...
+At line:6 char:192
++ ... \checks\B4R2-test_b4r2.txt; $a=& node tools/test_all.mjs 2>&1; $ac=$L ...
 +                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: ([assets] 读不到 as...top.png,先用现画的兜底:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
-
+ 
 [assets] 读不到 assets/tiles/dirt.png,先用现画的兜底
 [assets] 读不到 assets/tiles/brick.png,先用现画的兜底
 [assets] 读不到 assets/tiles/stone.png,先用现画的兜底
@@ -1398,7 +1398,7 @@ At line:10 char:104
   PASS  玩家对象还是同一个,适配层切到第 1 层
   PASS  世界 x 不因换层被重置    231.0 → 231.0
   PASS  向上速度仍保留(没有被 reset 成 0)    -283.33333333333337
-  PASS  一次越线只产生一个 floorEntered    [{"type":"floorEntered","runId":"run_mw7o97bg_3","sequence":1,"simTime":0.5333333333333333,"from":0,"to":1}]
+  PASS  一次越线只产生一个 floorEntered    [{"type":"floorEntered","runId":"run_mw7ofhwa_3","sequence":1,"simTime":0.5333333333333333,"from":0,"to":1}]
   PASS  第 0 层变成地形快照,第 1 层活动
   PASS  跨层后不会回落:底边梯板把玩家挡在第 1 层    feet=0.00 floor=-225..0
 
@@ -1714,9 +1714,10 @@ B4-R2 云板侧边穿墙
   PASS  连接4 右 第17帧横移
   PASS  原16种输入无持续实心相交/无整身入墙
   PASS  正常居中二段跳四连接仍能入层(同一Player)
+  PASS  同层云板两侧实心:从云板顶向左/右移动被挡,云板本身不横向挡
   PASS  预热/暂停/生命/光环不因侧墙查询被提前启动
 
-B4-R2 自检:合计 PASS 20  FAIL 0
+B4-R2 自检:合计 PASS 21  FAIL 0
 
 ======================================================================
 引擎自检    PASS 610  FAIL 4
@@ -1730,9 +1731,9 @@ B2 自检     PASS 96  FAIL 0
 B3 自检     PASS 60  FAIL 0
 B4 自检     PASS 14  FAIL 0
 B4-R1 短塔 PASS 12  FAIL 0
-B4-R2 侧碰撞 PASS 20  FAIL 0
+B4-R2 侧碰撞 PASS 21  FAIL 0
 ----------------------------------------------------------------------
-合计        PASS 1466  FAIL 4   用时 4.6s
+合计        PASS 1467  FAIL 4   用时 4.0s
 失败的项:
   ✗ floor09 从起点爬得到出口(逐跳物理模拟)    从起点出发到不了出口(最高只到第 4 行)
   ✗ floor11 从起点爬得到出口(逐跳物理模拟)    从起点出发到不了出口(最高只到第 2 行)

@@ -513,7 +513,7 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 按 [18 号卡](docs/tasks/18-cloud-side-collision.md) 完成，证据见 [B4-R2 记录](docs/checks/B4R2-2026-11-08.md)。
 
-- 原16种接缝输入全部先复现；修复后 `test_b4r2` 20/0、`browser_b4r1` 13/0、`test_b4r1` 12/0；完整 1466/4。
+- 原16种接缝输入全部先复现；修复后 `test_b4r2` 21/0、`browser_b4r1` 13/0、`test_b4r1` 12/0；完整 1467/4。
 - 统一世界静态查询：当前/preview上层/快照地形以世界像素进 `solidAt`；`move/blockedAt/standingOn` 同源；preview侧支撑参与整个玩家盒。
 - 大厅→第1层原点改 `-2025=45×-45`，消除 -2000/45 round 邻行；云板仍单向、地形/物理未改。
 - 六图/F/休整/Boss 保持；规则 b4-3/collision=world-v3；只PC、无APK；R3/R4/认证后置。
