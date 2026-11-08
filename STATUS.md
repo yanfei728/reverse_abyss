@@ -22,7 +22,7 @@ HEAD `ba80e23`，实现`eba80a6`及追加回归`ba80e23`。完整1467/4、B4-R2 
 
 随后用户新增rest_level.json并明确先短塔/编辑器后置；原字节副本已保留在同一source-fixed目录。19×24，候选start=(13,18)、finish=(1,8)的内存几何检查无错误，自报hash匹配；见 [审计](docs/checks/rest-map-2026-11-07.json)。仅备份/方案调整，未接运行、未人工实走；原1434/4仍是最近一次完整自检，本次纯文档/原件备份未重跑游戏测试。
 
-- T00 原型基线：`f56cdce`；T01 实现：`6a7e712`；T01-R 修复：`c7c5490`；T02A 交付：`f2a0e07`；T02A-R 修复：`6f88127`；B1/A3-C：`cc3df4a`；B1 主体：`fffaee0`；B1 文档/证据：`205d63c`；B1-R1 修复：`9f2a4e3`；B2 交付：`9a17f99`；B2-R1：`71e3219`；B3：`43fd30b`；B3-R1：`5dc5fb2`；B3-R2：`61a0b2d`；**B4：`dfbe10d`、B4-R1：`7fff152`、B4-R2：`eba80a6`、B4-R3：见下方提交记录**。
+- T00 原型基线：`f56cdce`；T01 实现：`6a7e712`；T01-R 修复：`c7c5490`；T02A 交付：`f2a0e07`；T02A-R 修复：`6f88127`；B1/A3-C：`cc3df4a`；B1 主体：`fffaee0`；B1 文档/证据：`205d63c`；B1-R1 修复：`9f2a4e3`；B2 交付：`9a17f99`；B2-R1：`71e3219`；B3：`43fd30b`；B3-R1：`5dc5fb2`；B3-R2：`61a0b2d`；**B4：`dfbe10d`、B4-R1：`7fff152`、B4-R2：`eba80a6`、B4-R3：`e764910`**。
 - B2 开始前 HEAD `cdd7b54`；本轮新增短塔/规则/对象/Boss/编辑发布与模板，原图、素材、`levels/v2`、`levels/levels.js`、旧 game/playtest 未改。
 - 本轮未推送远程；开始时无关 ZIP 保留。
 - 已有本地 Git，origin 为 `git@github.com:yanfei728/reverse_abyss.git`；不要重复初始化，不丢弃他人未提交内容。
