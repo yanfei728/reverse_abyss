@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**2026-11-08验收：六图短塔流程与云板侧移穿墙修复通过，18号卡关闭。** 原16种输入独立重跑0复现，用户人工确认修复，见 [最新复验](docs/checks/review-B4R2-2026-11-08.md)。下一步执行 [19号编辑器卡](docs/tasks/19-editor-markers-and-gear-paths.md)：裁后坐标、鼠标端点标记、单点/直角往返/闭合齿轮路线及试玩；**新操作尚未实现**。当前编辑器R3/R4仍待修；仅PC、不构建APK，Android仍0.3.2、不含B4。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
+**B4-R3 PC 编辑器（2026-11-08）：鼠标 2×1 端点标记、裁剪旧 selection/安全包络、直角齿轮路线（单点静止/往返/闭合）及 R3 云板夹具已实现。** 六图/F/休整/Boss 与 B4-R2 碰撞保留；不构建新 APK。鼠标真实画面/手感待人工复测；R4 已修，认证发布/Android 后置。见 [B4-R3 记录](docs/checks/B4R3-2026-11-08.md)。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
