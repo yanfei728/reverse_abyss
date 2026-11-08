@@ -1,5 +1,7 @@
 # 云板端点与石头管道接口 v2
 
+2026-11-08当前状态：17号卡六图/F流程人工反馈正常、石块管壁落实；侧边穿墙R2只按 [18号卡](../tasks/18-cloud-side-collision.md) 修复，补充 [统一世界碰撞契约](cloud-side-collision.md)。下文保留原接口几何/历史安排，当前不重做17号卡或构建APK。
+
 日期：2026-11-07；状态：**B4 PC已交付但暂不通过，修复执行17号卡**。当前PC为cloud-pipe-v2，Android仍0.3.2，本轮不构建APK。用户新增确认及修正优先见 [固定场景/碰撞契约](short-tower-fixed-scenes-and-collision.md)、[17号卡](../tasks/17-b4-review-and-fixed-scenes.md)：大厅F传送、Boss仅start无finish、管壁复用已有石块、共享世界碰撞。下文中旧lobby-direct和统一双端点/出APK条款已被覆盖；其余普通接口几何继续保留。
 
 ## 1. 已确认范围与用语

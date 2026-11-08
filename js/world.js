@@ -175,8 +175,28 @@
     updateAmbient(dt) { this.moveObjects(dt); }
 
     /** 对象是否提供实心碰撞(门/浮石/地刺底座) */
+    /** 其他仍存活楼层(尤其 preview 上层起点)的真实静态地形,以当前层局部格推导世界像素 */
+    otherStaticAt(localRow, localCol) {
+      if (!this.world) return false;
+      var wx = this.origin.x + localCol * TS + TS / 2;
+      var wy = this.origin.y + localRow * TS + TS / 2;
+      var found = false;
+      this.world.instances.forEach(function (inst) {
+        if (found || inst === this) return;
+        if (inst.index < this.world.current - 1 || inst.index > this.world.current + 1) return;
+        var lr = (wy - inst.origin.y) / TS;
+        var lc = (wx - inst.origin.x) / TS;
+        var r = Math.floor(lr + 1e-6), c = Math.floor(lc + 1e-6);
+        if (r < 0 || r >= inst.rows || c < 0 || c >= inst.cols) return;
+        var tile = inst.data.terrain.tiles[r][c];
+        if (tile >= 1 && tile <= 4) found = true;
+      }, this);
+      return found;
+    }
+
     solidAt(localRow, localCol) {
       if (this.wallCells && this.wallCells[localRow + ':' + localCol]) return true;
+      if (this.otherStaticAt(localRow, localCol)) return true;
       for (var i = 0; i < this.objects.length; i++) {
         var o = this.objects[i];
         if (o.col !== localCol || o.row !== localRow) continue;
@@ -347,7 +367,7 @@
       for (var i = 1; i < floors.length; i++) {
         var lower = floors[i - 1], upper = floors[i];
         if (i === 1 && lower.kind === 'lobby' && !lower.ports) {
-          origins.push({ x: 0, y: -2000 });
+          origins.push({ x: 0, y: -(45 * TS) }); // TS 对齐;不制造 -2000/TS 的 round 偏差
         } else if (RA.CloudPipe && RA.CloudPipe.isCloud(lower.ports) && RA.CloudPipe.isCloud(upper.ports)) {
           origins.push(RA.CloudPipe.nextOrigin(lower, upper, origins[i - 1]));
         } else {
@@ -382,6 +402,7 @@
           hasNext: index < floors.length - 1
         });
         inst.origin = { x: origins[index].x, y: origins[index].y };
+        inst.world = self;
         inst.linkUp = links[index] || null;
         inst.linkDown = links[index - 1] || null;
         inst.wallCells = {};

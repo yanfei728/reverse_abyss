@@ -203,7 +203,7 @@ check('对象调色板包含已有火球/地刺/齿轮/弹簧/门/浮石', () =>
   });
 });
 check('B4 rulesVersion/fingerprint 已升级并覆盖接口', () => {
-  assert.equal(RA.RULES.rulesVersion, 'b4-2');
+  assert.equal(RA.RULES.rulesVersion, 'b4-3');
   assert.ok(RA.RULES.rulesFingerprint.indexOf('cloud-pipe-v2') >= 0);
   assert.ok(RA.RULES.rulesFingerprint.indexOf('gap4') >= 0);
   assert.ok(RA.RULES.rulesFingerprint.indexOf('fixed=short-fixed-v1') >= 0);

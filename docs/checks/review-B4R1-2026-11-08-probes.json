@@ -1,0 +1,937 @@
+{
+  "head": "9219fc3",
+  "implementation": "7fff152",
+  "date": "2026-11-08",
+  "summary": {
+    "cases": 16,
+    "reproduced": 16,
+    "fullBodyInside": 8
+  },
+  "records": [
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 1,
+      "lowerId": "author_test_1",
+      "upperId": "author_test_2",
+      "direction": -1,
+      "lateralStart": 0,
+      "initial": {
+        "x": 676,
+        "y": -1721,
+        "feet": -1685
+      },
+      "wall": {
+        "x": 630,
+        "y": -1865,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 2,
+      "reproduced": true,
+      "fullBodyInside": true,
+      "firstHit": {
+        "frame": 17,
+        "x": 673.0833333333333,
+        "y": -1860.75,
+        "feet": -1824.75,
+        "vx": -76.66666666666667,
+        "vy": -139.99999999999977,
+        "overlapX": 1.9166666666667425,
+        "overlapY": 36,
+        "current": 1,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 652.1111111111111,
+        "y": -1859.2222222222222,
+        "feet": -1823.2222222222222,
+        "vx": -300,
+        "vy": 121.6666666666668,
+        "overlapX": 20,
+        "overlapY": 36,
+        "current": 1,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 1,
+        "x": 312.1111111111108,
+        "y": -1721,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 1,
+      "lowerId": "author_test_1",
+      "upperId": "author_test_2",
+      "direction": -1,
+      "lateralStart": 17,
+      "initial": {
+        "x": 676,
+        "y": -1721,
+        "feet": -1685
+      },
+      "wall": {
+        "x": 630,
+        "y": -1865,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 2,
+      "reproduced": true,
+      "fullBodyInside": false,
+      "firstHit": {
+        "frame": 19,
+        "x": 672.1666666666666,
+        "y": -1863.5,
+        "feet": -1827.5,
+        "vx": -115,
+        "vy": -63.333333333333094,
+        "overlapX": 2.8333333333333712,
+        "overlapY": 36,
+        "current": 1,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 658.1111111111111,
+        "y": -1859.2222222222222,
+        "feet": -1823.2222222222222,
+        "vx": -268.33333333333337,
+        "vy": 121.6666666666668,
+        "overlapX": 16.888888888888914,
+        "overlapY": 36,
+        "current": 1,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 1,
+        "x": 318.1111111111108,
+        "y": -1721,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 1,
+      "lowerId": "author_test_1",
+      "upperId": "author_test_2",
+      "direction": 1,
+      "lateralStart": 0,
+      "initial": {
+        "x": 744,
+        "y": -1721,
+        "feet": -1685
+      },
+      "wall": {
+        "x": 765,
+        "y": -1865,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 2,
+      "reproduced": true,
+      "fullBodyInside": true,
+      "firstHit": {
+        "frame": 17,
+        "x": 746.9166666666667,
+        "y": -1860.75,
+        "feet": -1824.75,
+        "vx": 76.66666666666667,
+        "vy": -139.99999999999977,
+        "overlapX": 1.9166666666667425,
+        "overlapY": 36,
+        "current": 1,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 767.8888888888889,
+        "y": -1859.2222222222222,
+        "feet": -1823.2222222222222,
+        "vx": 300,
+        "vy": 121.6666666666668,
+        "overlapX": 20,
+        "overlapY": 36,
+        "current": 1,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 1,
+        "x": 1082.888888888889,
+        "y": -1442.7222222222222,
+        "status": "dead"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 1,
+      "lowerId": "author_test_1",
+      "upperId": "author_test_2",
+      "direction": 1,
+      "lateralStart": 17,
+      "initial": {
+        "x": 744,
+        "y": -1721,
+        "feet": -1685
+      },
+      "wall": {
+        "x": 765,
+        "y": -1865,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 2,
+      "reproduced": true,
+      "fullBodyInside": false,
+      "firstHit": {
+        "frame": 19,
+        "x": 747.8333333333334,
+        "y": -1863.5,
+        "feet": -1827.5,
+        "vx": 115,
+        "vy": -63.333333333333094,
+        "overlapX": 2.8333333333333712,
+        "overlapY": 36,
+        "current": 1,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 761.8888888888889,
+        "y": -1859.2222222222222,
+        "feet": -1823.2222222222222,
+        "vx": 268.33333333333337,
+        "vy": 121.6666666666668,
+        "overlapX": 16.888888888888914,
+        "overlapY": 36,
+        "current": 1,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 1,
+        "x": 1081.888888888889,
+        "y": -1415.6666666666665,
+        "status": "dead"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 2,
+      "lowerId": "author_test_2",
+      "upperId": "author_test_3",
+      "direction": -1,
+      "lateralStart": 0,
+      "initial": {
+        "x": 676,
+        "y": -2621,
+        "feet": -2585
+      },
+      "wall": {
+        "x": 630,
+        "y": -2765,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 2,
+      "reproduced": true,
+      "fullBodyInside": true,
+      "firstHit": {
+        "frame": 17,
+        "x": 673.0833333333333,
+        "y": -2760.75,
+        "feet": -2724.75,
+        "vx": -76.66666666666667,
+        "vy": -139.99999999999977,
+        "overlapX": 1.9166666666667425,
+        "overlapY": 36,
+        "current": 2,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 652.1111111111111,
+        "y": -2759.222222222222,
+        "feet": -2723.222222222222,
+        "vx": -300,
+        "vy": 121.6666666666668,
+        "overlapX": 20,
+        "overlapY": 36,
+        "current": 2,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 2,
+        "x": 312.1111111111108,
+        "y": -2621,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 2,
+      "lowerId": "author_test_2",
+      "upperId": "author_test_3",
+      "direction": -1,
+      "lateralStart": 17,
+      "initial": {
+        "x": 676,
+        "y": -2621,
+        "feet": -2585
+      },
+      "wall": {
+        "x": 630,
+        "y": -2765,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 2,
+      "reproduced": true,
+      "fullBodyInside": false,
+      "firstHit": {
+        "frame": 19,
+        "x": 672.1666666666665,
+        "y": -2763.5,
+        "feet": -2727.5,
+        "vx": -115,
+        "vy": -63.333333333333094,
+        "overlapX": 2.833333333333485,
+        "overlapY": 36,
+        "current": 2,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 658.1111111111111,
+        "y": -2759.222222222222,
+        "feet": -2723.222222222222,
+        "vx": -268.33333333333337,
+        "vy": 121.6666666666668,
+        "overlapX": 16.888888888888914,
+        "overlapY": 36,
+        "current": 2,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 2,
+        "x": 318.1111111111108,
+        "y": -2621,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 2,
+      "lowerId": "author_test_2",
+      "upperId": "author_test_3",
+      "direction": 1,
+      "lateralStart": 0,
+      "initial": {
+        "x": 744,
+        "y": -2621,
+        "feet": -2585
+      },
+      "wall": {
+        "x": 765,
+        "y": -2765,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 1,
+      "reproduced": true,
+      "fullBodyInside": true,
+      "firstHit": {
+        "frame": 17,
+        "x": 746.9166666666667,
+        "y": -2760.75,
+        "feet": -2724.75,
+        "vx": 76.66666666666667,
+        "vy": -139.99999999999977,
+        "overlapX": 1.9166666666667425,
+        "overlapY": 36,
+        "current": 2,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 767.8888888888889,
+        "y": -2759.222222222222,
+        "feet": -2723.222222222222,
+        "vx": 300,
+        "vy": 121.6666666666668,
+        "overlapX": 20,
+        "overlapY": 36,
+        "current": 2,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 2,
+        "x": 1107.8888888888869,
+        "y": -2621,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 2,
+      "lowerId": "author_test_2",
+      "upperId": "author_test_3",
+      "direction": 1,
+      "lateralStart": 17,
+      "initial": {
+        "x": 744,
+        "y": -2621,
+        "feet": -2585
+      },
+      "wall": {
+        "x": 765,
+        "y": -2765,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 1,
+      "reproduced": true,
+      "fullBodyInside": false,
+      "firstHit": {
+        "frame": 19,
+        "x": 747.8333333333335,
+        "y": -2763.5,
+        "feet": -2727.5,
+        "vx": 115,
+        "vy": -63.333333333333094,
+        "overlapX": 2.833333333333485,
+        "overlapY": 36,
+        "current": 2,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 761.8888888888889,
+        "y": -2759.222222222222,
+        "feet": -2723.222222222222,
+        "vx": 268.33333333333337,
+        "vy": 121.6666666666668,
+        "overlapX": 16.888888888888914,
+        "overlapY": 36,
+        "current": 2,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 2,
+        "x": 1101.8888888888869,
+        "y": -2621,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 3,
+      "lowerId": "author_test_3",
+      "upperId": "b4_rest",
+      "direction": -1,
+      "lateralStart": 0,
+      "initial": {
+        "x": 676,
+        "y": -3611,
+        "feet": -3575
+      },
+      "wall": {
+        "x": 630,
+        "y": -3755,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 1,
+      "reproduced": true,
+      "fullBodyInside": true,
+      "firstHit": {
+        "frame": 17,
+        "x": 673.0833333333333,
+        "y": -3750.75,
+        "feet": -3714.75,
+        "vx": -76.66666666666667,
+        "vy": -139.99999999999977,
+        "overlapX": 1.9166666666667425,
+        "overlapY": 36,
+        "current": 3,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 652.1111111111111,
+        "y": -3749.222222222222,
+        "feet": -3713.222222222222,
+        "vx": -300,
+        "vy": 121.6666666666668,
+        "overlapX": 20,
+        "overlapY": 36,
+        "current": 3,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 3,
+        "x": 447.1111111111111,
+        "y": -3766.305555555555,
+        "status": "dead"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 3,
+      "lowerId": "author_test_3",
+      "upperId": "b4_rest",
+      "direction": -1,
+      "lateralStart": 17,
+      "initial": {
+        "x": 676,
+        "y": -3611,
+        "feet": -3575
+      },
+      "wall": {
+        "x": 630,
+        "y": -3755,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 1,
+      "reproduced": true,
+      "fullBodyInside": false,
+      "firstHit": {
+        "frame": 19,
+        "x": 672.1666666666666,
+        "y": -3753.5,
+        "feet": -3717.5,
+        "vx": -115,
+        "vy": -63.333333333333094,
+        "overlapX": 2.8333333333333712,
+        "overlapY": 36,
+        "current": 3,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 658.1111111111111,
+        "y": -3749.222222222222,
+        "feet": -3713.222222222222,
+        "vx": -268.33333333333337,
+        "vy": 121.6666666666668,
+        "overlapX": 16.888888888888914,
+        "overlapY": 36,
+        "current": 3,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 3,
+        "x": 448.1111111111111,
+        "y": -3753.305555555555,
+        "status": "dead"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 3,
+      "lowerId": "author_test_3",
+      "upperId": "b4_rest",
+      "direction": 1,
+      "lateralStart": 0,
+      "initial": {
+        "x": 744,
+        "y": -3611,
+        "feet": -3575
+      },
+      "wall": {
+        "x": 765,
+        "y": -3755,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 1,
+      "reproduced": true,
+      "fullBodyInside": true,
+      "firstHit": {
+        "frame": 17,
+        "x": 746.9166666666667,
+        "y": -3750.75,
+        "feet": -3714.75,
+        "vx": 76.66666666666667,
+        "vy": -139.99999999999977,
+        "overlapX": 1.9166666666667425,
+        "overlapY": 36,
+        "current": 3,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 767.8888888888889,
+        "y": -3749.222222222222,
+        "feet": -3713.222222222222,
+        "vx": 300,
+        "vy": 121.6666666666668,
+        "overlapX": 20,
+        "overlapY": 36,
+        "current": 3,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 3,
+        "x": 1107.88888888889,
+        "y": -3611,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 3,
+      "lowerId": "author_test_3",
+      "upperId": "b4_rest",
+      "direction": 1,
+      "lateralStart": 17,
+      "initial": {
+        "x": 744,
+        "y": -3611,
+        "feet": -3575
+      },
+      "wall": {
+        "x": 765,
+        "y": -3755,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 1,
+      "reproduced": true,
+      "fullBodyInside": false,
+      "firstHit": {
+        "frame": 19,
+        "x": 747.8333333333334,
+        "y": -3753.5,
+        "feet": -3717.5,
+        "vx": 115,
+        "vy": -63.333333333333094,
+        "overlapX": 2.8333333333333712,
+        "overlapY": 36,
+        "current": 3,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 761.8888888888889,
+        "y": -3749.222222222222,
+        "feet": -3713.222222222222,
+        "vx": 268.33333333333337,
+        "vy": 121.6666666666668,
+        "overlapX": 16.888888888888914,
+        "overlapY": 36,
+        "current": 3,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 3,
+        "x": 1101.88888888889,
+        "y": -3611,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 4,
+      "lowerId": "b4_rest",
+      "upperId": "b4_boss",
+      "direction": -1,
+      "lateralStart": 0,
+      "initial": {
+        "x": 136,
+        "y": -4241,
+        "feet": -4205
+      },
+      "wall": {
+        "x": 90,
+        "y": -4385,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 4,
+      "reproduced": true,
+      "fullBodyInside": true,
+      "firstHit": {
+        "frame": 17,
+        "x": 133.08333333333334,
+        "y": -4380.75,
+        "feet": -4344.75,
+        "vx": -76.66666666666667,
+        "vy": -139.99999999999977,
+        "overlapX": 1.9166666666666572,
+        "overlapY": 36,
+        "current": 4,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 112.11111111111114,
+        "y": -4379.222222222223,
+        "feet": -4343.222222222223,
+        "vx": -300,
+        "vy": 121.6666666666668,
+        "overlapX": 20,
+        "overlapY": 36,
+        "current": 4,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 4,
+        "x": 0,
+        "y": -3879.63888888889,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 4,
+      "lowerId": "b4_rest",
+      "upperId": "b4_boss",
+      "direction": -1,
+      "lateralStart": 17,
+      "initial": {
+        "x": 136,
+        "y": -4241,
+        "feet": -4205
+      },
+      "wall": {
+        "x": 90,
+        "y": -4385,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 4,
+      "reproduced": true,
+      "fullBodyInside": false,
+      "firstHit": {
+        "frame": 19,
+        "x": 132.16666666666669,
+        "y": -4383.5,
+        "feet": -4347.5,
+        "vx": -115,
+        "vy": -63.333333333333094,
+        "overlapX": 2.8333333333333144,
+        "overlapY": 36,
+        "current": 4,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 118.11111111111114,
+        "y": -4379.222222222223,
+        "feet": -4343.222222222223,
+        "vx": -268.33333333333337,
+        "vy": 121.6666666666668,
+        "overlapX": 16.888888888888857,
+        "overlapY": 36,
+        "current": 4,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 4,
+        "x": 0,
+        "y": -3879.63888888889,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 4,
+      "lowerId": "b4_rest",
+      "upperId": "b4_boss",
+      "direction": 1,
+      "lateralStart": 0,
+      "initial": {
+        "x": 204,
+        "y": -4241,
+        "feet": -4205
+      },
+      "wall": {
+        "x": 225,
+        "y": -4385,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 4,
+      "reproduced": true,
+      "fullBodyInside": true,
+      "firstHit": {
+        "frame": 17,
+        "x": 206.91666666666666,
+        "y": -4380.75,
+        "feet": -4344.75,
+        "vx": 76.66666666666667,
+        "vy": -139.99999999999977,
+        "overlapX": 1.9166666666666572,
+        "overlapY": 36,
+        "current": 4,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 227.88888888888889,
+        "y": -4379.222222222223,
+        "feet": -4343.222222222223,
+        "vx": 300,
+        "vy": 121.6666666666668,
+        "overlapX": 20,
+        "overlapY": 36,
+        "current": 4,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 4,
+        "x": 557.8888888888889,
+        "y": -3879.63888888889,
+        "status": "running"
+      }
+    },
+    {
+      "name": "B4-R2 preview cloud side wall",
+      "index": 4,
+      "lowerId": "b4_rest",
+      "upperId": "b4_boss",
+      "direction": 1,
+      "lateralStart": 17,
+      "initial": {
+        "x": 204,
+        "y": -4241,
+        "feet": -4205
+      },
+      "wall": {
+        "x": 225,
+        "y": -4385,
+        "w": 45,
+        "h": 45
+      },
+      "wallTile": 4,
+      "reproduced": true,
+      "fullBodyInside": false,
+      "firstHit": {
+        "frame": 19,
+        "x": 207.83333333333331,
+        "y": -4383.5,
+        "feet": -4347.5,
+        "vx": 115,
+        "vy": -63.333333333333094,
+        "overlapX": 2.8333333333333144,
+        "overlapY": 36,
+        "current": 4,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "largestHit": {
+        "frame": 23,
+        "x": 221.88888888888886,
+        "y": -4379.222222222223,
+        "feet": -4343.222222222223,
+        "vx": 268.33333333333337,
+        "vy": 121.6666666666668,
+        "overlapX": 16.888888888888857,
+        "overlapY": 36,
+        "current": 4,
+        "upperState": "preview",
+        "activeHits": false,
+        "previewHits": true
+      },
+      "end": {
+        "current": 4,
+        "x": 551.8888888888889,
+        "y": -3879.63888888889,
+        "status": "running"
+      }
+    },
+    {
+      "name": "Coordinate consistency at actual cloud top+1px",
+      "origin": {
+        "x": 0,
+        "y": -2000
+      },
+      "tileSize": 45,
+      "originTileY": -44,
+      "actualCell": {
+        "col": 2,
+        "row": 22
+      },
+      "point": {
+        "x": 112.5,
+        "y": -1009
+      },
+      "queriedWorldCell": {
+        "row": -23,
+        "col": 2
+      },
+      "mappedLocalCell": {
+        "row": 21,
+        "col": 2
+      },
+      "actualOneWay": true,
+      "blockedAt": false,
+      "note": "World origin -2000 is not a TS multiple; rounding the origin maps part of a tile to its neighbor. This affects ledge-assist queries."
+    }
+  ],
+  "scope": "Real runtime collision reproduction from lower-board initial fixtures; not full-level playthrough or a passed certification."
+}

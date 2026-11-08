@@ -1,5 +1,7 @@
 # 连续世界与第一版玩法
 
+2026-11-08更新：17号卡六图/F/休整/Boss主体已由用户人工反馈正常，R1关闭；云板侧移穿墙R2仍未通过。当前只执行 [18号卡](../tasks/18-cloud-side-collision.md) 与 [碰撞补充契约](cloud-side-collision.md)，主体与以下既定玩法不重做，编辑器/APK后置。
+
 设计与历史实现参考；B1/B2-R1、安卓0.3.2已通过，制作发布/文件专项待补。B4 PC已交付但本轮验收暂不通过，修复执行 [17号卡](../tasks/17-b4-review-and-fixed-scenes.md) 与 [固定场景/碰撞设计](short-tower-fixed-scenes-and-collision.md)：大厅按F一次进入第1层，保留休整，作者Boss仅底部start、无出口。其余 [云板石管](cloud-pipe-interfaces.md) 连续连接，复用现有石块、统一实际世界碰撞；这些修复待实现。本页旧四格接口/三行保护带/按整图高度公式仅为历史。预热、快照、光环与Boss两阶段保持，本轮不构建APK。
 
 ## 1. 可变尺寸与连接

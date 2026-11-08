@@ -96,6 +96,22 @@ async function main() {
     await sleep(200);
     await shot('b4r1-pipe.png');
     await ev('RA.short.state.session.paused=false');
+    // 屏幕输入:下端云板靠左,左+二段跳,检查不进入上层左实心
+    await ev('(function(){var s=RA.short.state.session,l=s.world.links[1],p=s.player;p.x=l.openingLeft+1;p.y=l.finishY-p.h;p.vx=0;p.vy=0;p.onGround=true;p.coyote=.1;p.jumpsUsed=0;p.prevJump=false;s.paused=false;})()');
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', code: 'KeyA', key: 'a', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 });
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', code: 'Space', key: ' ', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    await sleep(120);
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'Space', key: ' ', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    await sleep(80);
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', code: 'Space', key: ' ', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    await sleep(450);
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyA', key: 'a', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'Space', key: ' ', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    await sleep(150);
+    const side = await ev('(function(){var s=RA.short.state.session,l=s.world.links[1],u=s.world.instances.get(2),p=s.player,col=u.start.col-1;var wall={x:u.origin.x+col*RA.C.TS,y:u.origin.y+u.start.row*RA.C.TS,w:RA.C.TS,h:RA.C.TS};var ox=Math.min(p.x+p.w,wall.x+wall.w)-Math.max(p.x,wall.x),oy=Math.min(p.y+p.h,wall.y+wall.h)-Math.max(p.y,wall.y);return {current:s.world.current,px:p.x,py:p.y,ox:ox,oy:oy};})()');
+    check('屏幕左+跳不进入上层侧实心', side.ox <= 1 || side.oy <= 1, JSON.stringify(side));
+    await shot('b4r1-side-left.png');
+
     // 死亡/重试回到 level0 并再次提示
     await ev('RA.short.state.session.die("test")');
     await waitFor('getComputedStyle(document.getElementById("result-overlay")).display==="flex"', 3000);

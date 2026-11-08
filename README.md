@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**B4 PC已交付但未通过验收（2026-11-07）；用户最新决定先完成短塔，编辑器后置。** [17号卡](docs/tasks/17-b4-review-and-fixed-scenes.md)已收窄：只修石管/漏碰撞，接作者level0、rest_level、boss，做完F入塔→三普通层→休整→Boss→胜利。**尚未开工，新地图/F流程未实装**。编辑器试玩旧夹具和安全裁剪问题仍记录待修，不作为本轮短塔门槛；见 [验收报告](docs/checks/review-B4-2026-11-07.md)。仅PC、不构建APK；Android仍0.3.2、不含B4。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
+**2026-11-08验收：PC六图短塔已实现，用户人工反馈流程正常；石块管壁已落实，云板侧边穿墙R2仍未通过。** 当前玩法是level0按F→test1→test2→test3→rest_level→boss→胜利。下一步只修穿墙，见 [18号卡](docs/tasks/18-cloud-side-collision.md)、[复验报告](docs/checks/review-B4R1-2026-11-08.md)。编辑器试玩/裁剪及认证发布继续后置；仅PC、不构建APK，Android仍0.3.2、不含B4。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
@@ -18,7 +18,7 @@ PC 端没有安装包，也没有 npm 运行依赖；取得整个项目文件夹
 
 **双击根目录 `index.html`：自动进入当前 PC 短塔。** 也可直接打开 `short.html`；`editor.html` 是编辑器，`devplay.html` 是 B1 两层开发试玩，`standard.html` 由编辑器「标准试玩」进入，`legacy.html` 是明确标注的旧原型/历史入口（旧规则，不是默认玩法）。
 
-`file://` 模式主要读取 `levels/levels.js`、`js/dev-samples.js`、`js/b2-samples.js` 的内嵌数据。编辑器的 JSON 导入导出走浏览器文件选择/下载；**导出只发起下载，不会写进 `levels/`**。编辑器「保存草稿」写浏览器 IndexedDB，刷新后可找回；草稿与正式发布池都只存在本地浏览器。
+`file://`模式下当前短塔优先读取`js/b4-samples.js`的内嵌六图；源运行文件在`levels/authored/fixed/`与`levels/authored/short/`，由`node tools/sync_b4_levels.mjs`生成，勿手改产物。其他入口仍有旧内嵌数据。编辑器JSON导入导出走文件选择/下载；**导出只发起下载，不会写进levels/**。草稿/发布池保存在当前浏览器，编辑器问题仍后置。
 
 ### 本地 HTTP 启动（开发推荐）
 
@@ -40,7 +40,7 @@ python -m http.server 8000 --bind 127.0.0.1
 
 在服务器终端按 `Ctrl+C` 停止。若端口被占用，换端口并同步修改网址。也可使用已有的静态服务器，无需同时安装多个工具。本次环境中 `python` 命令不可用，上述是可选启动说明，不是本次实测成功记录。
 
-HTTP 模式会尝试读取内置清单中对应的 `levels/<id>.json`，再按旧逻辑回退。新增、删除或修改内置关卡后，执行：
+历史关卡入口会尝试读取清单对应的`levels/<id>.json`。下述同步命令属于旧内置关卡；当前短塔六图请使用上文的`sync_b4_levels.mjs`：
 
 ```powershell
 node tools/sync_levels.mjs
@@ -55,7 +55,7 @@ node tools/sync_levels.mjs
 | 进入 PC 短塔 | 打开 `index.html`（也可直接 `short.html`），选「开发短塔」或「正式短塔」 |
 | 短塔移动 / 跳跃 | `A`/`D` 或左右方向键；`Space`/`W`/上方向键(可二段跳) |
 | 光环技能 | `K`；持续 14 秒,从施放起冷却 20 秒,开局可用 |
-| 交互(预留) | `E`；B2 没有可交互物 |
+| 大厅进入第1层 | 出生处提示“按 F 开始挑战”；按`F`一次进入test1，后续正常走跳穿管 |
 | 暂停 / 恢复 | `P` 或 `Esc`；暂停冻结模拟 |
 | 死亡 / 重试 | 回大厅/重试同一座塔;不会重新抽选 |
 | 编辑器工具 | `B` 画笔、`E` 橡皮、`R` 矩形、`F` 填充、`K` 吸管 |
@@ -68,7 +68,7 @@ node tools/sync_levels.mjs
 | 标准试玩 / 发布 | 「标准试玩」从生成入口真实通关 → 认证写回草稿；「发布」把匹配草稿入本地正式池 |
 | 旧原型游戏 | 只从 `legacy.html` 进入；标题界面 `Space`/`Enter`、设置中 `E` 等旧操作仍属旧原型 |
 
-`legacy.html` 仍保留旧主菜单的 3～24 层、镜像、淡出换层、回落起点，只作历史参照。默认 `index.html` 用 B2-R1 的 `short-v1`：大厅 → 3 个普通层 → 休整 → 两阶段 Boss；正式池只抽已认证普通层，固定大厅/休整/Boss 来自 `levels/b2/`。开发短塔使用未认证模板，不生成认证。标准试玩初始无活动光环、剩余 CD 20 秒，满 20 秒后可按 K 施放；必须从生成入口真实过关。编辑器导出仍是 v2 JSON，旧 `play.html` 只认 TXT，所以不走旧试玩。
+`legacy.html`保留旧规则供历史参照。当前开发短塔为六张作者图：level0→F→test1→test2→test3→rest_level→boss；大厅/休整/Boss运行副本在`levels/authored/fixed/`，普通图在`levels/authored/short/`。休整入场一次回复40/封顶100，Boss两阶段、击败即胜利；死亡后重试回level0，同塔再按F出发。正式池仍只认真实认证发布候选，开发短塔不生成认证。编辑器R3试玩旧夹具/R4裁剪及标准认证发布未验收，后续处理；不要把短塔通关当作标准认证。
 
 ## 安卓构建与安装
 
@@ -117,6 +117,7 @@ node tools/test_b4.mjs
 node tools/browser_b4.mjs
 node tools/test_b4r1.mjs
 node tools/browser_b4r1.mjs
+node tools/test_b4r2.mjs
 node tools/check_levels.mjs
 ```
 
@@ -143,7 +144,7 @@ node tools/check_levels.mjs
 
 2026-11-06 B2-R1 独立复跑：完整 **1355 PASS / 4 FAIL，退出码 1**，4 条仍为旧 floor09/floor11；原点/上层对象与标准技能独立探针退出 0，R1～R3 关闭。独立 DevTools 未启动，Chrome 25/0 为交付方证据；用户另确认短塔人工游玩基本正常。详见 [独立复验](docs/checks/review-B2R1-2026-11-06.md)。
 
-2026-11-07 B4-R1：`test_b4r1` **12/0**、`browser_b4r1` **12/0**（作者大厅 F、test1、死亡重试、PC 离线 www；四条连接/负行墙由专项逐连接验证）；`test_b4` 14/0、B3 回归 47/0、35/0、60/0；完整 **1446 PASS / 4 FAIL**。只交 PC，不构建新 APK。2026-11-06 B3-R2：交付方 `browser_b3r2` **47/0**、R1 浏览器回归 **35/0**；本轮独立完整自检 **1415 PASS / 4 FAIL，退出码 1**（B3 60/0，4 条旧 floor09/floor11）。独立 DevTools 未启动，未冒充重现浏览器结果；0.3.2 APK 独立验签/包内对照通过，用户本轮安卓人工验收没有问题，R4 关闭。见 [最新复验](docs/checks/review-B3R2-2026-11-06.md)。系统文件与 PC 制作发布专项仍待补。
+2026-11-08 B4-R2：`test_b4r2` **20/0**（原16种接缝+四条正常穿管+坐标/预热）；`browser_b4r1` **13/0**（含屏幕左侧上穿）；`test_b4r1` 12/0、`test_b4` 14/0、B3 回归 47/0、35/0、60/0；完整 **1466 PASS / 4 FAIL**。只交 PC，不构建新 APK。2026-11-06 B3-R2：交付方 `browser_b3r2` **47/0**、R1 浏览器回归 **35/0**；本轮独立完整自检 **1415 PASS / 4 FAIL，退出码 1**（B3 60/0，4 条旧 floor09/floor11）。独立 DevTools 未启动，未冒充重现浏览器结果；0.3.2 APK 独立验签/包内对照通过，用户本轮安卓人工验收没有问题，R4 关闭。见 [最新复验](docs/checks/review-B3R2-2026-11-06.md)。系统文件与 PC 制作发布专项仍待补。
 
 2026-11-06 B2 独立复跑原完整自检为 **1334/4**；非零原点探针发现上层机关触发/伤害/安全恢复失效和标准技能永久禁用，故 B2 暂不通过。B2-R1 修复后：`test_b2` **96/0**、完整 **1355/4**（引擎 606/4，其余全绿）、真实 Chrome **25/0**；修复后 reviewer 探针的新运行时门/浮石/火球/恢复和 CD 后施法均符合预期。原 23/0 与 1334/4 保留为 B2 历史证据。详见 [B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。
 
@@ -190,7 +191,7 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 - 编辑器已能编辑六类对象参数/路径/接口，但路径工具是首版列表编辑器,不是可视化拖点;未知/不支持的旧内容仍可能阻止标准试玩/发布(会明确报错)。
 - 旧原型主菜单的 `verified`/旧池逻辑保留在 `legacy.html`，不是 B2 正式池；默认 `index.html`/B2 正式池只认本地已认证发布。
 - 旧 `floor09/floor11` 自动可达性诊断仍失败，未改旧图；这不代表 B2 短塔人工不可通。
-- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 `9f2a4e3`、B2 `9a17f99`、B2-R1 `71e3219`、B3 `43fd30b`、B3-R1 `5dc5fb2`、B3-R2 `61a0b2d`、B4 `dfbe10d`、B4-R1 `7fff152`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
+- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 `9f2a4e3`、B2 `9a17f99`、B2-R1 `71e3219`、B3 `43fd30b`、B3-R1 `5dc5fb2`、B3-R2 `61a0b2d`、B4 `dfbe10d`、B4-R1 `7fff152`、B4-R2 `见提交记录`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
 
 ## 文档与目录
 
@@ -215,7 +216,8 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 | [B3-R1 记录](docs/checks/B3-R1-2026-11-06.md) | 触点释放/重认证/草稿保真与 0.3.1 APK |
 | [B3-R2 记录](docs/checks/B3-R2-2026-11-06.md) | 安卓启动/视口裁切修复与 0.3.2 APK |
 | [B4 记录](docs/checks/B4-2026-11-07.md) | 云板/石管、作者三图、编辑器与双主题（历史 PC） |
-| [B4-R1 记录](docs/checks/B4R1-2026-11-07.md) | 作者 level0/rest/boss、F 短塔、石块墙/碰撞（仅 PC） |
+| [B4-R1 记录](docs/checks/B4R1-2026-11-07.md) | 作者 level0/rest/boss、F 短塔、石块墙（仅 PC） |
+| [B4-R2 记录](docs/checks/B4R2-2026-11-08.md) | 上穿云板侧移穿墙、统一世界查询/坐标（仅 PC） |
 | [B3-R1 独立复验](docs/checks/review-B3R1-2026-11-06.md) / [B3-R2 修复卡](docs/tasks/14-b3-android-viewport-fix.md) | 当前安卓启动故障、真机截图、一次修复与新包要求 |
 | `js/` | 引擎、旧游戏、编辑器、草稿仓库、World/GameSession、开发试玩代码 |
 | `index.html` | 默认入口，自动进入 short.html |

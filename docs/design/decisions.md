@@ -1,5 +1,9 @@
 # 设计决定与待定边界
 
+## 2026-11-08当前决定
+
+用户人工反馈短塔逻辑正常，云板上穿时侧移仍穿入旁边方块，明确下一步先修bug。17号卡主体保留、R1关闭，R2转 [18号卡](../tasks/18-cloud-side-collision.md)；不扩编辑器/APK或Boss技能。16种输入与坐标问题是独立复验证据，不是新玩法要求；技术修复选择见 [契约](cloud-side-collision.md)。
+
 更新：2026-11-07。本文件区分用户决定与设计提案。B4PC已交付但验收暂不通过，当前执行 [17号卡](../tasks/17-b4-review-and-fixed-scenes.md)；[固定场景/碰撞设计](short-tower-fixed-scenes-and-collision.md) 覆盖此前大厅连接和Boss双端点冲突。本轮仅PC、不构建APK，旧四格接口不复活。
 
 ### 2026-11-07 本轮新增确认

@@ -6,9 +6,10 @@
   PASS  到 test1 且提示隐藏    {"floor":1,"id":"author_test_1","prompt":"none","links":["lobby-transfer","stone-pipe","stone-pipe","stone-pipe","stone-pipe"]}
   PASS  1条传送+4条石管
   PASS  test1 下连接有6块石墙    {"cells":6}
+  PASS  屏幕左+跳不进入上层侧实心    {"current":2,"px":615.6066877856855,"py":-1971,"ox":5.606687785685494,"oy":-45}
   PASS  死亡进入结果界面    dead
   PASS  重试回大厅
   PASS  重试同一六图清单并显示 F    {"id":"b4_lobby","prompt":"block","ids":["b4_lobby","author_test_1","author_test_2","author_test_3","b4_rest","b4_boss"]}
   PASS  PC 离线 www 加载固定短塔数据
 
-B4-R1 浏览器检查:12 PASS / 0 FAIL
+B4-R1 浏览器检查:13 PASS / 0 FAIL

@@ -184,9 +184,9 @@ check('Boss 固定中心(10.5,14.5),只有start/无finish/无后续管', () => {
   assert.equal(cx, 10.5); assert.equal(cy, 14.5);
 });
 check('短塔规则 b4-2 指纹覆盖固定场景/碰撞', () => {
-  assert.equal(RA.RULES.rulesVersion, 'b4-2');
+  assert.equal(RA.RULES.rulesVersion, 'b4-3');
   assert.ok(RA.RULES.rulesFingerprint.indexOf('fixed=short-fixed-v1') >= 0);
-  assert.ok(RA.RULES.rulesFingerprint.indexOf('collision=world-v2') >= 0);
+  assert.ok(RA.RULES.rulesFingerprint.indexOf('collision=world-v3') >= 0);
 });
 
 console.log('\nB4-R1 自检:合计 PASS ' + pass + '  FAIL ' + fail);
