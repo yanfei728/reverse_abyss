@@ -2,6 +2,8 @@
 
 这是目标技术契约，不是所有 API 均已实现；当前状态见 [STATUS](../../STATUS.md)。设计提案依据见 [decisions.md](decisions.md)。新代码仍使用原生 JS 与 `RA`；下列类型写法仅用于说明，不要求迁移 TypeScript。
 
+**当前22号卡补充**：21号独立流程已实现且用户反馈正常，但控制/基础交互未通过；下一步只修 [一致性](trial-gameplay-parity.md)。TrialSession独立生命周期不变，时钟累计/输入来源/基础对象伤害和技能共用，不能Player按帧/对象按秒或另写简化机关。现为b4-4，修复时更新指纹，schema2/现有认证结构与草稿安全保护不变；下文21号“待实施”仅记原设计，不代表当前代码尚无单图试玩。
+
 **当前21号卡补充（2026-11-08，已获用户确认，待实施）**：20号卡试玩未通过；原生成三层支撑/石管方案撤回。新契约见 [独立单关试玩](independent-level-trials.md)：一个试玩验证入口，TrialSession独立于塔World/GameSession，仅复用基础模块；本图start中心顶面出生，完整向上跨本图finish顶面即通过/冻结。handoff建议V3且无floors/next；schema2不变，现有Certification保留hash/rules/revision/profile保护，实施时升级规则指纹；通过后显式发布、草稿保存/JSON备份不限。下文旧“共用Session/入口支撑/楼层结束”由本补充覆盖。标记自动云板/消费按压已入实现，齿轮人工正常，不重做。
 
 **19号卡已交付规则**：18号卡R2已验收，19号编辑器齿轮人工正常。见 [鼠标工作流](editor-mouse-workflow.md)：schema2/pathId/mode/整数points继续；一点静止，往返/闭合仅水平垂直与90°转角，旧斜线/未知信息保真草稿。端点只读显示模型坐标、鼠标标记；裁剪含包络与工作区保护。旧手填端点/至少两点约束已替代，固定场景/已修世界碰撞不重做。

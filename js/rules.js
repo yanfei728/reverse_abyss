@@ -8,7 +8,7 @@
 (function (RA) {
   'use strict';
   var C = RA.C;
-  var RULES_VERSION = 'b4-4';
+  var RULES_VERSION = 'b4-5';
   var PROFILE = 'standard-v1';
   var TUNING = {
     hp: 100,
@@ -39,7 +39,7 @@
     'fixed=short-fixed-v1',
     'collision=world-v3',
     'path=orth-v1',
-    'trial=single-map-v1'
+    'trial=single-map-v2'
   ].join('|');
 
   RA.RULES = {

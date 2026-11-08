@@ -1,6 +1,6 @@
 # 21 — 独立单关试玩验证与发布闭环（PC）
 
-2026-11-08。**PC 工程完成，浏览器/人工认证发布待复测**，只做本卡及必要基础模块提取。交付HEAD `ed05f2a` / 实现`34569a2`未通过试玩验收。先读根四文档、[本卡设计](../design/independent-level-trials.md)、[验收报告](../checks/review-B4R4-2026-11-08.md)。用户已确认独立流程复用基础模块、合并一个入口、完整上穿终点即通过；不再等待这些确认。
+2026-11-08。**已交付但未整体通过**：HEAD `7f4f295` / 实现`c4fcb53`，用户人工反馈单图/start/finish流程正常；控制与基础交互未通过，认证发布未验。见 [B4-R5复验](../checks/review-B4R5-2026-11-08.md)，后续只做 [22号卡](22-trial-gameplay-parity.md)，保留下文单图规则而不重建。上一轮HEAD ed05f2a/实现34569a2失败已由本卡接续，历史见B4-R4。先读根四文档、[本卡设计](../design/independent-level-trials.md)与 [一致性补充](../design/trial-gameplay-parity.md)。
 
 ## 问题与范围
 

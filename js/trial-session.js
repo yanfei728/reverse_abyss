@@ -44,6 +44,8 @@
       this.run = { hp: 100, maxHp: 100, invulnerableRemaining: 0, haloActiveRemaining: 0, haloCooldownRemaining: 20, castId: 0 };
       this.events = [];
       this.passedAt = null;
+      this.accumulator = 0;
+      this._damagedThisStep = false;
       this._guard = 0;
     }
     setActions(a) {
@@ -63,52 +65,69 @@
     dispose() { this.status = 'disposed'; }
     _event(type, data) { this.events.push(Object.assign({ type: type, trialId: this.trialId }, data || {})); }
     drainEvents() { var e = this.events.slice(); this.events.length = 0; return e; }
-    _damage(amount) {
-      if (this.run.invulnerableRemaining > 0 || this.status !== 'running') return;
+    damage(amount, source) {
+      if (this._damagedThisStep || this.run.invulnerableRemaining > 0 || this.status !== 'running') return false;
+      this._damagedThisStep = true;
+      var tuning = RA.RULES && RA.RULES.tuning || {};
       this.run.hp = Math.max(0, this.run.hp - amount);
-      this.run.invulnerableRemaining = 1;
-      if (this.run.hp <= 0) { this.status = 'failed'; this._event('trialFailed', { reason: 'hp' }); }
+      this.run.invulnerableRemaining = tuning.invulnerableSeconds || 1.0;
+      this._event('damaged', { amount: amount, source: source || 'object', hp: this.run.hp });
+      if (this.run.hp <= 0) { this.status = 'failed'; this._event('trialFailed', { reason: 'hp' }); return true; }
+      return true;
     }
-    _objects(dt) {
+    _applyHalo() {
+      if (this.run.haloActiveRemaining <= 0 || this.status !== 'running') return;
+      var t = RA.RULES && RA.RULES.tuning || {};
+      var radius = (t.haloRadiusTiles || 1.5) * TS;
+      var cx = this.player.x + this.player.w / 2, cy = this.player.y + this.player.h / 2;
       var self = this;
-      this.inst.moveObjects(dt);
       this.inst.objects.forEach(function (o) {
-        if (o.type === 'fireball_static' && o.alive !== false) {
-          var r = (o.params.radiusTiles || 0.5) * TS;
-          var cx = self.player.x + self.player.w / 2, cy = self.player.y + self.player.h / 2;
-          if (Math.abs(cx - o.rx) < r + self.player.w / 2 && Math.abs(cy - o.ry) < r + self.player.h / 2) {
-            self._damage(o.params.damage || 20);
-          }
-        }
-        if (o.type === 'spike' && o.cycle !== undefined) {
-          var span = ((o.params.warningSeconds || 0.5) + (o.params.activeSeconds || 0.8) + (o.params.cooldownSeconds || 1));
-          var ph = o.cycle % span;
-          if (ph > (o.params.warningSeconds || 0.5) && ph < (o.params.warningSeconds || 0.5) + (o.params.activeSeconds || 0.8)) {
-            if (Math.abs((self.player.x + self.player.w / 2) - o.rx) < TS / 2 + self.player.w / 2 &&
-              Math.abs((self.player.y + self.player.h / 2) - o.ry) < TS / 2 + self.player.h / 2) self._damage(o.params.damage || 20);
-          }
+        if (!o.alive || o.type !== 'fireball_static') return;
+        var dx = o.rx - (cx - self.inst.origin.x), dy = o.ry - (cy - self.inst.origin.y);
+        if (dx * dx + dy * dy <= radius * radius) {
+          o.alive = false;
+          self._event('fireballDestroyed', { objectId: o.id, castId: self.run.castId });
         }
       });
     }
     update(dt) {
+      var raw = Number(dt);
+      if (!isFinite(raw) || raw <= 0) return 0;
+      raw = Math.min(0.25, raw);
+      this.accumulator += raw;
+      var steps = 0;
+      while (this.accumulator >= STEP && steps < 5 && this.status === 'running') {
+        this.stepOnce();
+        this.accumulator -= STEP;
+        steps++;
+      }
+      if (this.status !== 'running') { this.accumulator = 0; this.actions.left = this.actions.right = this.actions.jumpHeld = false; }
+      return steps;
+    }
+    stepOnce() {
       if (this.status !== 'running') return;
-      this.time += dt;
-      this.run.invulnerableRemaining = Math.max(0, this.run.invulnerableRemaining - dt);
-      this.run.haloActiveRemaining = Math.max(0, this.run.haloActiveRemaining - dt);
-      this.run.haloCooldownRemaining = Math.max(0, this.run.haloCooldownRemaining - dt);
+      this.time += STEP;
+      this._damagedThisStep = false;
+      var tuning = RA.RULES && RA.RULES.tuning || {};
+      this.run.invulnerableRemaining = Math.max(0, this.run.invulnerableRemaining - STEP);
+      this.run.haloActiveRemaining = Math.max(0, this.run.haloActiveRemaining - STEP);
+      this.run.haloCooldownRemaining = Math.max(0, this.run.haloCooldownRemaining - STEP);
+      if (this.actions.skillPressed) { this.actions.skillPressed = false; this.pressSkill(); }
       var p = this.player, prev = { x: p.x, feet: p.feet };
       p.update(STEP, { left: this.actions.left, right: this.actions.right, jump: this.actions.jumpHeld }, { snd: null });
-      this._guard++;
-      this._objects(dt);
-      // 过线判定:严格用本图坐标,身体完整在两格开口内
+      this.inst.updateAmbient(STEP);
+      this.inst.updateActiveObjects(STEP, this);
+      this._applyHalo();
+      if (this.status !== 'running') return;
       var top = this.plan.finish.row * TS;
-      if (this.status === 'running' && prev.feet >= top && p.feet < top) {
+      if (prev.feet >= top && p.feet < top) {
         var dx = p.x - prev.x;
-        var t = (prev.feet - top) / Math.max(0.0001, prev.feet - p.feet);
-        var x = prev.x + dx * t;
+        var k = (prev.feet - top) / Math.max(0.0001, prev.feet - p.feet);
+        var x = prev.x + dx * k;
         var left = this.plan.finish.col * TS, right = left + 2 * TS;
         if (x >= left - 0.01 && x + p.w <= right + 0.01) {
           this.status = 'passed'; this.passedAt = this.time;
+          this.actions.left = this.actions.right = this.actions.jumpHeld = false;
           this._event('trialPassed', { mode: 'standard-v1', status: 'passed' });
           return;
         }

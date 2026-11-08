@@ -38,6 +38,16 @@ check('真实二段跳从 start 到 finish 通过一次并冻结', () => {
 check('finish.row=0 可在本图上方通过', () => {
   const s = create(4, 0); jump(s); assert.equal(s.status, 'passed');
 });
+check('120Hz/60Hz相同实际时间位移一致,dt=0不模拟', () => {
+  const a = create(6, 2), b = create(6, 2);
+  a.setActions({ right: true }); b.setActions({ right: true });
+  const x0 = a.player.x;
+  for (let i = 0; i < 120; i++) a.update(1 / 120);
+  for (let i = 0; i < 60; i++) b.update(1 / 60);
+  assert.ok(Math.abs(a.player.x - b.player.x) < 1e-6, a.player.x + ' vs ' + b.player.x);
+  const x = a.player.x; a.update(0); a.update(-1); a.update(NaN);
+  assert.equal(a.player.x, x);
+});
 check('标准初始冷却20秒,之后 K 可用', () => {
   const s = create(6, 2);
   assert.equal(s.snapshot().haloCooldownRemaining, 20);

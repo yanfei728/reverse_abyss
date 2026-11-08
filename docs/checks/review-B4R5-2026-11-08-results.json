@@ -1,0 +1,23 @@
+[
+  {
+    "name": "full",
+    "command": "node tools/test_all.mjs",
+    "exitCode": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "name": "trial",
+    "command": "node tools/test_single_level_trial.mjs",
+    "exitCode": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "name": "probes",
+    "command": "node docs/checks/review-B4R5-2026-11-08-probes.mjs",
+    "exitCode": 0,
+    "signal": null,
+    "error": null
+  }
+]

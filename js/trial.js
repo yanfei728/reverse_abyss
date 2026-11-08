@@ -16,13 +16,14 @@
     var canvas = $('dev-canvas'), ctx = canvas.getContext('2d');
     var assets = new RA.Assets(); var cam = { x: 0, y: 0 }, cw = W, ch = H, dpr = 1;
     var held = { left: false, right: false, jump: false }, done = false, last = 0;
+    var input = new RA.ActionInput();
     function resize() { cw = canvas.clientWidth || W; ch = canvas.clientHeight || H; dpr = devicePixelRatio || 1; canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
     addEventListener('resize', resize); resize();
     function hud() {
-      var sn = s.snapshot(), el = $('hud');
-      if (el) el.textContent = '试玩验证 · 生命 ' + sn.hp + '/' + sn.maxHp +
-        ' · ' + (sn.haloActiveRemaining > 0 ? '光环 ' + sn.haloActiveRemaining.toFixed(1) + 's' : (sn.haloCooldownRemaining > 0 ? '技能冷却 ' + sn.haloCooldownRemaining.toFixed(1) + 's' : '光环就绪(K)')) +
-        ' · ' + (sn.status === 'passed' ? '通过' : sn.status === 'failed' ? '失败' : sn.status);
+      var sn = s.snapshot(), bar = $('hp-fill'), txt = $('hp-text'), info = $('trial-info');
+      if (bar) bar.style.width = Math.max(0, Math.min(100, sn.hp / sn.maxHp * 100)) + '%';
+      if (txt) txt.textContent = '生命 ' + sn.hp + '/' + sn.maxHp;
+      if (info) info.textContent = (sn.haloActiveRemaining > 0 ? '光环活动 ' + sn.haloActiveRemaining.toFixed(1) + 's' : (sn.haloCooldownRemaining > 0 ? 'K 冷却 ' + sn.haloCooldownRemaining.toFixed(1) + 's(开局20s)' : '光环就绪(K)')) + ' · ' + (sn.status === 'passed' ? '通过' : sn.status === 'failed' ? '失败' : (sn.status === 'paused' ? '已暂停' : '运行中'));
     }
     function render() {
       var g = ctx.createLinearGradient(0, 0, 0, ch); g.addColorStop(0, '#0a0f1e'); g.addColorStop(1, '#05060c');
@@ -36,6 +37,7 @@
         else if (o.type === 'gear') { ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(x, y, (o.params.radiusTiles || .5) * C.TS, 0, Math.PI * 2); ctx.fill(); }
       });
       var p = s.player;
+      if (s.run.haloActiveRemaining > 0) { var rr = (RA.RULES.tuning.haloRadiusTiles || 1.5) * C.TS; ctx.strokeStyle = 'rgba(126,224,168,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x + p.w / 2 - cam.x, p.y + p.h / 2 - cam.y, rr, 0, Math.PI * 2); ctx.stroke(); }
       if (Object.keys(p.frames || {}).length) p.draw(ctx, { ox: cam.x, oy: cam.y }, assets);
       else { ctx.fillStyle = '#ffcd6e'; ctx.fillRect(p.x - cam.x, p.y - cam.y, p.w, p.h); }
     }
@@ -55,7 +57,10 @@
     function tick(now) {
       var dt = last ? (now - last) / 1000 : 0; last = now; if (dt > .25) dt = .25;
       if (s.status === 'running') {
-        s.setActions({ left: held.left, right: held.right, jumpHeld: held.jump });
+        var a = input.consume();
+        if (a.pressed.pause) { if (s.status === 'paused') { s.resume(); last = 0; } else s.pause(); }
+        s.setActions({ left: a.held.left, right: a.held.right, jumpHeld: a.held.jump });
+        if (a.pressed.skill) s.pressSkill();
         s.update(dt);
         var p = s.player, tx = p.x + p.w / 2 - cw / 2, ty = p.y + p.h / 2 - ch / 2;
         cam.x += (tx - cam.x) * Math.min(1, dt * 7); cam.y += (ty - cam.y) * Math.min(1, dt * 7);
@@ -69,17 +74,26 @@
     held.left = held.right = held.jump = false;
     addEventListener('keydown', function (e) {
       if (e.repeat) return;
-      if (e.code === 'KeyA' || e.code === 'ArrowLeft') { held.left = true; e.preventDefault(); }
-      if (e.code === 'KeyD' || e.code === 'ArrowRight') { held.right = true; e.preventDefault(); }
-      if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') { held.jump = true; e.preventDefault(); }
-      if (e.code === 'KeyK') { s.pressSkill(); e.preventDefault(); }
-      if (e.code === 'KeyP' || e.code === 'Escape') { if (s.status === 'paused') s.resume(); else s.pause(); }
+      var src = 'key:' + e.code;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') { input.setHeld(src, 'left', true); e.preventDefault(); }
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') { input.setHeld(src, 'right', true); e.preventDefault(); }
+      if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') { input.setHeld(src, 'jump', true); e.preventDefault(); }
+      if (e.code === 'KeyK') { input.press('skill'); e.preventDefault(); }
+      if (e.code === 'KeyP' || e.code === 'Escape') { input.press('pause'); e.preventDefault(); }
+      if (e.code === 'KeyR') { location.reload(); e.preventDefault(); }
     });
     addEventListener('keyup', function (e) {
-      if (e.code === 'KeyA' || e.code === 'ArrowLeft') held.left = false;
-      if (e.code === 'KeyD' || e.code === 'ArrowRight') held.right = false;
-      if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') held.jump = false;
+      var src = 'key:' + e.code;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') input.setHeld(src, 'left', false);
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') input.setHeld(src, 'right', false);
+      if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') input.setHeld(src, 'jump', false);
     });
+    addEventListener('blur', function () { input.clearAll(); s.pause(); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { input.clearAll(); s.pause(); } });
+    var pauseBtn = $('btn-pause'); if (pauseBtn) pauseBtn.addEventListener('click', function () { input.clearAll(); if (s.status === 'paused') { s.resume(); last = 0; } else s.pause(); });
+    var restartBtn = $('btn-restart'); if (restartBtn) restartBtn.addEventListener('click', function () { location.reload(); });
+    var resumeBtn = $('btn-resume'); if (resumeBtn) resumeBtn.addEventListener('click', function () { input.clearAll(); s.resume(); last = 0; });
+    var restartPause = $('btn-restart-pause'); if (restartPause) restartPause.addEventListener('click', function () { location.reload(); });
     var restart = $('btn-done-restart');
     if (restart) restart.addEventListener('click', function () { location.reload(); });
     assets.loadAll(function () { s.player.loadSprites(assets); });

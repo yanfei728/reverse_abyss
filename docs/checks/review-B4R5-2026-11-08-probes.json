@@ -1,0 +1,834 @@
+{
+  "date": "2026-11-08",
+  "head": "7f4f295",
+  "implementation": "c4fcb53",
+  "scope": "Runtime/controller audit with synthetic maps and fake DOM; no screen, full-level clear, or user certification.",
+  "records": [
+    {
+      "name": "One real second walking, same map/actions",
+      "hz": 30,
+      "trial": {
+        "dx": 153.50000000000045,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1088.5000000000005,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.0166666666666666,
+        "status": "running"
+      },
+      "game": {
+        "dx": 323.50000000000273,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1258.5000000000027,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.016666666666668,
+        "status": "running"
+      },
+      "displacementRatio": 0.47449768160741623
+    },
+    {
+      "name": "One real second walking, same map/actions",
+      "hz": 60,
+      "trial": {
+        "dx": 323.50000000000273,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1258.5000000000027,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.016666666666668,
+        "status": "running"
+      },
+      "game": {
+        "dx": 323.50000000000273,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1258.5000000000027,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.016666666666668,
+        "status": "running"
+      },
+      "displacementRatio": 1
+    },
+    {
+      "name": "One real second walking, same map/actions",
+      "hz": 90,
+      "trial": {
+        "dx": 493.500000000005,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1428.500000000005,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.016666666666665,
+        "status": "running"
+      },
+      "game": {
+        "dx": 323.50000000000273,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1258.5000000000027,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.016666666666668,
+        "status": "running"
+      },
+      "displacementRatio": 1.5255023183925838
+    },
+    {
+      "name": "One real second walking, same map/actions",
+      "hz": 120,
+      "trial": {
+        "dx": 663.5000000000073,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1598.5000000000073,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.0166666666666655,
+        "status": "running"
+      },
+      "game": {
+        "dx": 323.50000000000273,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1258.5000000000027,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.016666666666668,
+        "status": "running"
+      },
+      "displacementRatio": 2.0510046367851675
+    },
+    {
+      "name": "One real second walking, same map/actions",
+      "hz": 144,
+      "trial": {
+        "dx": 799.5000000000091,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1734.500000000009,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.0166666666666642,
+        "status": "running"
+      },
+      "game": {
+        "dx": 317.833333333336,
+        "rise": 0,
+        "jumpStarts": 0,
+        "x": 1252.833333333336,
+        "feet": 1800,
+        "vx": 340,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.0000000000000013,
+        "status": "running"
+      },
+      "displacementRatio": 2.5154693235448424
+    },
+    {
+      "name": "Same real-time double-jump sequence",
+      "hz": 30,
+      "trial": {
+        "dx": 0,
+        "rise": 159.88888888888914,
+        "jumpStarts": 2,
+        "x": 935,
+        "feet": 1704.2777777777774,
+        "vx": 0,
+        "vy": 524.1666666666667,
+        "jumpsUsed": 2,
+        "onGround": false,
+        "hp": 100,
+        "time": 1.2166666666666672,
+        "status": "running"
+      },
+      "game": {
+        "dx": 0,
+        "rise": 233.3611111111113,
+        "jumpStarts": 2,
+        "x": 935,
+        "feet": 1800,
+        "vx": 0,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.2166666666666672,
+        "status": "running"
+      }
+    },
+    {
+      "name": "Same real-time double-jump sequence",
+      "hz": 60,
+      "trial": {
+        "dx": 0,
+        "rise": 227.83333333333348,
+        "jumpStarts": 2,
+        "x": 935,
+        "feet": 1800,
+        "vx": 0,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.2166666666666672,
+        "status": "running"
+      },
+      "game": {
+        "dx": 0,
+        "rise": 227.83333333333348,
+        "jumpStarts": 2,
+        "x": 935,
+        "feet": 1800,
+        "vx": 0,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.2166666666666672,
+        "status": "running"
+      }
+    },
+    {
+      "name": "Same real-time double-jump sequence",
+      "hz": 120,
+      "trial": {
+        "dx": 0,
+        "rise": 212.77777777777783,
+        "jumpStarts": 2,
+        "x": 935,
+        "feet": 1800,
+        "vx": 0,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.2166666666666648,
+        "status": "running"
+      },
+      "game": {
+        "dx": 0,
+        "rise": 227.83333333333348,
+        "jumpStarts": 2,
+        "x": 935,
+        "feet": 1800,
+        "vx": 0,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.2166666666666672,
+        "status": "running"
+      }
+    },
+    {
+      "name": "Same real-time double-jump sequence",
+      "hz": 144,
+      "trial": {
+        "dx": 0,
+        "rise": 142.91666666666674,
+        "jumpStarts": 2,
+        "x": 935,
+        "feet": 1800,
+        "vx": 0,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.2180555555555523,
+        "status": "running"
+      },
+      "game": {
+        "dx": 0,
+        "rise": 227.83333333333348,
+        "jumpStarts": 2,
+        "x": 935,
+        "feet": 1800,
+        "vx": 0,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 1.2166666666666672,
+        "status": "running"
+      }
+    },
+    {
+      "name": "Zero elapsed time still advances trial physics",
+      "before": {
+        "trial": {
+          "x": 935,
+          "feet": 1800,
+          "vx": 0,
+          "vy": 0,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0,
+          "status": "running"
+        },
+        "game": {
+          "x": 935,
+          "feet": 1800,
+          "vx": 0,
+          "vy": 0,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0,
+          "status": "running"
+        }
+      },
+      "after": {
+        "trial": {
+          "x": 935.6388888888889,
+          "feet": 1800,
+          "vx": 38.333333333333336,
+          "vy": 0,
+          "jumpsUsed": 0,
+          "onGround": true,
+          "hp": 100,
+          "time": 0,
+          "status": "running"
+        },
+        "game": {
+          "x": 935,
+          "feet": 1800,
+          "vx": 0,
+          "vy": 0,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0,
+          "status": "running"
+        }
+      }
+    },
+    {
+      "name": "Same registered object at 60Hz, isolated contact fixture",
+      "type": "crumble_door",
+      "trial": {
+        "player": {
+          "x": 1104,
+          "feet": 1756.9166666666667,
+          "vx": 0,
+          "vy": 76.66666666666667,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0.03333333333333333,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "crumble_door",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "fadeSeconds": 0.12
+          },
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      },
+      "game": {
+        "player": {
+          "x": 1104,
+          "feet": 1756.9166666666667,
+          "vx": 0,
+          "vy": 76.66666666666667,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0.03333333333333333,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "crumble_door",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "fadeSeconds": 0.12
+          },
+          "_phase": 0,
+          "alive": true,
+          "broken": true,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      }
+    },
+    {
+      "name": "Same registered object at 60Hz, isolated contact fixture",
+      "type": "blink_platform",
+      "trial": {
+        "player": {
+          "x": 1137.5,
+          "feet": 1710,
+          "vx": 0,
+          "vy": 0,
+          "jumpsUsed": 0,
+          "onGround": true,
+          "hp": 100,
+          "time": 0.7500000000000007,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "blink_platform",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "warningSeconds": 0.5,
+            "goneSeconds": 1.6
+          },
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      },
+      "game": {
+        "player": {
+          "x": 1137.5,
+          "feet": 1768.1388888888891,
+          "vx": 0,
+          "vy": 498.33333333333326,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0.7500000000000007,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "blink_platform",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "warningSeconds": 0.5,
+            "goneSeconds": 1.6
+          },
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "gone",
+          "timer": 1.3833333333333342,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      }
+    },
+    {
+      "name": "Same registered object at 60Hz, isolated contact fixture",
+      "type": "spring",
+      "trial": {
+        "player": {
+          "x": 1137.5,
+          "feet": 1716.9166666666667,
+          "vx": 0,
+          "vy": 76.66666666666667,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0.03333333333333333,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "spring",
+          "col": 25,
+          "row": 38,
+          "params": {},
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      },
+      "game": {
+        "player": {
+          "x": 1137.5,
+          "feet": 1696.611111111111,
+          "vx": 0,
+          "vy": -1141.6666666666667,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0.03333333333333333,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "spring",
+          "col": 25,
+          "row": 38,
+          "params": {},
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      }
+    },
+    {
+      "name": "Same registered object at 60Hz, isolated contact fixture",
+      "type": "gear",
+      "trial": {
+        "player": {
+          "x": 1137.5,
+          "feet": 1752.4166666666667,
+          "vx": 0,
+          "vy": 76.66666666666667,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0.03333333333333333,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "gear",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "speedTilesPerSecond": 2,
+            "radiusTiles": 0.5,
+            "damage": 20
+          },
+          "pathId": "review-path",
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      },
+      "game": {
+        "player": {
+          "x": 1137.5,
+          "feet": 1752.4166666666667,
+          "vx": 0,
+          "vy": 76.66666666666667,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 80,
+          "time": 0.03333333333333333,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "gear",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "speedTilesPerSecond": 2,
+            "radiusTiles": 0.5,
+            "damage": 20
+          },
+          "pathId": "review-path",
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      }
+    },
+    {
+      "name": "Same registered object at 60Hz, isolated contact fixture",
+      "type": "spike",
+      "trial": {
+        "player": {
+          "x": 1137.5,
+          "feet": 1710,
+          "vx": 0,
+          "vy": 0,
+          "jumpsUsed": 0,
+          "onGround": true,
+          "hp": 100,
+          "time": 0.7500000000000007,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "spike",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "warningSeconds": 0.5,
+            "activeSeconds": 0.8,
+            "cooldownSeconds": 1,
+            "damage": 20
+          },
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      },
+      "game": {
+        "player": {
+          "x": 1137.5,
+          "feet": 1710,
+          "vx": 0,
+          "vy": 0,
+          "jumpsUsed": 0,
+          "onGround": true,
+          "hp": 80,
+          "time": 0.7500000000000007,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "spike",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "warningSeconds": 0.5,
+            "activeSeconds": 0.8,
+            "cooldownSeconds": 1,
+            "damage": 20
+          },
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "active",
+          "timer": 0,
+          "cycle": 0.7500000000000007,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      }
+    },
+    {
+      "name": "Same registered object at 60Hz, isolated contact fixture",
+      "type": "fireball_static",
+      "trial": {
+        "player": {
+          "x": 1080,
+          "feet": 1752.4166666666667,
+          "vx": 0,
+          "vy": 76.66666666666667,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0.03333333333333333,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "fireball_static",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "radiusTiles": 0.5,
+            "damage": 20
+          },
+          "_phase": 0,
+          "alive": true,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      },
+      "game": {
+        "player": {
+          "x": 1080,
+          "feet": 1752.4166666666667,
+          "vx": 0,
+          "vy": 76.66666666666667,
+          "jumpsUsed": 0,
+          "onGround": false,
+          "hp": 100,
+          "time": 0.03333333333333333,
+          "status": "running"
+        },
+        "object": {
+          "id": "review-object",
+          "type": "fireball_static",
+          "col": 25,
+          "row": 38,
+          "params": {
+            "radiusTiles": 0.5,
+            "damage": 20
+          },
+          "_phase": 0,
+          "alive": false,
+          "broken": false,
+          "state": "idle",
+          "timer": 0,
+          "cycle": 0,
+          "rx": 1147.5,
+          "ry": 1732.5
+        }
+      }
+    },
+    {
+      "name": "Real page releases D while ArrowRight remains down",
+      "actions": {
+        "left": false,
+        "right": false,
+        "jumpHeld": false,
+        "skillPressed": false
+      },
+      "player": {
+        "x": 936.1393518518519,
+        "feet": 1800,
+        "vx": 30.02777777777778,
+        "vy": 0,
+        "jumpsUsed": 0,
+        "onGround": true,
+        "hp": 100,
+        "time": 0.01666666666666663,
+        "status": "running"
+      }
+    },
+    {
+      "name": "Real page releases Space while W remains down",
+      "actions": {
+        "left": false,
+        "right": false,
+        "jumpHeld": false,
+        "skillPressed": false
+      },
+      "player": {
+        "x": 936.918183436214,
+        "feet": 1780.8472222222224,
+        "vx": 23.208135802469137,
+        "vy": -357.5,
+        "jumpsUsed": 1,
+        "onGround": false,
+        "hp": 100,
+        "time": 0.05,
+        "status": "running"
+      }
+    },
+    {
+      "name": "Real page loses focus with D held",
+      "actions": {
+        "left": false,
+        "right": true,
+        "jumpHeld": false,
+        "skillPressed": false
+      },
+      "status": "running",
+      "player": {
+        "x": 939.6084546296296,
+        "feet": 1770.8472222222224,
+        "vx": 99.8748024691358,
+        "vy": -280.83333333333337,
+        "jumpsUsed": 1,
+        "onGround": false,
+        "hp": 100,
+        "time": 0.0833333333333335,
+        "status": "running"
+      }
+    },
+    {
+      "name": "Visible pause/restart buttons have no click listeners in fake DOM",
+      "buttons": [
+        {
+          "id": "btn-pause",
+          "clickListeners": 0
+        },
+        {
+          "id": "btn-restart",
+          "clickListeners": 0
+        },
+        {
+          "id": "btn-resume",
+          "clickListeners": 0
+        },
+        {
+          "id": "btn-restart-pause",
+          "clickListeners": 0
+        },
+        {
+          "id": "btn-done-restart",
+          "clickListeners": 1
+        }
+      ]
+    }
+  ]
+}

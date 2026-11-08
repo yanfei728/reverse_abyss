@@ -1,0 +1,7 @@
+  PASS  单图从 start 中心顶面出生,无 World/支撑
+  PASS  真实二段跳从 start 到 finish 通过一次并冻结
+  PASS  finish.row=0 可在本图上方通过
+  PASS  标准初始冷却20秒,之后 K 可用
+  PASS  暂停/死亡不产生通过
+
+独立单图试玩:合计 PASS 5 FAIL 0
