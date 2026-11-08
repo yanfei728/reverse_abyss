@@ -25,6 +25,7 @@ function stubEditor(model) {
   e.popUndo = () => e.undoStack.pop();
   e.snapshotJSON = () => JSON.stringify(model.toData());
   e.$ = (id) => ({ value: id === 'gear-mode' ? 'pingpong' : '' });
+  e.setTool = (t) => { e.tool = t; e.stroke = null; };
   return e;
 }
 
@@ -98,6 +99,28 @@ check('齿轮首点放置/追加/右键完成:单点静止,重复不生成零段
   assert.equal(e.finishGearGesture(), true);
   assert.equal(e.gearGesture, null);
 });
+check('标记自动选云板并消费左键至松手', () => {
+  const m = RA.EditorModel.fromData(RA.B4_SAMPLES.normal1).value;
+  const e = stubEditor(m);
+  e.ch = '='; e.brush = 5;
+  assert.equal(e.beginPortMark('start'), true);
+  assert.equal(e.ch, '-'); assert.equal(e.brush, 1);
+  e.portMark = { role: 'start', anchor: { col: 2, row: 22 }, valid: true };
+  const tiles = JSON.stringify(m.data.terrain.tiles);
+  assert.equal(e.commitPortMark(), true);
+  assert.equal(e.consumeUntilRelease, true);
+  assert.equal(JSON.stringify(m.data.terrain.tiles), tiles);
+  assert.equal(m.data.ports.start.col, 2);
+});
+check('标记非法点击不改地形/端点', () => {
+  const m = RA.EditorModel.fromData(RA.B4_SAMPLES.normal1).value;
+  const e = stubEditor(m);
+  e.portMark = { role: 'start', anchor: { col: 2, row: 22 }, valid: false, reason: 'bad' };
+  const h = LD.hashSync(m.toData());
+  assert.equal(e.commitPortMark(), false);
+  assert.equal(LD.hashSync(m.toData()), h);
+});
+
 check('R3 开发试玩 handoff 使用云板夹具而非旧 floorB', () => {
   const next = RA.B4_SAMPLES.normal2;
   assert.ok(RA.CloudPipe.isCloud(next.ports));

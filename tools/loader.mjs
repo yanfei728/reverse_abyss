@@ -27,6 +27,7 @@ export const ENGINE = [
   'js/level-data.js',
   'js/cloud-pipe.js',
   'js/path-geometry.js',
+  'js/trial-plan.js',
   'js/legacy-import.js',
   'js/entities/base.js',
   'js/entities/player.js',

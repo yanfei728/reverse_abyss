@@ -1141,6 +1141,7 @@
       this.selection = null;
       this.portMark = null;
       this.gearGesture = null;
+      this.consumeUntilRelease = false;
       this.mouse = { x: 0, y: 0, outside: true };
       this.prevMouse = null;
       this.prevCodes = {};
@@ -2049,6 +2050,9 @@
       if (this.model.readOnly) { this.say('固定场景只读', 'warn'); return false; }
       this.selection = null;
       this.setTool('brush');
+      this.ch = '-';
+      this.brush = 1;
+      this.consumeUntilRelease = false;
       this.portMark = { role: role, anchor: null, valid: false, reason: '把鼠标移到云板上' };
       this.say(role === 'start' ? '标记出口/起点:左键点 2×1 云板;右键/Esc 取消' : '标记入口/终点:左键点 2×1 云板;右键/Esc 取消');
       return true;
@@ -2080,7 +2084,7 @@
       this.pushUndo();
       var res = this.model.setCloudEndpoint(role, anchor.col, anchor.row);
       if (!res.ok) { this.popUndo(); this.say('端点保存失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
-      this.portMark = null; this.selection = null; this.markDirty(); this.syncUI();
+      this.portMark = null; this.selection = null; this.consumeUntilRelease = true; this.markDirty(); this.syncUI();
       this.say((role === 'start' ? '出口/起点' : '入口/终点') + ' 已标为 (' + anchor.col + ',' + anchor.row + ')', 'ok');
       return true;
     }
@@ -2226,8 +2230,6 @@
           '(共 ' + errors.length + ' 个结构错误;修好后会打开新运行时,不是旧 TXT)', 'bad');
         return false;
       }
-      var next = RA.B4_SAMPLES ? (this.model.id === RA.B4_SAMPLES.normal2.id ? RA.B4_SAMPLES.normal3 : RA.B4_SAMPLES.normal2) : null;
-      if (!next) { this.say('缺少云板开发夹具;不能启动连续试玩', 'bad'); return false; }
       // 试玩会离开当前页面:先把发起时的快照写进草稿,避免未保存工作丢失
       var token = this.workspaceToken;
       var snapshot = this.model.toData();
@@ -2258,15 +2260,22 @@
         return false;
       }
       var handoff = {
-        version: 1,
-        from: 'editor',
+        version: 2,
+        kind: 'editor-single-level',
+        mode: 'development',
         template: handoffTemplate,
-        next: next,
-        sourceDraft: this.draftId,
-        revision: this.draftRevision
+        subjectRef: { levelId: handoffTemplate.id, contentHash: handoffTemplate.contentHash || null },
+        draftRef: { draftId: this.draftId, revision: this.draftRevision },
+        rules: { rulesVersion: RA.RULES && RA.RULES.rulesVersion, rulesFingerprint: RA.RULES && RA.RULES.rulesFingerprint },
+        requestId: 'dev_' + Date.now().toString(36)
       };
+      var planCheck = RA.TrialPlan && RA.TrialPlan.build(handoff);
+      if (!planCheck || !planCheck.ok) {
+        this.say('单关试玩计划无效:' + (planCheck && planCheck.error ? planCheck.error.message : '缺少 TrialPlan'), 'bad');
+        return false;
+      }
       try {
-        globalThis.sessionStorage.setItem('RA_DEVPLAY_V1', JSON.stringify(handoff));
+        globalThis.sessionStorage.setItem('RA_DEVPLAY_V2', JSON.stringify(handoff));
       } catch (e) {
         this.say('浏览器不允许暂存试玩数据(' + (e && e.message) +
           ');请检查隐私模式后重试', 'bad');
@@ -2559,6 +2568,13 @@
       }
 
       // ---- 右键 / 中键 / 空格+左键 = 平移 ----
+      if (this.consumeUntilRelease) {
+        if (!inp.buttons[0]) this.consumeUntilRelease = false;
+        this.prevMouse = { x: mouse.x, y: mouse.y, outside: mouse.outside };
+        this.mouse = { x: mouse.x, y: mouse.y, outside: mouse.outside };
+        this.prevCodes = Object.assign({}, inp.codes);
+        return;
+      }
       if (this.gearGesture) {
         if (just('Escape')) this.cancelGearGesture();
         else if (inp.buttons[2]) this.finishGearGesture();

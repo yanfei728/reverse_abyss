@@ -1,0 +1,94 @@
+{
+  "head": "d614fe0",
+  "implementation": "e764910",
+  "date": "2026-11-08",
+  "records": [
+    {
+      "name": "Mark does not switch brush; held-left next frame paints former material",
+      "brushBefore": "~",
+      "brushAfterBegin": "~",
+      "before": [
+        5,
+        5
+      ],
+      "afterConfirm": [
+        5,
+        5
+      ],
+      "markAfterConfirm": null,
+      "afterHeldFrame": [
+        3,
+        5
+      ],
+      "port": {
+        "col": 15,
+        "row": 7
+      },
+      "errors": [
+        {
+          "code": "INVALID_PORT",
+          "path": "/ports/finish",
+          "message": "finish 必须是连续两格云板(tileId=5);(15,7) 是 3",
+          "severity": "error"
+        }
+      ],
+      "scope": "Actual controller calls; UI/coordinates stubbed. No real screen test."
+    },
+    {
+      "name": "Development launch uses an authored map as next, not safe exit support",
+      "ok": true,
+      "href": "devplay.html?from=editor",
+      "templateId": "author_test_1",
+      "nextId": "author_test_2",
+      "nextTitle": "作者层 2",
+      "nextSize": {
+        "cols": 20,
+        "rows": 24
+      },
+      "nextEqualsAuthorTest2": true
+    },
+    {
+      "name": "Actual devplay animation crosses subject exit but keeps playing next authored map",
+      "frames": 28,
+      "atExit": {
+        "floorIndex": 1,
+        "status": "running",
+        "time": 0.44999999999999996,
+        "id": "author_test_2"
+      },
+      "afterOneSecond": {
+        "floorIndex": 1,
+        "status": "running",
+        "time": 1.4499999999999997,
+        "id": "author_test_2"
+      },
+      "hud": "第 2/2 层 · 模拟 1.4s · 地面 · 编辑器当前层 + 开发样例 B",
+      "statusText": "进入第 2 层;上一层地形保留到再上一层才释放",
+      "profile": "run-v1",
+      "note": "Initial fixture at the subject finish; afterward only real page key input and fixed simulation. Not a full-level/human clear."
+    },
+    {
+      "name": "Standard route inspected independently in source",
+      "floors": "[generated entry, template, generated exit]",
+      "profile": "standard-v1",
+      "hasFloor2WinGuard": true,
+      "hasHashRevisionGuards": true,
+      "note": "Source inspection only. No standard page success or certification is simulated in this audit."
+    }
+  ],
+  "messages": [
+    [
+      "画笔:按住左键拖动连续画"
+    ],
+    [
+      "标记入口/终点:左键点 2×1 云板;右键/Esc 取消"
+    ],
+    [
+      "入口/终点 已标为 (15,7)",
+      "ok"
+    ],
+    [
+      "已保存草稿 revision 1,正在打开开发试玩…"
+    ]
+  ]
+}

@@ -37,6 +37,8 @@
       this.player = player;
       this.mode = opts.mode || 'dev';
       this.manifest = opts.manifest || null;
+      this.trialPlan = opts.trialPlan || null;
+      this.trialCompleted = null;
       this.profile = profile;
       this.rules = {
         rulesVersion: rules.rulesVersion || 'b2-1',

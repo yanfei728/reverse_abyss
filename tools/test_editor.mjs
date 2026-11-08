@@ -1028,15 +1028,14 @@ head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
     edP.dirty = true;
     const oldHref = globalThis.location.href;
     const ok = await edP.openPlaytest();
-    const handoff = globalThis.sessionStorage.getItem('RA_DEVPLAY_V1');
+    const handoff = globalThis.sessionStorage.getItem('RA_DEVPLAY_V2');
     check('合法草稿能启动开发试玩', ok === true && !!handoff);
     check('试玩前自动保存草稿,避免离开页面丢工作',
       edP.draftRevision === 1 && edP.dirty === false);
-    check('交给试玩页的是当前层 + 下一层开发样例',
+    check('交给试玩页的是当前模板的单关计划',
       (() => {
         const h = JSON.parse(handoff || '{}');
-        return h.version === 1 && h.template && h.template.id === data.id &&
-          h.next && h.next.id === RA.B4_SAMPLES.normal2.id;
+        return h.version === 2 && h.kind === 'editor-single-level' && h.mode === 'development' && h.template && h.template.id === data.id && !h.next;
       })());
     check('跳转目标是新运行时 devplay.html(不是旧 play.html)',
       globalThis.location.href.indexOf('devplay.html?from=editor') >= 0, globalThis.location.href);
@@ -1046,12 +1045,12 @@ head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
     const edBad = new RA.Editor(makeCanvas(900, 600), { repo });
     edBad.replaceModel(bad);
     edBad.dirty = true;
-    globalThis.sessionStorage.removeItem('RA_DEVPLAY_V1');
+    globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
     const refused = await edBad.openPlaytest();
     check('多个接口错误时拒绝试玩并提示 INVALID_PORT',
       refused === false && edBad.msg.indexOf('INVALID_PORT') >= 0 &&
       edBad.msg.indexOf('/ports') >= 0, edBad.msg);
-    check('被拒绝时不写试玩数据、不跳转', !globalThis.sessionStorage.getItem('RA_DEVPLAY_V1') &&
+    check('被拒绝时不写试玩数据、不跳转', !globalThis.sessionStorage.getItem('RA_DEVPLAY_V2') &&
       globalThis.location.href.indexOf('devplay.html') < 0);
 
     const failRepo = RA.ContentRepository.create({

@@ -22,7 +22,7 @@ import { ROOT, loadEditor, makeCanvas } from './loader.mjs';
 const RA = loadEditor();
 const LD = RA.LevelData;
 const clone = (v) => JSON.parse(JSON.stringify(v));
-const sample = JSON.parse(readFileSync(join(ROOT, 'levels/dev/floor-a.json'), 'utf8'));
+const sample = JSON.parse(JSON.stringify(RA.B4_SAMPLES.normal1));
 let pass = 0, fail = 0;
 const fails = [];
 function check(name, cond, extra) {
@@ -53,7 +53,7 @@ head('R1a:试玩自动保存期间编辑,不离开、不把新改动当已保存
 {
   const { repo, release } = delayedSaveRepo();
   const ed = editor(repo);
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V1');
+  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
   const oldHref = globalThis.location.href;
   globalThis.location.href = 'editor.html';
   const pending = ed.openPlaytest();
@@ -62,14 +62,14 @@ head('R1a:试玩自动保存期间编辑,不离开、不把新改动当已保存
   release();
   const result = await pending;
   const stored = (await repo.loadDraft(sample.id)).value;
-  const handoff = globalThis.sessionStorage.getItem('RA_DEVPLAY_V1');
+  const handoff = globalThis.sessionStorage.getItem('RA_DEVPLAY_V2');
   check('保存期间编辑时试玩被取消', result === false);
   check('没有离开编辑器', globalThis.location.href === 'editor.html', globalThis.location.href);
   check('新改动仍在、dirty 未清', ed.model.title === '试玩保存期间的新改动' && ed.dirty === true);
   check('草稿里是发起时快照(旧标题)', stored.data.title === sample.title, stored.data.title);
   check('没有写 handoff 把未保存内容带走', handoff === null);
   globalThis.location.href = oldHref;
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V1');
+  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
 }
 
 head('R1b:保存 A 期间切到 B,旧回包不绑定 B');
@@ -159,11 +159,11 @@ head('正常试玩 handoff 与刚保存的草稿内容一致');
     adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory'
   });
   const ed = editor(repo);
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V1');
+  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
   const oldHref = globalThis.location.href;
   globalThis.location.href = 'editor.html';
   const ok = await ed.openPlaytest();
-  const handoff = JSON.parse(globalThis.sessionStorage.getItem('RA_DEVPLAY_V1') || 'null');
+  const handoff = JSON.parse(globalThis.sessionStorage.getItem('RA_DEVPLAY_V2') || 'null');
   const stored = (await repo.loadDraft(sample.id)).value;
   check('正常试玩成功导航', ok === true && globalThis.location.href.indexOf('devplay.html') >= 0);
   check('handoff 是规范快照,与草稿逐项一致',
@@ -171,12 +171,12 @@ head('正常试玩 handoff 与刚保存的草稿内容一致');
   check('handoff 通过 play 校验',
     LD.errorsOf(LD.validate(handoff.template, { purpose: 'play' })).length === 0);
   globalThis.location.href = oldHref;
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V1');
+  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V2');
 }
 
 head('N02:暂停菜单重开清掉遮罩与输入');
 {
-  globalThis.sessionStorage.removeItem('RA_DEVPLAY_V1');
+  globalThis.sessionStorage.setItem('RA_DEVPLAY_V2', JSON.stringify({version:2,kind:'editor-single-level',mode:'development',template:sample,subjectRef:{levelId:sample.id,contentHash:sample.contentHash||null},draftRef:{draftId:sample.id,revision:1},rules:{rulesVersion:RA.RULES.rulesVersion,rulesFingerprint:RA.RULES.rulesFingerprint},requestId:'t'}));
   globalThis.__RA_EL_BY_ID__['dev-canvas'] = makeCanvas(960, 540);
   const RealAssets = RA.Assets;
   RA.Assets = class {

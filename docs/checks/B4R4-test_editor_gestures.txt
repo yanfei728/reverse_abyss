@@ -1,0 +1,15 @@
+﻿19 编辑器手势/路径
+  PASS  单点路径合法,play 不报至少两点
+  PASS  直角追加:不同行列自动 L,斜段被校验拒绝
+  PASS  闭合矩形保留4角/末首段,两点退化环拒绝
+  PASS  路径 compile/sample:往返/闭合不瞬移,单点静止
+  PASS  裁剪候选带 beforeHash,应用后端点坐标从模型刷新
+  PASS  安全包络:大半径对象/路径扫掠/未知对象
+  PASS  裁剪后旧selection不参与标记:控制器只用portMark anchor
+  PASS  齿轮首点放置/追加/右键完成:单点静止,重复不生成零段
+  PASS  标记自动选云板并消费左键至松手
+  PASS  标记非法点击不改地形/端点
+  PASS  R3 开发试玩 handoff 使用云板夹具而非旧 floorB
+  PASS  路径规则进入 LevelData play 校验
+
+19 编辑器手势自检:合计 PASS 12  FAIL 0

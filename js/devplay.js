@@ -29,11 +29,9 @@
 
   function readHandoff() {
     try {
-      var raw = globalThis.sessionStorage.getItem('RA_DEVPLAY_V1');
+      var raw = globalThis.sessionStorage.getItem('RA_DEVPLAY_V2');
       if (!raw) return null;
-      var data = JSON.parse(raw);
-      if (!data || !data.template || !data.next) return null;
-      return data;
+      return JSON.parse(raw);
     } catch (e) {
       return null;
     }
@@ -47,14 +45,14 @@
 
   function bootInner() {
     var handoff = readHandoff();
-    var floors = handoff ? [handoff.template, handoff.next]
-      : (RA.DEV_SAMPLES ? [RA.DEV_SAMPLES.floorA, RA.DEV_SAMPLES.floorB] : []);
-    var source = handoff ? '编辑器当前层 + 开发样例 B' : '内置开发样例 A + B';
-    if (!floors.length || !floors[0]) {
-      showError('没有可运行的开发样例。请在编辑器里点「开发试玩」,或确认 js/dev-samples.js 已生成。');
-      return;
-    }
-    var res = RA.GameSession.create({ floors: floors });
+    if (!handoff) { showError('没有单关试玩数据;请从编辑器点「开发试玩」重新发起。'); return; }
+    var planRes = RA.TrialPlan.build(handoff);
+    if (!planRes.ok) { showError('试玩数据不能启动:[' + planRes.error.code + '] ' + planRes.error.message + ';请从编辑器重新开始'); return; }
+    var plan = planRes.value;
+    if (plan.mode !== 'development') { showError('这是标准试玩数据,不能在开发试玩页启动;请从编辑器标准试玩进入'); return; }
+    var floors = plan.floors;
+    var source = '单关试玩:生成入口 → 当前模板 → 生成出口';
+    var res = RA.GameSession.create({ floors: floors, profile: plan.profileId, trialPlan: plan, mode: plan.mode });
     if (!res.ok) {
       showError('这份试玩数据不能启动:[' + res.error.code + '] ' + res.error.message);
       return;
@@ -102,7 +100,7 @@
     function togglePause() { setPaused(!session.paused, '手动暂停'); }
 
     function restart() {
-      var again = RA.GameSession.create({ floors: floors });
+      var again = RA.GameSession.create({ floors: floors, profile: plan.profileId, trialPlan: plan, mode: plan.mode });
       if (!again.ok) { showError('重新开始失败:' + again.error.message); return; }
       session.dispose();
       session = again.value;
@@ -115,7 +113,8 @@
       cam.x = player.x - W / 2;
       cam.y = player.y - H / 2;
       setPaused(false);
-      if (status) status.textContent = '已重开;当前第 1 层';
+      var done = $('done-overlay'); if (done) done.style.display = 'none';
+      if (status) status.textContent = '已重开;单关试玩';
     }
 
     // ---------- 输入 ----------
@@ -166,6 +165,8 @@
     if (restartPauseBtn) restartPauseBtn.addEventListener('click', function () { restart(); });
     var pauseBtn = $('btn-pause');
     if (pauseBtn) pauseBtn.addEventListener('click', togglePause);
+    var doneRestart = $('btn-done-restart');
+    if (doneRestart) doneRestart.addEventListener('click', function () { restart(); });
 
     // ---------- 尺寸 ----------
     function resize() {
@@ -242,7 +243,18 @@
       });
     }
 
+    var doneShown = false;
     function tick(now) {
+      if (session.status === 'won' || session.trialCompleted) {
+        if (!doneShown) {
+          doneShown = true;
+          var ov = $('done-overlay'); if (ov) ov.style.display = 'flex';
+          if (status) status.textContent = '本关试玩完成;开发试玩不写认证';
+          held.left = held.right = held.jump = false;
+        }
+        render();
+        return;
+      }
       var dt = lastT ? (now - lastT) / 1000 : 0;
       lastT = now;
       if (dt > 0.25) dt = 0.25;
