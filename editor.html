@@ -151,19 +151,18 @@
 
     <h2>云板接口</h2>
     <div class="card">
-      <p class="dim small">框选/输入连续两格云板(5)的左格。出口=本层起点,入口=本层终点。</p>
-      <div class="row"><span class="lab">起点 出口</span>
-        <input type="number" id="port-start-col" min="0" max="599" step="1" placeholder="col">
-        <input type="number" id="port-start-row" min="0" max="599" step="1" placeholder="row">
-        <button id="btn-start-apply">标记</button>
+      <p class="dim small">点「标记」后在地图上左键连续两格云板;坐标自动显示。</p>
+      <div class="role-card">
+        <h3>出口（本层起点 start）</h3>
+        <p class="coord" id="start-coord">未标记</p>
+        <div class="row"><button id="btn-start-mark">标记</button><button id="btn-start-clear">清除</button></div>
       </div>
-      <div class="row"><span class="lab">终点 入口</span>
-        <input type="number" id="port-finish-col" min="0" max="599" step="1" placeholder="col">
-        <input type="number" id="port-finish-row" min="0" max="599" step="1" placeholder="row">
-        <button id="btn-finish-apply">标记</button>
+      <div class="role-card">
+        <h3>入口（本层终点 finish）</h3>
+        <p class="coord" id="finish-coord">未标记</p>
+        <div class="row"><button id="btn-finish-mark">标记</button><button id="btn-finish-clear">清除</button></div>
       </div>
-      <div class="row"><button id="btn-ports-clear">清除端点</button></div>
-      <p class="dim small" id="ports-note">两端各 2×1 云板;左右各一格要实心;试玩前共享检查。</p>
+      <p class="dim small" id="ports-note">两端各 2×1 云板;左右各一格实心;另一端可后补,试玩前统一检查。</p>
     </div>
 
     <h2>对象 / 参数 / 路径</h2>
@@ -177,6 +176,7 @@
       <input type="number" id="obj-row" min="0" step="1" placeholder="row" style="width:60px">
     </div>
     <div id="obj-params"></div>
+    <div class="row"><span class="lab">齿轮路线</span><select id="gear-mode"><option value="pingpong">往返 pingpong</option><option value="loop">闭合 loop</option></select></div>
     <div class="row">
       <span class="lab">路径</span><select id="obj-path"></select>
     </div>
@@ -224,6 +224,7 @@
 <script src="js/entity-registry.js"></script>
 <script src="js/level-data.js"></script>
 <script src="js/cloud-pipe.js"></script>
+<script src="js/path-geometry.js"></script>
 <script src="js/legacy-import.js"></script>
 <script src="js/entities/base.js"></script>
 <script src="js/entities/player.js"></script>

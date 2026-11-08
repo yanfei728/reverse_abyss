@@ -572,6 +572,15 @@
       return LD.ok(this.data.ports);
     }
 
+    clearCloudEndpoint(role) {
+      if (this.readOnly) return LD.fail('READ_ONLY', '固定场景只读', []);
+      if (!this.data.ports || !RA.CloudPipe || !RA.CloudPipe.isCloud(this.data.ports)) return LD.ok({ changed: false });
+      if (!this.data.ports[role]) return LD.ok({ changed: false });
+      this.data.ports[role] = null;
+      this.invalidate();
+      return LD.ok({ changed: true });
+    }
+
     clearCloudPorts() {
       if (this.readOnly) return LD.fail('READ_ONLY', '固定场景只读', []);
       if (!this.data.ports) return LD.ok({ changed: false });
@@ -961,6 +970,7 @@
 
     /** 内容包络:地形/对象/路径/端点/出生/装饰;未知对象仍按坐标计入,不静默丢 */
     contentBounds() {
+      var unknown = false;
       var minC = this.cols, minR = this.rows, maxC = -1, maxR = -1;
       function add(col, row) {
         if (!isInt(col) || !isInt(row)) return;
@@ -968,8 +978,19 @@
         if (row < minR) minR = row; if (row > maxR) maxR = row;
       }
       for (var r = 0; r < this.rows; r++) for (var c = 0; c < this.cols; c++) if (this.getTile(c, r)) add(c, r);
-      (this.data.objects || []).forEach(function (o) { add(o.col, o.row); });
-      (this.data.paths || []).forEach(function (p) { (p.points || []).forEach(function (pt) { add(pt.col, pt.row); }); });
+      (this.data.objects || []).forEach(function (o) {
+        var reg = RA.EntityRegistry && RA.EntityRegistry.get(o.type);
+        if (!reg) { unknown = true; add(o.col, o.row); return; }
+        var rad = Number(o.params && o.params.radiusTiles);
+        if (!isFinite(rad)) rad = 0.5;
+        add(o.col - Math.ceil(rad), o.row - Math.ceil(rad));
+        add(o.col + Math.ceil(rad), o.row + Math.ceil(rad));
+      });
+      (this.data.paths || []).forEach(function (p) {
+        var b = RA.PathGeometry ? RA.PathGeometry.sweptBounds(p, 0.5) : null;
+        if (b && b.ok) { add(b.value.minCol, b.value.minRow); add(b.value.maxCol, b.value.maxRow); }
+        else (p.points || []).forEach(function (pt) { add(pt.col, pt.row); });
+      });
       (this.data.visuals && this.data.visuals.decorations || []).forEach(function (d) { add(d.col, d.row); });
       if (this.data.spawn) add(this.data.spawn.col, this.data.spawn.row);
       var ports = this.data.ports;
@@ -979,11 +1000,12 @@
         });
       }
       if (maxC < 0) return { col: 0, row: 0, cols: 1, rows: 1, empty: true };
-      return { col: minC, row: minR, cols: maxC - minC + 1, rows: maxR - minR + 1, empty: false };
+      return { col: minC, row: minR, cols: maxC - minC + 1, rows: maxR - minR + 1, empty: false, unknown: unknown };
     }
 
     cropCandidate() {
       var b = this.contentBounds();
+      if (b.unknown) return LD.fail('CROP_UNKNOWN', '存在未知对象/空间语义,不能安全自动裁剪;请先处理未知对象', []);
       if (b.empty || (b.col === 0 && b.row === 0 && b.cols === this.cols && b.rows === this.rows)) {
         return LD.ok({ changed: false, bounds: b, offset: { col: 0, row: 0 } });
       }
@@ -1001,7 +1023,7 @@
       candidate.invalidate();
       var enc = candidate.toJSON();
       if (!enc.ok) return LD.fail(enc.error.code || 'CROP_ENCODE', '裁剪候选无法编码,已保持原图:' + enc.error.message, enc.error.issues || []);
-      return LD.ok({ changed: true, bounds: b, offset: { col: left ? -left : 0, row: top ? -top : 0 },
+      return LD.ok({ changed: true, bounds: b, beforeHash: LD.hashSync(this.toData()), offset: { col: left ? -left : 0, row: top ? -top : 0 },
         beforeSize: { cols: this.cols, rows: this.rows }, afterSize: { cols: b.cols, rows: b.rows }, model: candidate });
     }
 
@@ -1009,6 +1031,20 @@
       if (!plan || !plan.changed) return LD.ok({ changed: false });
       this.data = plan.model.data;
       return LD.ok({ changed: true, offset: plan.offset, afterSize: plan.afterSize });
+    }
+
+    /** 只校验单个端点候选(不要求另一端已完成);鼠标/角色卡共用 */
+    validatePortAnchor(role, col, row) {
+      if (!isInt(col) || !isInt(row)) return { ok: false, message: '需要整数格' };
+      var cols = this.cols, rows = this.rows, tiles = this.data.terrain.tiles;
+      if (col < 0 || row < 0 || col + 1 >= cols || row >= rows) return { ok: false, message: '2×1 云板在地图外' };
+      if (tiles[row][col] !== 5 || tiles[row][col + 1] !== 5) return { ok: false, message: '必须是连续两格云板(5)' };
+      var solid = function (c) { return c >= 0 && c < cols && tiles[row][c] >= 1 && tiles[row][c] <= 4; };
+      if (!solid(col - 1) || !solid(col + 2)) return { ok: false, message: '云板左右各一格必须是普通实心' };
+      var other = role === 'start' ? this.data.ports && this.data.ports.finish : this.data.ports && this.data.ports.start;
+      if (other && role === 'start' && !(row > other.row)) return { ok: false, message: '起点必须低于终点' };
+      if (other && role === 'finish' && !(other.row > row)) return { ok: false, message: '终点必须高于起点' };
+      return { ok: true, anchor: { col: col, row: row } };
     }
 
     // ---------- 检查 ----------
@@ -1103,6 +1139,8 @@
       this.redoBytes = 0;
       this.stroke = null;
       this.selection = null;
+      this.portMark = null;
+      this.gearGesture = null;
       this.mouse = { x: 0, y: 0, outside: true };
       this.prevMouse = null;
       this.prevCodes = {};
@@ -1219,9 +1257,10 @@
       click('btn-play', () => { self.openPlaytest(); });
       click('btn-standard', () => { self.openStandardPlaytest(); });
       click('btn-publish', () => { self.publishCurrent(); });
-      click('btn-start-apply', () => self.applyCloudEndpoint('start'));
-      click('btn-finish-apply', () => self.applyCloudEndpoint('finish'));
-      click('btn-ports-clear', () => self.clearPortsUI());
+      click('btn-start-mark', () => self.beginPortMark('start'));
+      click('btn-finish-mark', () => self.beginPortMark('finish'));
+      click('btn-start-clear', () => self.clearEndpointUI('start'));
+      click('btn-finish-clear', () => self.clearEndpointUI('finish'));
       click('btn-obj-apply', () => self.applyObjectForm());
       click('btn-obj-del', () => self.deleteObjectUI());
       click('btn-path-new', () => self.newPathUI());
@@ -1823,6 +1862,9 @@
           var inp = document.getElementById(pair[0]);
           if (inp && document.activeElement !== inp) inp.value = pair[1] === null ? '' : pair[1];
         });
+        var scEl = this.$('start-coord'), fcEl = this.$('finish-coord');
+        if (scEl) scEl.textContent = cloud && ports.start ? '(' + ports.start.col + ',' + ports.start.row + ')' : '未标记';
+        if (fcEl) fcEl.textContent = cloud && ports.finish ? '(' + ports.finish.col + ',' + ports.finish.row + ')' : '未标记';
         var note = this.$('ports-note');
         if (note) note.textContent = cloud
           ? 'cloud-pipe-v2:起点 ' + (sc === null ? '未设' : '(' + sc + ',' + sr + ')') +
@@ -1952,14 +1994,108 @@
       return true;
     }
 
-    applyCloudEndpoint(role) {
-      var c, r;
-      if (this.selection && this.selection.c1 - this.selection.c0 === 1 && this.selection.r1 === this.selection.r0) {
-        c = this.selection.c0; r = this.selection.r0;
-      } else {
-        c = parseInt(this.$('port-' + role + '-col') ? this.$('port-' + role + '-col').value : '', 10);
-        r = parseInt(this.$('port-' + role + '-row') ? this.$('port-' + role + '-row').value : '', 10);
+    beginGearGesture(cell) {
+      if (this.model.readOnly) return false;
+      this.pushUndo();
+      var res = this.model.placeObject('gear', cell.c, cell.r);
+      if (!res.ok) { this.popUndo(); this.say('放置齿轮失败:' + res.error.message, 'bad'); return false; }
+      var gear = res.value;
+      var pathId = this.model.uniquePathId();
+      var mode = this.$('gear-mode') ? this.$('gear-mode').value : 'pingpong';
+      gear.pathId = pathId;
+      this.model.data.paths.push({ id: pathId, mode: mode, points: [{ col: cell.c, row: cell.r }] });
+      this.model.invalidate();
+      this.gearGesture = { gearId: gear.id, pathId: pathId, mode: mode, startJSON: this.snapshotJSON() };
+      this.markDirty(); this.syncUI();
+      this.say('已放齿轮并开始画路线:左键加节点,右键完成,单点即静止');
+      return true;
+    }
+
+    appendGearNode(cell) {
+      var g = this.gearGesture; if (!g) return false;
+      var path = this.model.data.paths.filter(function (p) { return p.id === g.pathId; })[0];
+      if (!path) { this.say('路线状态丢失,已结束;可撤销重来', 'bad'); this.gearGesture = null; return false; }
+      var r = RA.PathGeometry.appendOrthogonal(path.points, { col: cell.c, row: cell.r });
+      if (!r.ok) { this.say('不能这样连接:' + r.error.message, 'warn'); return false; }
+      path.points = r.value.points;
+      this.model.invalidate(); this.markDirty(); this.syncUI();
+      this.say('已加节点 (' + cell.c + ',' + cell.r + ');总 ' + path.points.length + ' 点');
+      return true;
+    }
+
+    finishGearGesture() {
+      var g = this.gearGesture; if (!g) return false;
+      var path = this.model.data.paths.filter(function (p) { return p.id === g.pathId; })[0];
+      if (!path) { this.gearGesture = null; return false; }
+      if (path.mode === 'loop') {
+        var c = RA.PathGeometry.closeOrthogonal(path.points);
+        if (!c.ok) { this.say('还不能闭合:' + c.error.message + ';继续加点或切回往返', 'warn'); return false; }
+        path.points = c.value.points; path.mode = 'loop';
       }
+      this.model.invalidate(); this.gearGesture = null; this.markDirty(); this.syncUI();
+      this.say('路线完成:' + path.points.length + ' 点 · ' + path.mode + ';右键结束不追加节点', 'ok');
+      return true;
+    }
+
+    cancelGearGesture() {
+      var g = this.gearGesture; if (!g) return false;
+      var data = JSON.parse(g.startJSON);
+      this.model = EditorModel.fromTrusted(data);
+      this.popUndo(); this.gearGesture = null; this.markDirty(); this.syncUI();
+      this.say('已取消本次齿轮路线,恢复开始前工作', 'warn'); return true;
+    }
+
+    beginPortMark(role) {
+      if (this.model.readOnly) { this.say('固定场景只读', 'warn'); return false; }
+      this.selection = null;
+      this.setTool('brush');
+      this.portMark = { role: role, anchor: null, valid: false, reason: '把鼠标移到云板上' };
+      this.say(role === 'start' ? '标记出口/起点:左键点 2×1 云板;右键/Esc 取消' : '标记入口/终点:左键点 2×1 云板;右键/Esc 取消');
+      return true;
+    }
+
+    updatePortMark(mouse) {
+      if (!this.portMark) return;
+      var cell = this.cellAt(mouse.x, mouse.y);
+      var c = cell.c, r = cell.r, tiles = this.model.data.terrain.tiles;
+      if (this.model.inBounds(c, r) && tiles[r][c] === 5) {
+        if (c > 0 && tiles[r][c - 1] === 5) c = c - 1;
+        else if (c + 1 < this.model.cols && tiles[r][c + 1] === 5) c = c;
+      }
+      var v = this.model.validatePortAnchor(this.portMark.role, c, r);
+      this.portMark.anchor = v.ok ? v.anchor : { col: c, row: r };
+      this.portMark.valid = v.ok;
+      this.portMark.reason = v.ok ? '左键确认' : v.message;
+    }
+
+    cancelPortMark() {
+      if (!this.portMark) return false;
+      this.portMark = null; this.say('已取消标记,端点没有改动', 'warn'); return true;
+    }
+
+    commitPortMark() {
+      if (!this.portMark) return false;
+      if (!this.portMark.valid) { this.say('这个位置不能标记:' + this.portMark.reason, 'bad'); return false; }
+      var role = this.portMark.role, anchor = this.portMark.anchor;
+      this.pushUndo();
+      var res = this.model.setCloudEndpoint(role, anchor.col, anchor.row);
+      if (!res.ok) { this.popUndo(); this.say('端点保存失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
+      this.portMark = null; this.selection = null; this.markDirty(); this.syncUI();
+      this.say((role === 'start' ? '出口/起点' : '入口/终点') + ' 已标为 (' + anchor.col + ',' + anchor.row + ')', 'ok');
+      return true;
+    }
+
+    clearEndpointUI(role) {
+      if (this.model.readOnly) return false;
+      this.pushUndo();
+      var r = this.model.clearCloudEndpoint(role);
+      if (!r.ok) { this.popUndo(); this.say(r.error.message, 'bad'); return false; }
+      this.markDirty(); this.syncUI(); this.say('已清除端点', 'warn'); return true;
+    }
+
+    applyCloudEndpoint(role) {
+      var c = this.portMark && this.portMark.anchor ? this.portMark.anchor.col : NaN;
+      var r = this.portMark && this.portMark.anchor ? this.portMark.anchor.row : NaN;
       this.pushUndo();
       if (this.model.readOnly) { this.say('固定场景只读,不能修改端点', 'warn'); return false; }
       var res = this.model.setCloudEndpoint(role, c, r);
@@ -2090,11 +2226,8 @@
           '(共 ' + errors.length + ' 个结构错误;修好后会打开新运行时,不是旧 TXT)', 'bad');
         return false;
       }
-      var next = RA.DEV_SAMPLES && RA.DEV_SAMPLES.floorB;
-      if (!next) {
-        this.say('缺少开发样例的下一层(RA.DEV_SAMPLES.floorB);不能启动连续试玩', 'bad');
-        return false;
-      }
+      var next = RA.B4_SAMPLES ? (this.model.id === RA.B4_SAMPLES.normal2.id ? RA.B4_SAMPLES.normal3 : RA.B4_SAMPLES.normal2) : null;
+      if (!next) { this.say('缺少云板开发夹具;不能启动连续试玩', 'bad'); return false; }
       // 试玩会离开当前页面:先把发起时的快照写进草稿,避免未保存工作丢失
       var token = this.workspaceToken;
       var snapshot = this.model.toData();
@@ -2191,8 +2324,10 @@
       if (typeof globalThis.confirm === 'function' && !globalThis.confirm(msg)) {
         this.say('已取消裁剪,地图没有改动', 'warn'); return false;
       }
+      if (LD.hashSync(this.model.toData()) !== p.beforeHash) { this.say('裁剪预览已过期,当前工作没有改动', 'warn'); return false; }
       this.pushUndo();
       var res = this.model.applyCrop(p);
+      this.selection = null; this.portMark = null; this.gearGesture = null;
       if (!res.ok) { this.popUndo(); this.say('裁剪失败:' + res.error.message, 'bad'); return false; }
       this.markDirty(); this.fitView(); this.syncUI();
       this.say('已裁到 ' + p.afterSize.cols + '×' + p.afterSize.rows + '(可撤销)');
@@ -2424,8 +2559,16 @@
       }
 
       // ---- 右键 / 中键 / 空格+左键 = 平移 ----
-      var panning = !!inp.buttons[2] || !!inp.buttons[1] ||
-        (!!inp.buttons[0] && !!inp.codes.Space);
+      if (this.gearGesture) {
+        if (just('Escape')) this.cancelGearGesture();
+        else if (inp.buttons[2]) this.finishGearGesture();
+      }
+      if (this.portMark) {
+        this.updatePortMark(mouse);
+        if (just('Escape') || inp.buttons[2]) this.cancelPortMark();
+      }
+      var panning = !this.portMark && !this.gearGesture && (!!inp.buttons[2] || !!inp.buttons[1] ||
+        (!!inp.buttons[0] && !!inp.codes.Space));
       if (panning) {
         if (this.prevMouse && !this.prevMouse.outside) {
           this.view.x -= (mouse.x - this.prevMouse.x) / this.view.zoom;
@@ -2477,6 +2620,11 @@
       var cell = this.cellAt(mouse.x, mouse.y);
       var tool = this.stroke ? this.stroke.tool : this.tool;
       var ch = tool === 'erase' ? AIR : this.ch;
+      if (this.portMark) { this.updatePortMark(mouse); this.commitPortMark(); return; }
+      if (this.ch === '~gear' && this.tool === 'brush') {
+        if (!this.gearGesture) this.beginGearGesture(cell); else this.appendGearNode(cell);
+        return;
+      }
       if (tool === 'select') {
         if (!this.stroke) this.stroke = { tool: 'select', start: cell, end: cell, last: cell };
         this.stroke.end = cell;
@@ -2759,6 +2907,41 @@
           [255, 205, 110], 2, 3);
       }
 
+      // 齿轮直角路径:与运行共享同一 segments
+      (m.data.paths || []).forEach(function (path) {
+        var c = RA.PathGeometry && RA.PathGeometry.compile(path);
+        if (!c || !c.ok) return;
+        ctx.save();
+        ctx.strokeStyle = path.mode === 'loop' ? '#f59e0b' : '#60a5fa';
+        ctx.lineWidth = Math.max(2, ts * 0.08);
+        c.value.segments.forEach(function (s) {
+          var a = this.cellToScreen(s.a.col + 0.5, s.a.row + 0.5);
+          var b = this.cellToScreen(s.b.col + 0.5, s.b.row + 0.5);
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }, this);
+        (path.points || []).forEach(function (pt, idx) {
+          var q = this.cellToScreen(pt.col + 0.5, pt.row + 0.5);
+          ctx.fillStyle = idx === 0 ? '#ef4444' : '#e5e7eb';
+          ctx.beginPath(); ctx.arc(q.x, q.y, Math.max(3, ts * 0.12), 0, Math.PI * 2); ctx.fill();
+        }, this);
+        ctx.restore();
+      }, this);
+      if (this.portMark && this.portMark.anchor) {
+        var pa = this.portMark.anchor;
+        var pq = this.cellToScreen(pa.col, pa.row);
+        ctx.save();
+        ctx.fillStyle = this.portMark.valid ? 'rgba(52,211,153,.22)' : 'rgba(248,113,113,.22)';
+        ctx.strokeStyle = this.portMark.valid ? '#34d399' : '#f87171';
+        ctx.lineWidth = 2;
+        ctx.fillRect(pq.x, pq.y, ts * 2, ts);
+        ctx.strokeRect(pq.x, pq.y, ts * 2, ts);
+        if (ctx.setLineDash) ctx.setLineDash([5, 4]);
+        ctx.strokeRect(pq.x, pq.y, ts * 2, ts);
+        ctx.restore();
+        if (ts >= 16) RA.text(ctx, (pa.col) + ',' + pa.row, Math.max(8, ts * 0.26),
+          this.portMark.valid ? [220, 255, 240] : [255, 220, 220], pq.x + ts, pq.y - 2, { bold: true, shadow: false });
+      }
+
       if (this.selection) {
         var q0 = this.cellToScreen(this.selection.c0, this.selection.r0);
         var q1 = this.cellToScreen(this.selection.c1 + 1, this.selection.r1 + 1);
@@ -2884,7 +3067,7 @@
       var ro = this.model.readOnly;
       var banner = this.$('readonly-banner');
       if (banner) banner.hidden = !ro;
-      ['name', 'w-input', 'h-input', 'btn-apply-size', 'btn-crop', 'btn-play', 'btn-standard', 'btn-publish', 'btn-start-apply', 'btn-finish-apply', 'btn-ports-clear', 'btn-obj-apply', 'btn-obj-del', 'btn-path-apply', 'btn-path-new', 'btn-path-del', 'btn-undo', 'btn-redo'].forEach(function (id) {
+      ['name', 'w-input', 'h-input', 'btn-apply-size', 'btn-crop', 'btn-play', 'btn-standard', 'btn-publish', 'btn-start-mark', 'btn-finish-mark', 'btn-start-clear', 'btn-finish-clear', 'btn-obj-apply', 'btn-obj-del', 'btn-path-apply', 'btn-path-new', 'btn-path-del', 'btn-undo', 'btn-redo'].forEach(function (id) {
         var el = self.$(id); if (el) el.disabled = ro;
       });
       if (ro) {

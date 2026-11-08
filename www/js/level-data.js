@@ -1056,8 +1056,8 @@
       bad('INVALID_FIELD', at + '/points', 'points 必须是数组');
       return;
     }
-    if (pts.length < 2) {
-      need(false, 'INVALID_FIELD', at + '/points', '路径至少要两个不同的点');
+    if (pts.length < 1) {
+      need(false, 'INVALID_FIELD', at + '/points', '路径至少有 1 个点');
     }
     for (var j = 0; j < pts.length; j++) {
       var pt = pts[j];
@@ -1074,6 +1074,10 @@
         need(false, 'INVALID_FIELD', at + '/points/' + j,
           '路径相邻两点重复(零长度段)');
       }
+    }
+    if (purpose !== 'draft' && RA.PathGeometry && pts.length >= 1 && isInt(pts[0].col) && isInt(pts[0].row)) {
+      var pg = RA.PathGeometry.validate({ mode: p.mode, points: pts });
+      pg.forEach(function (e) { bad(e.code, at + e.path.replace('/paths',''), e.message); });
     }
     if (purpose === 'publish' && pts.length >= 2 && isInt(pts[0].col) && isInt(pts[0].row)) {
       var last = pts[pts.length - 1];

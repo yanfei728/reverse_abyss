@@ -187,7 +187,7 @@ check('编辑器:裁剪候选保留内容/端点,取消零变更,应用后尺寸
   assert.equal(after.ok, true);
   assert.equal(m.data.size.rows, 16);
   assert.equal(m.data.ports.finish.row, 0);
-  assert.deepEqual(m.contentBounds(), { col: 0, row: 0, cols: 20, rows: 16, empty: false });
+  assert.deepEqual(m.contentBounds(), { col: 0, row: 0, cols: 20, rows: 16, empty: false, unknown: false });
   assert.notEqual(LD.hashSync(m.toData()), before);
 });
 check('编辑器:新建普通层无旧 spawn,自动扩展默认关', () => {

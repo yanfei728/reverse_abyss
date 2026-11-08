@@ -25,10 +25,11 @@ const b3 = (await import('./test_b3.mjs')).result;
 const b4 = (await import('./test_b4.mjs')).result;
 const b4r1 = (await import('./test_b4r1.mjs')).result;
 const b4r2 = (await import('./test_b4r2.mjs')).result;
+const gest = (await import('./test_editor_gestures.mjs')).result;
 
-const pass = engine.pass + editor.pass + assets.pass + leveldata.pass + t01r.pass + world.pass + b1r.pass + b2.pass + b3.pass + b4.pass + b4r1.pass + b4r2.pass;
-const fail = engine.fail + editor.fail + assets.fail + leveldata.fail + t01r.fail + world.fail + b1r.fail + b2.fail + b3.fail + b4.fail + b4r1.fail + b4r2.fail;
-const fails = engine.fails.concat(editor.fails, assets.fails, leveldata.fails, t01r.fails, world.fails, b1r.fails, b2.fails, b3.fails, b4.fails, b4r1.fails, b4r2.fails);
+const pass = engine.pass + editor.pass + assets.pass + leveldata.pass + t01r.pass + world.pass + b1r.pass + b2.pass + b3.pass + b4.pass + b4r1.pass + b4r2.pass + gest.pass;
+const fail = engine.fail + editor.fail + assets.fail + leveldata.fail + t01r.fail + world.fail + b1r.fail + b2.fail + b3.fail + b4.fail + b4r1.fail + b4r2.fail + gest.fail;
+const fails = engine.fails.concat(editor.fails, assets.fails, leveldata.fails, t01r.fails, world.fails, b1r.fails, b2.fails, b3.fails, b4.fails, b4r1.fails, b4r2.fails, gest.fails);
 
 console.log('\n' + '='.repeat(70));
 console.log(`引擎自检    PASS ${engine.pass}  FAIL ${engine.fail}`);
@@ -43,6 +44,7 @@ console.log(`B3 自检     PASS ${b3.pass}  FAIL ${b3.fail}`);
 console.log(`B4 自检     PASS ${b4.pass}  FAIL ${b4.fail}`);
 console.log(`B4-R1 短塔 PASS ${b4r1.pass}  FAIL ${b4r1.fail}`);
 console.log(`B4-R2 侧碰撞 PASS ${b4r2.pass}  FAIL ${b4r2.fail}`);
+console.log(`19 编辑器手势 PASS ${gest.pass}  FAIL ${gest.fail}`);
 console.log('-'.repeat(70));
 console.log(`合计        PASS ${pass}  FAIL ${fail}   用时 ${((Date.now() - t0) / 1000).toFixed(1)}s` +
   (fast ? '  (--fast:跳过了逐跳物理模拟)' : ''));

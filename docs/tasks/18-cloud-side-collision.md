@@ -2,6 +2,8 @@
 
 日期：2026-11-08。状态：**PC 已修复（`eba80a6`，2026-11-08），待人工复测；未构建 APK**。起点HEAD `9219fc3`，17号卡实现`7fff152`。用户人工反馈短塔逻辑正常，但上穿云板时横移仍能穿入旁边方块，明确下一步先修此bug。先读README/PROJECT/STATUS/AGENTS及 [复验报告](../checks/review-B4R1-2026-11-08.md)、[碰撞契约](../design/cloud-side-collision.md)。
 
+**本卡已验收关闭**：用户人工确认bug修复；独立原16种0复现、专项21/0、完整1467/4（四条旧诊断）。见 [最新复验](../checks/review-B4R2-2026-11-08.md)。当前只执行 [19号编辑器卡](19-editor-markers-and-gear-paths.md)，本卡仅保留碰撞回归，不重新实施。
+
 ## 目标与边界
 
 保留已完成的六图短塔：level0→F→test1→test2→test3→rest_level→boss→胜利。只关闭原B4-R2碰撞问题；R1石块外观已落实，固定场景/F/休整/Boss不重做。编辑器R3/R4、制作发布、APK、摇杆、美术、音效和Boss技能继续后置。

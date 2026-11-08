@@ -2,7 +2,7 @@
 
 这是目标技术契约，不是所有 API 均已实现；当前状态见 [STATUS](../../STATUS.md)。设计提案依据见 [decisions.md](decisions.md)。新代码仍使用原生 JS 与 `RA`；下列类型写法仅用于说明，不要求迁移 TypeScript。
 
-**2026-11-08当前补充**：六图固定场景/接口已接入，主体流程按用户人工反馈通过；剩余R2由18号卡修复。世界碰撞的只读Contact/精确世界坐标及落脚查询契约见 [云板侧边碰撞](cloud-side-collision.md)。不能仅查询active层或用round后的非整格原点代替真实几何；本次不改LevelData地形格式/作者图，不扩编辑器/认证。
+**2026-11-08当前补充**：18号卡R2已验收，当前执行 [19号编辑器卡](../tasks/19-editor-markers-and-gear-paths.md)。新契约见 [鼠标工作流](editor-mouse-workflow.md)：schema2/pathId/mode/整数points继续；一点路径允许静止，往返/闭合仅水平垂直与90°转角，旧斜线/未知信息保真草稿、不静默改写。端点坐标只从模型显示，鼠标候选写入；裁剪含半径/线段扫掠并检查工作区版本，编辑器/校验/运行共用路径几何。旧至少两点/手填端点约束由新契约覆盖，固定场景/已修世界碰撞不重做。
 
 2026-11-07 B4已交付PC、验收暂不通过。接口为 [cloud-pipe-v2](cloud-pipe-interfaces.md)，ports以col+row标记start/finish；schemaVersion仍2，旧vertical-v1只保真存草稿、新play/publish拒绝。当前修复契约以 [固定场景与碰撞](short-tower-fixed-scenes-and-collision.md) 为准：lobby无端口、程序维护extensions.fixedScene.playerSpawn与F交互；终局boss仅start、finish=null，固定Boss中心入hash；normal/rest仍双端点。跨层碰撞由世界适配统一查询。上述修复待17号卡实现；Android仍0.3.2、不构建APK。
 

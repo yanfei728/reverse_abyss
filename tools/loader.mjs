@@ -26,6 +26,7 @@ export const ENGINE = [
   'js/entity-registry.js',
   'js/level-data.js',
   'js/cloud-pipe.js',
+  'js/path-geometry.js',
   'js/legacy-import.js',
   'js/entities/base.js',
   'js/entities/player.js',

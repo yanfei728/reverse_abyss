@@ -125,22 +125,28 @@
       return localCol >= this.exitCol && localCol < this.exitCol + OPEN;
     }
 
-    /** 路径几何(loop 含末点→首点;pingpong 折返) */
+    /** 路径几何:与编辑器/裁剪/校验共享 PathGeometry;旧非法路径只作保真回退 */
     pathSegments(path) {
       var pts = (path && path.points) || [];
+      if (!pts.length) return null;
+      var c = RA.PathGeometry && RA.PathGeometry.compile(path);
+      if (c && c.ok) {
+        var segs = c.value.segments.map(function (s) {
+          return { a: s.a, b: s.b, len: s.lenTiles * TS };
+        });
+        return { segs: segs, total: c.value.totalTiles * TS || 0.001 };
+      }
       if (pts.length < 2) return null;
-      var segs = [];
-      for (var i = 1; i < pts.length; i++) segs.push([pts[i - 1], pts[i]]);
-      if (path.mode === 'loop' && pts.length >= 2) segs.push([pts[pts.length - 1], pts[0]]);
+      var old = [];
+      for (var i = 1; i < pts.length; i++) old.push([pts[i - 1], pts[i]]);
+      if (path.mode === 'loop' && pts.length >= 2) old.push([pts[pts.length - 1], pts[0]]);
       var total = 0;
-      segs = segs.map(function (s) {
-        var dx = (s[1].col - s[0].col) * TS;
-        var dy = (s[1].row - s[0].row) * TS;
-        var len = Math.sqrt(dx * dx + dy * dy) || 0.001;
-        total += len;
+      old = old.map(function (s) {
+        var dx = (s[1].col - s[0].col) * TS, dy = (s[1].row - s[0].row) * TS;
+        var len = Math.sqrt(dx * dx + dy * dy) || 0.001; total += len;
         return { a: s[0], b: s[1], len: len };
       });
-      return { segs: segs, total: total };
+      return { segs: old, total: total };
     }
 
     /** 路径对象运动;preview 只动不打人 */
@@ -149,6 +155,7 @@
         if (!o.pathId || !this.paths[o.pathId]) return;
         var geo = this.pathSegments(this.paths[o.pathId]);
         if (!geo) return;
+        if (!geo.segs.length) { var pt0 = (this.paths[o.pathId].points || [])[0]; if (pt0) { o.rx = pt0.col * TS + TS / 2; o.ry = pt0.row * TS + TS / 2; } return; }
         var speed = (o.params && Number(o.params.speedTilesPerSecond) || 0) * TS || 90;
         if (this.paths[o.pathId].mode === 'pingpong') {
           var p = o._phase % 2;

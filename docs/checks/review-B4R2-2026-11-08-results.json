@@ -1,0 +1,19 @@
+{
+  "test_all": {
+    "exitCode": 1,
+    "error": null
+  },
+  "probes": {
+    "exitCode": 0,
+    "error": null,
+    "summary": {
+      "cases": 16,
+      "reproduced": 0,
+      "fullBodyInside": 0
+    }
+  },
+  "browser": {
+    "exitCode": 1,
+    "error": null
+  }
+}

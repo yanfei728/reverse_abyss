@@ -396,9 +396,9 @@ head('数据错误:格式 / schema / 尺寸 / 引用 / 参数 / 上限');
 
   const shortPath = clone(fx);
   shortPath.paths[0].points = [{ col: 12, row: 6 }];
-  check('路径不足两个点:草稿警告,play 报错',
-    hasIssue(LD.validate(shortPath, { purpose: 'draft' }), 'INVALID_FIELD', '/paths/0/points') &&
-    hasIssue(LD.validate(shortPath, { purpose: 'play' }), 'INVALID_FIELD', '/paths/0/points'));
+  check('单点路径:草稿/play 均允许(静止齿轮)',
+    LD.errorsOf(LD.validate(shortPath, { purpose: 'draft' })).length === 0 &&
+    LD.errorsOf(LD.validate(shortPath, { purpose: 'play' })).length === 0);
 
   const dupPoint = clone(fx);
   dupPoint.paths[0].points = [{ col: 12, row: 6 }, { col: 12, row: 6 }];

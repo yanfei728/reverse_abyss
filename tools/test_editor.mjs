@@ -1036,7 +1036,7 @@ head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
       (() => {
         const h = JSON.parse(handoff || '{}');
         return h.version === 1 && h.template && h.template.id === data.id &&
-          h.next && h.next.id === data.id;
+          h.next && h.next.id === RA.B4_SAMPLES.normal2.id;
       })());
     check('跳转目标是新运行时 devplay.html(不是旧 play.html)',
       globalThis.location.href.indexOf('devplay.html?from=editor') >= 0, globalThis.location.href);

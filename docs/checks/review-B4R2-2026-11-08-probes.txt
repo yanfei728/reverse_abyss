@@ -1,0 +1,18 @@
+{"cases":16,"reproduced":0,"fullBodyInside":0}
+{"index":1,"direction":-1,"lateralStart":0,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":1,"direction":-1,"lateralStart":17,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":1,"direction":1,"lateralStart":0,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":1,"direction":1,"lateralStart":17,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":2,"direction":-1,"lateralStart":0,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":2,"direction":-1,"lateralStart":17,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":2,"direction":1,"lateralStart":0,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":2,"direction":1,"lateralStart":17,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":3,"direction":-1,"lateralStart":0,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":3,"direction":-1,"lateralStart":17,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":3,"direction":1,"lateralStart":0,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":3,"direction":1,"lateralStart":17,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":4,"direction":-1,"lateralStart":0,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":4,"direction":-1,"lateralStart":17,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":4,"direction":1,"lateralStart":0,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"index":4,"direction":1,"lateralStart":17,"reproduced":false,"fullBodyInside":false,"firstHit":null}
+{"name":"Coordinate consistency at actual cloud top+1px","origin":{"x":0,"y":-2025},"tileSize":45,"originTileY":-45,"actualCell":{"col":2,"row":22},"point":{"x":112.5,"y":-1034},"queriedWorldCell":{"row":-23,"col":2},"mappedLocalCell":{"row":22,"col":2},"actualOneWay":true,"blockedAt":true,"note":"World origin -2000 is not a TS multiple; rounding the origin maps part of a tile to its neighbor. This affects ledge-assist queries."}

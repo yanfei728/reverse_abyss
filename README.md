@@ -2,7 +2,7 @@
 
 一个以自定义关卡编辑器、向上跑酷和技能清场为核心的单机 2D 游戏，使用 HTML、CSS、原生 JavaScript 与 Canvas。
 
-**2026-11-08验收：PC六图短塔已实现，用户人工反馈流程正常；石块管壁已落实，云板侧边穿墙R2仍未通过。** 当前玩法是level0按F→test1→test2→test3→rest_level→boss→胜利。下一步只修穿墙，见 [18号卡](docs/tasks/18-cloud-side-collision.md)、[复验报告](docs/checks/review-B4R1-2026-11-08.md)。编辑器试玩/裁剪及认证发布继续后置；仅PC、不构建APK，Android仍0.3.2、不含B4。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
+**2026-11-08验收：六图短塔流程与云板侧移穿墙修复通过，18号卡关闭。** 原16种输入独立重跑0复现，用户人工确认修复，见 [最新复验](docs/checks/review-B4R2-2026-11-08.md)。下一步执行 [19号编辑器卡](docs/tasks/19-editor-markers-and-gear-paths.md)：裁后坐标、鼠标端点标记、单点/直角往返/闭合齿轮路线及试玩；**新操作尚未实现**。当前编辑器R3/R4仍待修；仅PC、不构建APK，Android仍0.3.2、不含B4。仓库：[GitHub](https://github.com/yanfei728/reverse_abyss)。
 
 ## 获取与安装
 
@@ -68,7 +68,7 @@ node tools/sync_levels.mjs
 | 标准试玩 / 发布 | 「标准试玩」从生成入口真实通关 → 认证写回草稿；「发布」把匹配草稿入本地正式池 |
 | 旧原型游戏 | 只从 `legacy.html` 进入；标题界面 `Space`/`Enter`、设置中 `E` 等旧操作仍属旧原型 |
 
-`legacy.html`保留旧规则供历史参照。当前开发短塔为六张作者图：level0→F→test1→test2→test3→rest_level→boss；大厅/休整/Boss运行副本在`levels/authored/fixed/`，普通图在`levels/authored/short/`。休整入场一次回复40/封顶100，Boss两阶段、击败即胜利；死亡后重试回level0，同塔再按F出发。正式池仍只认真实认证发布候选，开发短塔不生成认证。编辑器R3试玩旧夹具/R4裁剪及标准认证发布未验收，后续处理；不要把短塔通关当作标准认证。
+`legacy.html`保留旧规则供历史参照。当前开发短塔为六张作者图：level0→F→test1→test2→test3→rest_level→boss；固定/普通运行图在`levels/authored/fixed/`和`levels/authored/short/`。休整入场一次回复40/封顶100，Boss两阶段、击败胜利；死亡重试同塔从level0再按F。正式池仍只认真实认证发布候选，短塔不生成认证。编辑器R3试玩旧夹具/R4裁剪本次纳入19号卡但尚未修好，上表仍为现有入口；计划中的鼠标标记/直角路径不能当作当前操作。人工标准通关/发布仍待实际执行。
 
 ## 安卓构建与安装
 
@@ -118,6 +118,7 @@ node tools/browser_b4.mjs
 node tools/test_b4r1.mjs
 node tools/browser_b4r1.mjs
 node tools/test_b4r2.mjs
+node tools/test_editor_gestures.mjs
 node tools/check_levels.mjs
 ```
 
@@ -144,7 +145,7 @@ node tools/check_levels.mjs
 
 2026-11-06 B2-R1 独立复跑：完整 **1355 PASS / 4 FAIL，退出码 1**，4 条仍为旧 floor09/floor11；原点/上层对象与标准技能独立探针退出 0，R1～R3 关闭。独立 DevTools 未启动，Chrome 25/0 为交付方证据；用户另确认短塔人工游玩基本正常。详见 [独立复验](docs/checks/review-B2R1-2026-11-06.md)。
 
-2026-11-08 B4-R2：`test_b4r2` **21/0**（原16种接缝+四条正常穿管+坐标/预热）；`browser_b4r1` **13/0**（含屏幕左侧上穿）；`test_b4r1` 12/0、`test_b4` 14/0、B3 回归 47/0、35/0、60/0；完整 **1467 PASS / 4 FAIL**。只交 PC，不构建新 APK。2026-11-06 B3-R2：交付方 `browser_b3r2` **47/0**、R1 浏览器回归 **35/0**；本轮独立完整自检 **1415 PASS / 4 FAIL，退出码 1**（B3 60/0，4 条旧 floor09/floor11）。独立 DevTools 未启动，未冒充重现浏览器结果；0.3.2 APK 独立验签/包内对照通过，用户本轮安卓人工验收没有问题，R4 关闭。见 [最新复验](docs/checks/review-B3R2-2026-11-06.md)。系统文件与 PC 制作发布专项仍待补。
+2026-11-08 B4-R3：`test_editor_gestures` **10/0**；`test_b4r2` 21/0、`browser_b4r1` 13/0、`test_b4r1` 12/0、`test_b4` 14/0、B3 回归 47/0、35/0、60/0；完整 **1479 PASS / 4 FAIL**。只交 PC，不构建新 APK；编辑器鼠标画面待人工复测。2026-11-06 B3-R2：交付方 `browser_b3r2` **47/0**、R1 浏览器回归 **35/0**；本轮独立完整自检 **1415 PASS / 4 FAIL，退出码 1**（B3 60/0，4 条旧 floor09/floor11）。独立 DevTools 未启动，未冒充重现浏览器结果；0.3.2 APK 独立验签/包内对照通过，用户本轮安卓人工验收没有问题，R4 关闭。见 [最新复验](docs/checks/review-B3R2-2026-11-06.md)。系统文件与 PC 制作发布专项仍待补。
 
 2026-11-06 B2 独立复跑原完整自检为 **1334/4**；非零原点探针发现上层机关触发/伤害/安全恢复失效和标准技能永久禁用，故 B2 暂不通过。B2-R1 修复后：`test_b2` **96/0**、完整 **1355/4**（引擎 606/4，其余全绿）、真实 Chrome **25/0**；修复后 reviewer 探针的新运行时门/浮石/火球/恢复和 CD 后施法均符合预期。原 23/0 与 1334/4 保留为 B2 历史证据。详见 [B2-R1 记录](docs/checks/B2-R1-2026-11-06.md)。
 
@@ -191,7 +192,7 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 - 编辑器已能编辑六类对象参数/路径/接口，但路径工具是首版列表编辑器,不是可视化拖点;未知/不支持的旧内容仍可能阻止标准试玩/发布(会明确报错)。
 - 旧原型主菜单的 `verified`/旧池逻辑保留在 `legacy.html`，不是 B2 正式池；默认 `index.html`/B2 正式池只认本地已认证发布。
 - 旧 `floor09/floor11` 自动可达性诊断仍失败，未改旧图；这不代表 B2 短塔人工不可通。
-- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 `9f2a4e3`、B2 `9a17f99`、B2-R1 `71e3219`、B3 `43fd30b`、B3-R1 `5dc5fb2`、B3-R2 `61a0b2d`、B4 `dfbe10d`、B4-R1 `7fff152`、B4-R2 `eba80a6`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
+- 已有本地 Git 基线 `f56cdce`；T01 `6a7e712`、T01-R `c7c5490`、T02A `f2a0e07`、T02A-R `6f88127`、B1 `fffaee0`（文档/证据 `205d63c`）、B1-R1 `9f2a4e3`、B2 `9a17f99`、B2-R1 `71e3219`、B3 `43fd30b`、B3-R1 `5dc5fb2`、B3-R2 `61a0b2d`、B4 `dfbe10d`、B4-R1 `7fff152`、B4-R2 `eba80a6`、B4-R3 `见提交记录`。恢复基线先保留当前工作，在独立目录中查看，不直接丢弃未提交修改。
 
 ## 文档与目录
 
@@ -218,6 +219,7 @@ B2 新运行时：`short.html` 用 `short-v1` 短塔；100 生命、接触伤害
 | [B4 记录](docs/checks/B4-2026-11-07.md) | 云板/石管、作者三图、编辑器与双主题（历史 PC） |
 | [B4-R1 记录](docs/checks/B4R1-2026-11-07.md) | 作者 level0/rest/boss、F 短塔、石块墙（仅 PC） |
 | [B4-R2 记录](docs/checks/B4R2-2026-11-08.md) | 上穿云板侧移穿墙、统一世界查询/坐标（仅 PC） |
+| [B4-R3 记录](docs/checks/B4R3-2026-11-08.md) | 鼠标端点、裁剪/安全包络、直角齿轮路径（仅 PC） |
 | [B3-R1 独立复验](docs/checks/review-B3R1-2026-11-06.md) / [B3-R2 修复卡](docs/tasks/14-b3-android-viewport-fix.md) | 当前安卓启动故障、真机截图、一次修复与新包要求 |
 | `js/` | 引擎、旧游戏、编辑器、草稿仓库、World/GameSession、开发试玩代码 |
 | `index.html` | 默认入口，自动进入 short.html |

@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-08",
+  "head": "ba80e23",
+  "records": [
+    {
+      "name": "Crop leaves old selection; marker ignores current coordinate fields",
+      "cropped": true,
+      "beforeSize": {
+        "cols": 20,
+        "rows": 24
+      },
+      "afterSize": {
+        "cols": 20,
+        "rows": 16
+      },
+      "beforePort": {
+        "col": 15,
+        "row": 7
+      },
+      "afterPort": {
+        "col": 15,
+        "row": 0
+      },
+      "staleSelection": {
+        "c0": 15,
+        "r0": 7,
+        "c1": 16,
+        "r1": 7
+      },
+      "markWithCurrentFields": false,
+      "messages": [
+        [
+          "已裁到 20×16(可撤销)"
+        ],
+        [
+          "端点保存失败:[INVALID_PORT] finish 必须从连续两格云板(5)开始",
+          "bad"
+        ]
+      ],
+      "evidence": "Controller uses selection (15,7), though model and coordinate fields say (15,0). Minimal UI harness, not full browser reproduction."
+    },
+    {
+      "name": "Existing author endpoint roundtrip before crop",
+      "ok": true,
+      "ports": {
+        "profile": "cloud-pipe-v2",
+        "start": {
+          "col": 2,
+          "row": 22
+        },
+        "finish": {
+          "col": 15,
+          "row": 7
+        }
+      }
+    },
+    {
+      "name": "Current single-node gear play issues",
+      "normalized": true,
+      "issues": [
+        {
+          "code": "INVALID_FIELD",
+          "path": "/paths/0/points",
+          "message": "路径至少要两个不同的点",
+          "severity": "error"
+        }
+      ]
+    }
+  ],
+  "scope": "Read-only inspection. New mouse markers and orthogonal gear gestures are requirements, not implemented behavior."
+}
