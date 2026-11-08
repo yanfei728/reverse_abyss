@@ -509,6 +509,8 @@ Chrome/Edge 独立复跑均未启动 DevTools，未重现交付方 21/0，保留
 
 ### 2026-11-08 · B4-R2：云板侧边穿墙修复
 
+实现提交：`eba80a6`。
+
 按 [18 号卡](docs/tasks/18-cloud-side-collision.md) 完成，证据见 [B4-R2 记录](docs/checks/B4R2-2026-11-08.md)。
 
 - 原16种接缝输入全部先复现；修复后 `test_b4r2` 20/0、`browser_b4r1` 13/0、`test_b4r1` 12/0；完整 1466/4。

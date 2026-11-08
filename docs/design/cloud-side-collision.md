@@ -1,6 +1,6 @@
 # 云板侧边穿墙：碰撞查询修复契约
 
-日期：2026-11-08。状态：**B4-R2 PC 已实现（2026-11-08），待人工复测**。只修PC短塔穿墙；六图/F/休整/Boss流程保持，编辑器、APK和表现改进继续后置。证据见 [复验](../checks/review-B4R1-2026-11-08.md)、[探针](../checks/review-B4R1-2026-11-08-probes.mjs)，实施见 [18号卡](../tasks/18-cloud-side-collision.md)。
+日期：2026-11-08。状态：**B4-R2 PC 已实现（`eba80a6`，2026-11-08），待人工复测**。只修PC短塔穿墙；六图/F/休整/Boss流程保持，编辑器、APK和表现改进继续后置。证据见 [复验](../checks/review-B4R1-2026-11-08.md)、[探针](../checks/review-B4R1-2026-11-08-probes.mjs)，实施见 [18号卡](../tasks/18-cloud-side-collision.md)。
 
 ## 1. 已证实的缺口
 

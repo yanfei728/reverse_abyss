@@ -1,6 +1,6 @@
 # 18 — B4-R2：只修云板侧边穿墙（PC）
 
-日期：2026-11-08。状态：**PC 已修复（2026-11-08），待人工复测；未构建 APK**。起点HEAD `9219fc3`，17号卡实现`7fff152`。用户人工反馈短塔逻辑正常，但上穿云板时横移仍能穿入旁边方块，明确下一步先修此bug。先读README/PROJECT/STATUS/AGENTS及 [复验报告](../checks/review-B4R1-2026-11-08.md)、[碰撞契约](../design/cloud-side-collision.md)。
+日期：2026-11-08。状态：**PC 已修复（`eba80a6`，2026-11-08），待人工复测；未构建 APK**。起点HEAD `9219fc3`，17号卡实现`7fff152`。用户人工反馈短塔逻辑正常，但上穿云板时横移仍能穿入旁边方块，明确下一步先修此bug。先读README/PROJECT/STATUS/AGENTS及 [复验报告](../checks/review-B4R1-2026-11-08.md)、[碰撞契约](../design/cloud-side-collision.md)。
 
 ## 目标与边界
 
