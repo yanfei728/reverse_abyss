@@ -15,10 +15,10 @@
     <p class="dim small">
       编辑<b>完整 LevelData</b>(地形 / 对象 / 路线 / 云板端点 / 背景 / 装饰 / extensions),
       导出/打开都走同一份 JSON 契约;浏览器草稿存 IndexedDB,刷新后可找回。
-      开发试玩用新运行时,不再转旧 TXT。
+      试玩用普通游玩初态的单图运行时,不再转旧 TXT。
     </p>
 
-    <h2>地物 <span class="dim">(地块 + 已注册机关)</span></h2>
+    <h2>地物 <span class="dim">(地块 + 已注册机关/怪物)</span></h2>
     <div id="palette" class="palette"></div>
 
     <h2>工具</h2>
@@ -29,6 +29,15 @@
       <b id="brush-label">1</b>
       <button id="btn-brush-plus" title="大一点 (])">＋</button>
     </div>
+    <!-- 24号卡:齿轮/移动火球的往返与闭合只在选中它们时显示(专属画布控件) -->
+    <div class="row" id="gear-mode-row" style="display:none">
+      <span class="lab">齿轮路线</span>
+      <select id="gear-mode" title="齿轮/移动火球路线:往返 pingpong 或闭合 loop">
+        <option value="pingpong">往返 pingpong</option>
+        <option value="loop">闭合 loop</option>
+      </select>
+    </div>
+    <p class="dim small" id="gear-mode-note" style="display:none">选「路径齿轮」或「移动火球」后:左键放下并连续加节点,右键完成;Esc 取消且不留痕迹。流星锤只需单击一个端点。</p>
 
     <h2>视图 / 历史</h2>
     <label class="chk"><input type="checkbox" id="chk-grid" checked> 网格</label>
@@ -61,10 +70,9 @@
       <button id="btn-export" class="primary" title="导出完整 LevelData JSON(Ctrl+S)。只发起浏览器下载,不写 levels/">导出 JSON (Ctrl+S)</button>
       <button id="btn-copy" title="把导出的 JSON 放进剪贴板">复制 JSON</button>
       <button id="btn-view-json" title="把导出的 JSON 摊开看 / 手动复制">查看 JSON</button>
-      <button id="btn-play" title="用新 GameSession 连续两层开发试玩;接口/出生点不合法会先报错">▶ 开发试玩</button>
-      <button id="btn-standard" title="standard-v1:无光环、冷却20秒、从生成的入口支撑开始,通过真实出口才发回执">标准试玩</button>
-      <button id="btn-publish" title="只发布已通过标准试玩且内容/规则未变的草稿">发布</button>
-      <a class="back" id="back-link" href="index.html" title="回游戏:有未导出的改动会先问一句">← 回游戏</a>
+      <button id="btn-play" class="primary" title="先保存草稿,再用当前图启动单图试玩:start 出生、完整上穿 finish 结束;满血、技能开局可用">▶ 试玩</button>
+      <button id="btn-publish" title="发布已试玩通过且内容未变的草稿到本地正式池(普通图要先选 1–4 档)">发布</button>
+      <a class="back" id="back-link" href="index.html" title="回主界面:有未导出的改动会先问一句">← 回主界面</a>
     </div>
     <div id="board-wrap">
       <canvas id="board"></canvas>
@@ -74,7 +82,7 @@
 
   <!-- ============ 右:关卡 + 检查 ============ -->
   <aside id="right">
-    <div class="row"><button id="btn-theme" type="button" title="切换编辑器深浅主题" onclick="RA.editor&&RA.editor.toggleTheme()">◐ 浅色</button></div>
+    <div class="row"><button id="btn-theme" type="button" title="切换编辑器深浅主题">◐ 深色</button></div>
     <h2>关卡</h2>
     <div class="row">
       <button id="btn-new">新建(空)</button>
@@ -121,8 +129,9 @@
     <h2>元信息</h2>
     <div class="row">
       <span class="lab">难度</span>
-      <select id="difficulty-select" title="普通层难度 1~4;固定场景在后续卡处理"></select>
+      <select id="difficulty-select" title="普通图发布前必须选 1–4 档:1→1–9、2→11–19、3→21–29、4→31–39;改难度会让旧通过失效"></select>
     </div>
+    <p class="dim small">正式塔按四档分桶抽选(1 档 1–9、2 档 11–19、3 档 21–29、4 档 31–39);发布普通图前必须先选档,改难度属于内容变更,需要重新试玩。</p>
     <div class="row">
       <span class="lab">背景</span>
       <select id="sky-select" title="这一层用哪张天空贴图"></select>
@@ -165,44 +174,18 @@
       <p class="dim small" id="ports-note">两端各 2×1 云板;左右各一格实心;另一端可后补,试玩前统一检查。</p>
     </div>
 
-    <h2>对象 / 参数 / 路径</h2>
-    <div class="row">
-      <select id="obj-list" title="选择已有对象"></select>
-      <button id="btn-obj-del">删除对象</button>
-    </div>
-    <div class="row">
-      <select id="obj-type"></select>
-      <input type="number" id="obj-col" min="0" step="1" placeholder="col" style="width:60px">
-      <input type="number" id="obj-row" min="0" step="1" placeholder="row" style="width:60px">
-    </div>
-    <div id="obj-params"></div>
-    <div class="row"><span class="lab">齿轮路线</span><select id="gear-mode"><option value="pingpong">往返 pingpong</option><option value="loop">闭合 loop</option></select></div>
-    <div class="row">
-      <span class="lab">路径</span><select id="obj-path"></select>
-    </div>
-    <div class="row"><button id="btn-obj-apply">添加 / 更新对象</button></div>
-    <div class="row">
-      <select id="path-list"></select>
-      <button id="btn-path-del">删除路径</button>
-    </div>
-    <div class="row">
-      <select id="path-mode"><option value="loop">loop(闭环)</option><option value="pingpong">pingpong(折返)</option></select>
-      <button id="btn-path-new">新建路径</button>
-    </div>
-    <textarea id="path-points" rows="4" spellcheck="false" placeholder="每行一个点:col,row" style="width:100%;background:#0a0d16;color:#dfe7f5;border:1px solid #2c3752;border-radius:8px;font:12px Consolas,monospace;padding:6px"></textarea>
-    <div class="row"><button id="btn-path-apply">应用路径</button></div>
-    <p class="dim small" id="edit-status"></p>
-
     <h2>检查</h2>
     <ul id="check-list" class="check"></ul>
 
     <h2>怎么用</h2>
     <p class="dim small">
       1. 选地块/机关/怪物放置;起点/终点用两块连续云板,在右侧标记。<b>不再使用 P/G 旧工具</b>,旧字段只保真。<br>
-      2. 撤销/重做保存整份 LevelData(对象、路线、元信息一起),最多 100 步 / 32 MiB;<br>
-      3. 「保存草稿」写进浏览器 IndexedDB,刷新后可在列表里找回;「导出 JSON」仍是独立文件备份;<br>
-      4. 「开发试玩」先按 play 用途检查云板端点/净空;短塔使用作者三图,管道实际渲染与碰撞;<br>
-      5. 打开 JSON / 旧图失败不会替换当前图;未知对象与未知字段会保留并显示,不会被自动补成"可运行"。
+      2. 齿轮选「路径齿轮」:画布左键放下并连续加节点,右键完成;左栏可选往返/闭合,Esc 取消不留痕迹。<br>
+      3. 撤销/重做保存整份 LevelData(对象、路线、元信息一起),最多 100 步 / 32 MiB;<br>
+      4. 「保存草稿」写进浏览器 IndexedDB,刷新后可在列表里找回;「导出 JSON」仍是独立文件备份;<br>
+      5. 「试玩」先保存草稿,再进入单图试玩:start 出生、上穿 finish 结束;满血、技能开局可用;<br>
+      6. 打开 JSON / 旧图失败不会替换当前图;未知对象与未知字段会保留并显示,不会被自动补成"可运行";<br>
+      7. 加了金币/弓箭手等新对象后要重新试玩;发布前先选难度,再显式「发布」入本地正式池。
     </p>
   </aside>
 </div>
@@ -220,6 +203,8 @@
 <script src="js/config.js"></script>
 <script src="js/util.js"></script>
 <script src="js/text.js"></script>
+<script src="js/seed-text.js"></script>
+<script src="js/high-score-store.js"></script>
 <script src="js/level.js"></script>
 <script src="js/entity-registry.js"></script>
 <script src="js/level-data.js"></script>
@@ -235,6 +220,7 @@
 <script src="js/entities/ghost.js"></script>
 <script src="js/entities/blink.js"></script>
 <script src="js/monsters.js"></script>
+<script src="js/soul-motion.js"></script>
 <script src="js/camera.js"></script>
 <script src="js/assets.js"></script>
 <script src="js/audio.js"></script>
@@ -255,6 +241,7 @@
 <script src="js/dev-samples.js"></script>
 <script src="js/b2-samples.js"></script>
 <script src="js/b4-samples.js"></script>
+<script src="js/full40-samples.js"></script>
 <!-- 编辑器本体 -->
 <script src="js/editor.js"></script>
 </body>

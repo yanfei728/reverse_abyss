@@ -465,10 +465,21 @@
       return false;
     }
 
+    /** 这一格有没有实心地形(本层 + 已实存邻层/派生管壁,由 FloorInstance 注入) */
+    solidTileAt(r, c) {
+      if (r >= 0 && r < this.rows && c >= 0 && c < this.cols && this.grid[r][c]) return true;
+      return !!(this.extraSolidAt && this.extraSolidAt(r, c));
+    }
+
+    /** 这一格是不是单向云板(本层 + 已实存邻层);单向不参与横向/顶头 */
+    onewayTileAt(r, c) {
+      if (r >= 0 && r < this.rows && c >= 0 && c < this.cols && this.oneway[r][c]) return true;
+      return !!(this.extraOnewayAt && this.extraOnewayAt(r, c));
+    }
+
     /** 这一格挡不挡人:地形(实心/单向)或者有碰撞体积的地物 */
     blockedAt(r, c) {
-      if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) return false;
-      if (this.grid[r][c] || this.oneway[r][c]) return true;
+      if (this.solidTileAt(r, c) || this.onewayTileAt(r, c)) return true;
       return this.solidEntityAt(r, c);
     }
 
@@ -477,6 +488,8 @@
      * includeOneway = true 时连单向云板一起返回(往下落的时候要判它们);
      * 默认只返回实心(横向移动 / 往上顶头都只认实心)。
      * 有碰撞体积的地物(会变的机关)按"实心"算,所以横竖顶都能挡。
+     * 邻层已实存地形/管道由 extraSolidAt/extraOnewayAt 提供,仍在同一局部格坐标里解算,
+     * 但类型保持:云板只进 includeOneway 分支,不会被当成四向实心。
      */
     _hitTiles(x, y, w, h, includeOneway) {
       var t = this.tile, out = [];
@@ -484,9 +497,10 @@
       var r0 = Math.floor(y / t), r1 = Math.floor((y + h - 1) / t);
       for (var r = r0; r <= r1; r++) {
         for (var c = c0; c <= c1; c++) {
-          var inMap = r >= 0 && r < this.rows && c >= 0 && c < this.cols;
-          if (inMap && this.grid[r][c]) out.push([r, c, false]);
-          else if (inMap && includeOneway && this.oneway[r][c]) out.push([r, c, true]);
+          var solid = this.solidTileAt(r, c);
+          var one = !solid && includeOneway && this.onewayTileAt(r, c);
+          if (solid) out.push([r, c, false]);
+          else if (one) out.push([r, c, true]);
           else if (this.solidEntityAt(r, c)) out.push([r, c, false]);
         }
       }
@@ -505,14 +519,31 @@
     standingOn(x, feet, w) {
       if (this.hits(x, feet, w, 2)) return true;        // 实心:脚底下 2px 内有地
       var t = this.tile;
-      var c0 = Math.max(0, Math.floor(x / t));
-      var c1 = Math.min(this.cols - 1, Math.floor((x + w - 1) / t));
-      var r0 = Math.max(0, Math.floor((feet - 1.5) / t));
-      var r1 = Math.min(this.rows - 1, Math.floor(feet / t));
+      var c0 = Math.floor(x / t);
+      var c1 = Math.floor((x + w - 1) / t);
+      var r0 = Math.floor((feet - 1.5) / t);
+      var r1 = Math.floor(feet / t);
       for (var r = r0; r <= r1; r++) {
         for (var c = c0; c <= c1; c++) {
-          if (!this.oneway[r][c]) continue;
+          if (!this.onewayTileAt(r, c)) continue;
           if (feet <= r * t + 1.5) return true;         // 正好踩在顶面上
+        }
+      }
+      return false;
+    }
+
+    /** 只看本层自己的静态地形(不含邻层注入);用于判断“是否站在上层自身上”。 */
+    standingOnOwn(x, feet, w) {
+      var t = this.tile;
+      var c0 = Math.floor(x / t);
+      var c1 = Math.floor((x + w - 1) / t);
+      var r0 = Math.floor((feet - 2) / t);
+      var r1 = Math.floor(feet / t);
+      for (var r = r0; r <= r1; r++) {
+        for (var c = c0; c <= c1; c++) {
+          if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) continue;
+          if (this.grid[r][c]) return true;
+          if (this.oneway[r][c] && feet <= r * t + 1.5) return true;
         }
       }
       return false;

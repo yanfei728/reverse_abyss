@@ -30,7 +30,7 @@ import { ROOT } from './loader.mjs';
 
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const EDITOR_URL = 'file:///' + join(ROOT, 'editor.html').replace(/\\/g, '/');
-const DEMO = join(ROOT, 'levels/demo/t02a-demo.json');
+const DEMO = join(ROOT, 'levels/archive/demo/t02a-demo.json');
 const OUT_DIR = join(ROOT, 'docs/checks');
 const t0 = Date.now();
 

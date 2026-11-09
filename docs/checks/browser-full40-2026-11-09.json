@@ -1,0 +1,201 @@
+{
+  "title": "25号卡完整塔真实 Chrome 检查",
+  "date": "2026-11-09",
+  "note": "真实浏览器 + 真实键盘事件;生命周期检查使用 RA.short.debugJumpTo 显式调试跳层,不是真人从 0 走通 40 层,不产生认证。测试数据只在临时 user-data-dir。",
+  "browser": "Chrome/156.0.8078.81",
+  "elapsedSeconds": 15.8,
+  "pass": 36,
+  "fail": 2,
+  "results": [
+    {
+      "name": "Chrome 已启动",
+      "ok": true,
+      "extra": "Chrome/156.0.8078.81 headless"
+    },
+    {
+      "name": "短塔页加载",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "页面标题/按钮是完整塔",
+      "ok": false,
+      "extra": ""
+    },
+    {
+      "name": "HUD 初值是 0/40 不是 1/6",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "正式池状态显示 0 张并说明 test3 补位/旧图归档",
+      "ok": false,
+      "extra": ""
+    },
+    {
+      "name": "旧普通内置池已不在活动 catalog",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "空池也能点开始完整塔",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "完整塔启动成功、菜单隐藏",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "开局在 0 层大厅",
+      "ok": true,
+      "extra": "大厅（0层）"
+    },
+    {
+      "name": "清单是 41 槽 full40-v1",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "普通槽全部由 test3 补位(空池)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "大厅出生点有 F 提示",
+      "ok": true,
+      "extra": "按 F 开始挑战"
+    },
+    {
+      "name": "真实按 F 一次进入第 1 层",
+      "ok": true,
+      "extra": "第 1/40 层 · 普通 · 调试跳层"
+    },
+    {
+      "name": "第 1 层 HUD 显示真实 1/40",
+      "ok": true,
+      "extra": "第 1/40 层 · 普通 · 调试跳层"
+    },
+    {
+      "name": "10 层进场回 40:HP 40→80",
+      "ok": true,
+      "extra": "80 / 第 10/40 层 · 休整 · 调试跳层"
+    },
+    {
+      "name": "10 层实例身份非空且带槽号",
+      "ok": true,
+      "extra": "10:b4_rest:4f61d6773619"
+    },
+    {
+      "name": "30 层独立实例、独立回血:HP 80→100",
+      "ok": true,
+      "extra": "100 / 30:b4_rest:4f61d6773619"
+    },
+    {
+      "name": "20 层是 Boss,击败前无 F 提示",
+      "ok": true,
+      "extra": "第 20/40 层 · BOSS · 调试跳层"
+    },
+    {
+      "name": "20 层 Boss 有独立实例",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "20 层 Boss 击败后不胜利、仍 running",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "20 层击败后显示 F 进入 21 提示",
+      "ok": true,
+      "extra": "按 F 进入21层"
+    },
+    {
+      "name": "按 F 一次从 20 传送到 21",
+      "ok": true,
+      "extra": "第 21/40 层 · 普通 · 调试跳层"
+    },
+    {
+      "name": "传送保留同一玩家 HP/CD",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "21 层没有旧 Boss/没有 F 提示",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "调试跳层后受伤会死亡并出现死亡面板",
+      "ok": true,
+      "extra": "dead / 死亡"
+    },
+    {
+      "name": "点「重试同一座塔」",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "重试回到 0 层、同一 manifestId(不重抽)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "40 层创建全新 Boss(与 20 层不是同一实例)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "40 层两阶段后击败才完整塔胜利",
+      "ok": true,
+      "extra": "won / 完整塔通过"
+    },
+    {
+      "name": "胜利后仍在 40 层、没有 41 层",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "真实 IndexedDB 一次性清池:同事务清 published、保留 drafts",
+      "ok": true,
+      "extra": "{\"first\":true,\"publishedAfter\":0,\"draftsKept\":1,\"second\":true,\"publishedAfter2\":0}"
+    },
+    {
+      "name": "同一 epoch 重开不再清池",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "旧无 epoch 记录被候选隔离(不冒充新发布)",
+      "ok": true,
+      "extra": "{\"count\":0,\"ids\":[]}"
+    },
+    {
+      "name": "真实浏览器里发布难度 2 新图成功",
+      "ok": true,
+      "extra": "{\"count\":1,\"ids\":[\"full40_browser_new:d2\"]}"
+    },
+    {
+      "name": "刷新后新发布仍在(不会被再次清池)",
+      "ok": true,
+      "extra": "{\"n\":1,\"ids\":[\"full40_browser_new\"],\"text\":\"正式池:1 张(1档 0 / 2档 1 / 3档 0 / 4档 0;内置 0,浏览器发布 1;每档最多9,不足test3补位)\"}"
+    },
+    {
+      "name": "池状态显示 1 张且区分难度",
+      "ok": true,
+      "extra": "正式池:1 张(1档 0 / 2档 1 / 3档 0 / 4档 0;内置 0,浏览器发布 1;每档最多9,不足test3补位)"
+    },
+    {
+      "name": "新发布只出现在 11–19 层段",
+      "ok": true,
+      "extra": "{\"slots\":[11],\"diffs\":[2],\"levelIds\":[\"full40_browser_new\"],\"total\":41}"
+    },
+    {
+      "name": "新发布 levelId 正确、其余普通槽 test3 补位",
+      "ok": true,
+      "extra": ""
+    }
+  ]
+}

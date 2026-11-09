@@ -1,0 +1,1142 @@
+{
+  "date": "2026-11-09",
+  "entry": "index.html -> short.html -> full40-formal",
+  "environment": "Node loader DOM/canvas stubs; no visible browser this review",
+  "limits": "Each seam uses a finish-position fixture; not a continuous whole-map route, human clear, performance measurement or certification. No browser storage is touched.",
+  "manifest": {
+    "slots": 41,
+    "normal": 36,
+    "fallback": 36
+  },
+  "centered": [
+    {
+      "from": 1,
+      "to": 2,
+      "crossing": {
+        "frame": 27,
+        "current": 2,
+        "feet": -2122.166666666667,
+        "commitY": -2115,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          1,
+          2,
+          3
+        ],
+        "states": [
+          {
+            "slot": 1,
+            "state": "snapshot"
+          },
+          {
+            "slot": 2,
+            "state": "active"
+          },
+          {
+            "slot": 3,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "crossing": {
+        "frame": 27,
+        "current": 3,
+        "feet": -3112.1666666666665,
+        "commitY": -3105,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          2,
+          3,
+          4
+        ],
+        "states": [
+          {
+            "slot": 2,
+            "state": "snapshot"
+          },
+          {
+            "slot": 3,
+            "state": "active"
+          },
+          {
+            "slot": 4,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "crossing": {
+        "frame": 27,
+        "current": 4,
+        "feet": -4102.166666666667,
+        "commitY": -4095,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          3,
+          4,
+          5
+        ],
+        "states": [
+          {
+            "slot": 3,
+            "state": "snapshot"
+          },
+          {
+            "slot": 4,
+            "state": "active"
+          },
+          {
+            "slot": 5,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 4,
+      "to": 5,
+      "crossing": {
+        "frame": 27,
+        "current": 5,
+        "feet": -5092.166666666667,
+        "commitY": -5085,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          4,
+          5,
+          6
+        ],
+        "states": [
+          {
+            "slot": 4,
+            "state": "snapshot"
+          },
+          {
+            "slot": 5,
+            "state": "active"
+          },
+          {
+            "slot": 6,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 5,
+      "to": 6,
+      "crossing": {
+        "frame": 27,
+        "current": 6,
+        "feet": -6082.166666666667,
+        "commitY": -6075,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          5,
+          6,
+          7
+        ],
+        "states": [
+          {
+            "slot": 5,
+            "state": "snapshot"
+          },
+          {
+            "slot": 6,
+            "state": "active"
+          },
+          {
+            "slot": 7,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 6,
+      "to": 7,
+      "crossing": {
+        "frame": 27,
+        "current": 7,
+        "feet": -7072.166666666667,
+        "commitY": -7065,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          6,
+          7,
+          8
+        ],
+        "states": [
+          {
+            "slot": 6,
+            "state": "snapshot"
+          },
+          {
+            "slot": 7,
+            "state": "active"
+          },
+          {
+            "slot": 8,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 7,
+      "to": 8,
+      "crossing": {
+        "frame": 27,
+        "current": 8,
+        "feet": -8062.166666666667,
+        "commitY": -8055,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          7,
+          8,
+          9
+        ],
+        "states": [
+          {
+            "slot": 7,
+            "state": "snapshot"
+          },
+          {
+            "slot": 8,
+            "state": "active"
+          },
+          {
+            "slot": 9,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 8,
+      "to": 9,
+      "crossing": {
+        "frame": 27,
+        "current": 9,
+        "feet": -9052.166666666666,
+        "commitY": -9045,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          8,
+          9,
+          10
+        ],
+        "states": [
+          {
+            "slot": 8,
+            "state": "snapshot"
+          },
+          {
+            "slot": 9,
+            "state": "active"
+          },
+          {
+            "slot": 10,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 9,
+      "to": 10,
+      "crossing": {
+        "frame": 27,
+        "current": 10,
+        "feet": -10042.166666666666,
+        "commitY": -10035,
+        "x": 1160,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          9,
+          10,
+          11
+        ],
+        "states": [
+          {
+            "slot": 9,
+            "state": "snapshot"
+          },
+          {
+            "slot": 10,
+            "state": "active"
+          },
+          {
+            "slot": 11,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 10,
+      "to": 11,
+      "crossing": {
+        "frame": 27,
+        "current": 11,
+        "feet": -10672.166666666666,
+        "commitY": -10665,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          10,
+          11,
+          12
+        ],
+        "states": [
+          {
+            "slot": 10,
+            "state": "snapshot"
+          },
+          {
+            "slot": 11,
+            "state": "active"
+          },
+          {
+            "slot": 12,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 11,
+      "to": 12,
+      "crossing": {
+        "frame": 27,
+        "current": 12,
+        "feet": -11662.166666666666,
+        "commitY": -11655,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          11,
+          12,
+          13
+        ],
+        "states": [
+          {
+            "slot": 11,
+            "state": "snapshot"
+          },
+          {
+            "slot": 12,
+            "state": "active"
+          },
+          {
+            "slot": 13,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 12,
+      "to": 13,
+      "crossing": {
+        "frame": 27,
+        "current": 13,
+        "feet": -12652.166666666666,
+        "commitY": -12645,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          12,
+          13,
+          14
+        ],
+        "states": [
+          {
+            "slot": 12,
+            "state": "snapshot"
+          },
+          {
+            "slot": 13,
+            "state": "active"
+          },
+          {
+            "slot": 14,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 13,
+      "to": 14,
+      "crossing": {
+        "frame": 27,
+        "current": 14,
+        "feet": -13642.166666666666,
+        "commitY": -13635,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          13,
+          14,
+          15
+        ],
+        "states": [
+          {
+            "slot": 13,
+            "state": "snapshot"
+          },
+          {
+            "slot": 14,
+            "state": "active"
+          },
+          {
+            "slot": 15,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 14,
+      "to": 15,
+      "crossing": {
+        "frame": 27,
+        "current": 15,
+        "feet": -14632.166666666666,
+        "commitY": -14625,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          14,
+          15,
+          16
+        ],
+        "states": [
+          {
+            "slot": 14,
+            "state": "snapshot"
+          },
+          {
+            "slot": 15,
+            "state": "active"
+          },
+          {
+            "slot": 16,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 15,
+      "to": 16,
+      "crossing": {
+        "frame": 27,
+        "current": 16,
+        "feet": -15622.166666666666,
+        "commitY": -15615,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          15,
+          16,
+          17
+        ],
+        "states": [
+          {
+            "slot": 15,
+            "state": "snapshot"
+          },
+          {
+            "slot": 16,
+            "state": "active"
+          },
+          {
+            "slot": 17,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 16,
+      "to": 17,
+      "crossing": {
+        "frame": 27,
+        "current": 17,
+        "feet": -16612.166666666668,
+        "commitY": -16605,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          16,
+          17,
+          18
+        ],
+        "states": [
+          {
+            "slot": 16,
+            "state": "snapshot"
+          },
+          {
+            "slot": 17,
+            "state": "active"
+          },
+          {
+            "slot": 18,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 17,
+      "to": 18,
+      "crossing": {
+        "frame": 27,
+        "current": 18,
+        "feet": -17602.166666666668,
+        "commitY": -17595,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          17,
+          18,
+          19
+        ],
+        "states": [
+          {
+            "slot": 17,
+            "state": "snapshot"
+          },
+          {
+            "slot": 18,
+            "state": "active"
+          },
+          {
+            "slot": 19,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 18,
+      "to": 19,
+      "crossing": {
+        "frame": 27,
+        "current": 19,
+        "feet": -18592.166666666668,
+        "commitY": -18585,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          18,
+          19,
+          20
+        ],
+        "states": [
+          {
+            "slot": 18,
+            "state": "snapshot"
+          },
+          {
+            "slot": 19,
+            "state": "active"
+          },
+          {
+            "slot": 20,
+            "state": "preview"
+          }
+        ]
+      }
+    },
+    {
+      "from": 19,
+      "to": 20,
+      "crossing": {
+        "frame": 27,
+        "current": 20,
+        "feet": -19582.166666666668,
+        "commitY": -19575,
+        "x": 620,
+        "width": 20,
+        "rightOverhang": -35,
+        "onGround": false,
+        "live": [
+          19,
+          20,
+          21
+        ],
+        "states": [
+          {
+            "slot": 19,
+            "state": "snapshot"
+          },
+          {
+            "slot": 20,
+            "state": "active"
+          },
+          {
+            "slot": 21,
+            "state": "preview"
+          }
+        ]
+      }
+    }
+  ],
+  "edgeCases": [
+    {
+      "from": 1,
+      "expectedNext": 2,
+      "expectedPreview": 3,
+      "manifestHasExpectedPreview": true,
+      "previewCreated": true,
+      "side": "right",
+      "firstUpwardCrossing": {
+        "frame": 27,
+        "current": 2,
+        "feet": -2122.166666666667,
+        "commitY": -2115,
+        "x": 1195.638888888889,
+        "width": 20,
+        "rightOverhang": 0.6388888888889142,
+        "onGround": false,
+        "live": [
+          1,
+          2,
+          3
+        ],
+        "states": [
+          {
+            "slot": 1,
+            "state": "snapshot"
+          },
+          {
+            "slot": 2,
+            "state": "active"
+          },
+          {
+            "slot": 3,
+            "state": "preview"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "frame": 40,
+          "current": 2,
+          "feet": -2210.638888888889,
+          "commitY": -2115,
+          "x": 1218.302761312531,
+          "width": 20,
+          "rightOverhang": 23.302761312530947,
+          "onGround": false,
+          "live": [
+            1,
+            2,
+            3
+          ],
+          "states": [
+            {
+              "slot": 1,
+              "state": "snapshot"
+            },
+            {
+              "slot": 2,
+              "state": "active"
+            },
+            {
+              "slot": 3,
+              "state": "preview"
+            }
+          ]
+        },
+        {
+          "frame": 60,
+          "current": 2,
+          "feet": -2135.916666666667,
+          "commitY": -2115,
+          "x": 1247.1126461447088,
+          "width": 20,
+          "rightOverhang": 52.11264614470883,
+          "onGround": false,
+          "live": [
+            1,
+            2,
+            3
+          ],
+          "states": [
+            {
+              "slot": 1,
+              "state": "snapshot"
+            },
+            {
+              "slot": 2,
+              "state": "active"
+            },
+            {
+              "slot": 3,
+              "state": "preview"
+            }
+          ]
+        },
+        {
+          "frame": 89,
+          "current": 2,
+          "feet": -2115,
+          "commitY": -2115,
+          "x": 1254.0343475564548,
+          "width": 20,
+          "rightOverhang": 59.034347556454804,
+          "onGround": true,
+          "live": [
+            1,
+            2,
+            3
+          ],
+          "states": [
+            {
+              "slot": 1,
+              "state": "snapshot"
+            },
+            {
+              "slot": 2,
+              "state": "active"
+            },
+            {
+              "slot": 3,
+              "state": "preview"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "from": 8,
+      "expectedNext": 9,
+      "expectedPreview": 10,
+      "manifestHasExpectedPreview": true,
+      "previewCreated": true,
+      "side": "right",
+      "firstUpwardCrossing": {
+        "frame": 27,
+        "current": 9,
+        "feet": -9052.166666666666,
+        "commitY": -9045,
+        "x": 1195.638888888889,
+        "width": 20,
+        "rightOverhang": 0.6388888888889142,
+        "onGround": false,
+        "live": [
+          8,
+          9,
+          10
+        ],
+        "states": [
+          {
+            "slot": 8,
+            "state": "snapshot"
+          },
+          {
+            "slot": 9,
+            "state": "active"
+          },
+          {
+            "slot": 10,
+            "state": "preview"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "frame": 40,
+          "current": 9,
+          "feet": -9140.638888888889,
+          "commitY": -9045,
+          "x": 1218.302761312531,
+          "width": 20,
+          "rightOverhang": 23.302761312530947,
+          "onGround": false,
+          "live": [
+            8,
+            9,
+            10
+          ],
+          "states": [
+            {
+              "slot": 8,
+              "state": "snapshot"
+            },
+            {
+              "slot": 9,
+              "state": "active"
+            },
+            {
+              "slot": 10,
+              "state": "preview"
+            }
+          ]
+        },
+        {
+          "frame": 60,
+          "current": 9,
+          "feet": -9065.916666666668,
+          "commitY": -9045,
+          "x": 1247.1126461447088,
+          "width": 20,
+          "rightOverhang": 52.11264614470883,
+          "onGround": false,
+          "live": [
+            8,
+            9,
+            10
+          ],
+          "states": [
+            {
+              "slot": 8,
+              "state": "snapshot"
+            },
+            {
+              "slot": 9,
+              "state": "active"
+            },
+            {
+              "slot": 10,
+              "state": "preview"
+            }
+          ]
+        },
+        {
+          "frame": 89,
+          "current": 9,
+          "feet": -9045,
+          "commitY": -9045,
+          "x": 1254.0343475564548,
+          "width": 20,
+          "rightOverhang": 59.034347556454804,
+          "onGround": true,
+          "live": [
+            8,
+            9,
+            10
+          ],
+          "states": [
+            {
+              "slot": 8,
+              "state": "snapshot"
+            },
+            {
+              "slot": 9,
+              "state": "active"
+            },
+            {
+              "slot": 10,
+              "state": "preview"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "from": 14,
+      "expectedNext": 15,
+      "expectedPreview": 16,
+      "manifestHasExpectedPreview": true,
+      "previewCreated": true,
+      "side": "right",
+      "firstUpwardCrossing": {
+        "frame": 27,
+        "current": 15,
+        "feet": -14632.166666666666,
+        "commitY": -14625,
+        "x": 655.6388888888889,
+        "width": 20,
+        "rightOverhang": 0.6388888888889142,
+        "onGround": false,
+        "live": [
+          14,
+          15,
+          16
+        ],
+        "states": [
+          {
+            "slot": 14,
+            "state": "snapshot"
+          },
+          {
+            "slot": 15,
+            "state": "active"
+          },
+          {
+            "slot": 16,
+            "state": "preview"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "frame": 40,
+          "current": 15,
+          "feet": -14720.638888888889,
+          "commitY": -14625,
+          "x": 678.302761312531,
+          "width": 20,
+          "rightOverhang": 23.302761312530947,
+          "onGround": false,
+          "live": [
+            14,
+            15,
+            16
+          ],
+          "states": [
+            {
+              "slot": 14,
+              "state": "snapshot"
+            },
+            {
+              "slot": 15,
+              "state": "active"
+            },
+            {
+              "slot": 16,
+              "state": "preview"
+            }
+          ]
+        },
+        {
+          "frame": 60,
+          "current": 15,
+          "feet": -14645.916666666668,
+          "commitY": -14625,
+          "x": 707.1126461447087,
+          "width": 20,
+          "rightOverhang": 52.11264614470872,
+          "onGround": false,
+          "live": [
+            14,
+            15,
+            16
+          ],
+          "states": [
+            {
+              "slot": 14,
+              "state": "snapshot"
+            },
+            {
+              "slot": 15,
+              "state": "active"
+            },
+            {
+              "slot": 16,
+              "state": "preview"
+            }
+          ]
+        },
+        {
+          "frame": 89,
+          "current": 15,
+          "feet": -14625,
+          "commitY": -14625,
+          "x": 714.0343475564546,
+          "width": 20,
+          "rightOverhang": 59.03434755645458,
+          "onGround": true,
+          "live": [
+            14,
+            15,
+            16
+          ],
+          "states": [
+            {
+              "slot": 14,
+              "state": "snapshot"
+            },
+            {
+              "slot": 15,
+              "state": "active"
+            },
+            {
+              "slot": 16,
+              "state": "preview"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "leftControl": {
+    "side": "left",
+    "firstUpwardCrossing": {
+      "frame": 27,
+      "current": 2,
+      "feet": -2122.166666666667,
+      "commitY": -2115,
+      "x": 1125,
+      "width": 20,
+      "rightOverhang": -70,
+      "onGround": false,
+      "live": [
+        1,
+        2,
+        3
+      ],
+      "states": [
+        {
+          "slot": 1,
+          "state": "snapshot"
+        },
+        {
+          "slot": 2,
+          "state": "active"
+        },
+        {
+          "slot": 3,
+          "state": "preview"
+        }
+      ]
+    },
+    "samples": [
+      {
+        "frame": 40,
+        "current": 2,
+        "feet": -2210.638888888889,
+        "commitY": -2115,
+        "x": 1125,
+        "width": 20,
+        "rightOverhang": -70,
+        "onGround": false,
+        "live": [
+          1,
+          2,
+          3
+        ],
+        "states": [
+          {
+            "slot": 1,
+            "state": "snapshot"
+          },
+          {
+            "slot": 2,
+            "state": "active"
+          },
+          {
+            "slot": 3,
+            "state": "preview"
+          }
+        ]
+      },
+      {
+        "frame": 60,
+        "current": 2,
+        "feet": -2135.916666666667,
+        "commitY": -2115,
+        "x": 1125,
+        "width": 20,
+        "rightOverhang": -70,
+        "onGround": false,
+        "live": [
+          1,
+          2,
+          3
+        ],
+        "states": [
+          {
+            "slot": 1,
+            "state": "snapshot"
+          },
+          {
+            "slot": 2,
+            "state": "active"
+          },
+          {
+            "slot": 3,
+            "state": "preview"
+          }
+        ]
+      },
+      {
+        "frame": 89,
+        "current": 2,
+        "feet": -2115,
+        "commitY": -2115,
+        "x": 1125,
+        "width": 20,
+        "rightOverhang": -70,
+        "onGround": true,
+        "live": [
+          1,
+          2,
+          3
+        ],
+        "states": [
+          {
+            "slot": 1,
+            "state": "snapshot"
+          },
+          {
+            "slot": 2,
+            "state": "active"
+          },
+          {
+            "slot": 3,
+            "state": "preview"
+          }
+        ]
+      }
+    ]
+  },
+  "bugReproduced": false
+}

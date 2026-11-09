@@ -1,0 +1,222 @@
+{
+  "date": "2026-11-09T07:49:36.861Z",
+  "card": "23号卡",
+  "browser": "Chrome/156.0.8078.81",
+  "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "durationMs": 6815,
+  "pass": 40,
+  "fail": 0,
+  "results": [
+    {
+      "name": "Chrome 已启动",
+      "ok": true,
+      "extra": "Chrome/156.0.8078.81 headless"
+    },
+    {
+      "name": "编辑器页面加载",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "临时浏览器草稿库可用",
+      "ok": true,
+      "extra": "indexedDB"
+    },
+    {
+      "name": "打开当前图(走共用 JSON 解码)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "这张图旧 play 门槛本来会拒绝(起点净空/两侧实心),只读检查能过",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "点「试玩」进入单图试玩页",
+      "ok": true,
+      "extra": "file:///C:/Users/beilu/Documents/blwork/reverse_abyss/trial.html?from=editor"
+    },
+    {
+      "name": "试玩页确实跑起来了:有 RA.ActionInput、开始走帧、无启动错误",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "加载提示已被真实状态替换(不是一直\"正在启动\")",
+      "ok": true,
+      "extra": "光环就绪(K) · 运行中 · 单图试玩(run-v1)"
+    },
+    {
+      "name": "试玩用普通游玩初态:profile=run-v1、满血、K 开局就绪",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "只有当前这一张图:没有 World/换层/上下关",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "起点上方叠的火球真实扣血、血条同步",
+      "ok": true,
+      "extra": "hp=80 bar=80.0%"
+    },
+    {
+      "name": "开局按 K 立刻施放光环(14 秒活动/20 秒冷却)",
+      "ok": true,
+      "extra": "active=13.949999999999998 cd=19.950000000000003"
+    },
+    {
+      "name": "范围内火球被光环清除(不再画成活物)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "HUD 显示光环活动",
+      "ok": true,
+      "extra": "光环活动 13.9s · 运行中 · 单图试玩(run-v1)"
+    },
+    {
+      "name": "按 D 真的往右走",
+      "ok": true,
+      "extra": "260.0 -> 277.5"
+    },
+    {
+      "name": "按 ← 真的往左走",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "按住 Space 会起跳(jumpHeld 接对)",
+      "ok": true,
+      "extra": "360.0 -> 311.1 jumps=1"
+    },
+    {
+      "name": "松手后再按 Space 能二段跳",
+      "ok": true,
+      "extra": "jumps=2"
+    },
+    {
+      "name": "按 P 暂停,遮罩出现",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "暂停期间时间冻结",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "再按 P 能继续(不是永久卡住)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "Esc 也能暂停",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "「继续」按钮恢复运行",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "这张图的终点不可达,输入/暂停检查期间没有被误判通过",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "打开可到终点的第二张图",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "第二张图旧 play 门槛本来也会拒绝",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "再次进入试玩页",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "真实按 Space 从 start 完整上穿 finish 一次通过",
+      "ok": true,
+      "extra": "status=passed feet=130.36111111111117"
+    },
+    {
+      "name": "通过后结束遮罩与文字正确",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "通过记录写回草稿(绑定当前内容 hash)",
+      "ok": true,
+      "extra": "试玩通过,通过记录已写入草稿;回编辑器点击「发布」才入正式池"
+    },
+    {
+      "name": "通过后冻结:时间不再走、不进入别的图",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "草稿里的通过记录是 run-v1 / passed / 当前内容 hash",
+      "ok": true,
+      "extra": "{\"profile\":\"run-v1\",\"status\":\"passed\",\"hash\":\"sha256:3134154d5915c8ac2c83baccba15c39ec9f711fe21970f4861cadf350b445e6e\"}"
+    },
+    {
+      "name": "回到编辑器",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "能重新打开刚通过的那份草稿,带通过记录",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "显式「发布」成功(旧几何规则不再否决)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "正式池里出现这张人工通过图",
+      "ok": true,
+      "extra": "[\"trial_browser_check_pass\"]"
+    },
+    {
+      "name": "短塔页面加载",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "正式短塔能用这张图启动(正式加载不看旧几何门槛)",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "抽到的塔里包含刚发布的图",
+      "ok": true,
+      "extra": "[\"b4_lobby\",\"trial_browser_check_pass\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"b4_rest\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"b4_boss\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"b4_rest\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"full40_fallback_test3\",\"b4_boss\"]"
+    },
+    {
+      "name": "坏数据启动:显示具体错误和回编辑器入口,不留在加载提示",
+      "ok": true,
+      "extra": "{\"shown\":\"block\",\"text\":\"试玩启动失败:当前图不能启动:[UNKNOWN_ENTITY] /objects/0/type 未注册的对象类型 \\\"future_enemy\\\"(运行时读不懂;草稿可以保存,试玩/发布前必须换成已支持的类型)← 返回编辑器(草稿不受影响)\",\"info\":\"启动失败\",\"hasEditorLink\":true,\"trial\":false}"
+    }
+  ],
+  "screenshots": [
+    "docs/checks/trial23-browser-start.png",
+    "docs/checks/trial23-browser-skill.png",
+    "docs/checks/trial23-browser-paused.png",
+    "docs/checks/trial23-browser-paused-resumed.png",
+    "docs/checks/trial23-browser-pass.png",
+    "docs/checks/trial23-browser-editor-published.png",
+    "docs/checks/trial23-browser-formal-load.png",
+    "docs/checks/trial23-browser-startup-error.png"
+  ],
+  "note": "真实 Chrome + 真实键盘事件的脚本化屏幕检查,不是人工试玩记录;测试图只写进本次临时浏览器的 IndexedDB,没有写 levels/,也没有给用户地图伪造 passed。"
+}

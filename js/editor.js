@@ -40,6 +40,16 @@
   var HISTORY_BYTES = 32 * 1024 * 1024;        // 32 MiB(可调技术提案)
 
   var ID_RE = /^[A-Za-z0-9_-]+$/;
+  /*
+   * 28/30:直接放置在画布上的运行对象(怪物、金币、弓箭手等)。这些类型只新增自己的记录,
+   * 不擦真实地形/机关/出生点,也不删同格异类;同类画笔幂等由 brushObject 处理。
+   * coin 是拾取物、archer 是敌对单位 —— 都走"保真放置",但计分/拾取口径分开判断。
+   */
+  var KEEP_PLACEMENT_TYPES = {
+    fireball_static: 1, fireball_moving: 1, gear: 1, flail: 1, spike: 1, soul: 1,
+    sewage_pool: 1, coin: 1, archer: 1
+  };
+  function isKeepPlacementType(t) { return !!KEEP_PLACEMENT_TYPES[t]; }
 
   // ===================== 小工具 =====================
   function isInt(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v; }
@@ -142,13 +152,19 @@
     }
   };
 
-  function loadTheme() {
+  /** 编辑器偏好(主题/自动扩图等)统一存 ra_editor_preferences_v1;读失败按默认 */
+  function loadPrefs() {
     try {
       var raw = globalThis.localStorage && localStorage.getItem('ra_editor_preferences_v1');
-      if (!raw) return (globalThis.matchMedia && globalThis.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      if (!raw) return null;
       var p = JSON.parse(raw);
-      return p && p.theme === 'dark' ? 'dark' : 'light';
-    } catch (e) { return 'light'; }
+      return p && typeof p === 'object' && !Array.isArray(p) ? p : null;
+    } catch (e) { return null; }
+  }
+  function loadTheme() {
+    var p = loadPrefs();
+    if (!p) return (globalThis.matchMedia && globalThis.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    return p.theme === 'dark' ? 'dark' : 'light';
   }
   function applyTheme(theme) {
     var light = theme !== 'dark';
@@ -394,9 +410,10 @@
         if (at[i].type === type) return false;   // 同格同类:保持原记录,不做任何修改
       }
       var replaced = at.length > 0;
-      if (replaced) this.removeObjectsAt(c, r);
+      // 28:怪物可与同格异类共存(包括池/魂);不删除既有地形/机关/怪物
+      if (replaced && !isKeepPlacementType(type)) this.removeObjectsAt(c, r);
       var res = this.placeObject(type, c, r);
-      return !!res.ok || replaced;     // 替换本身也是一次变化(即使随后创建失败)
+      return !!res.ok || (replaced && !isKeepPlacementType(type));
     }
 
     eraseCell(c, r) {
@@ -445,20 +462,23 @@
       return list.length ? list[0] : null;
     }
     removeObjectsAt(c, r) {
-      var before = this.data.objects.length;
-      this.data.objects = this.data.objects.filter(function (o) {
-        return !(o.col === c && o.row === r);
-      });
-      var n = before - this.data.objects.length;
-      if (n) this.invalidate();
-      return n;
+      return this.removeObjectsWhere(function (o) { return o.col === c && o.row === r; });
     }
     removeObject(id) {
-      var before = this.data.objects.length;
-      this.data.objects = this.data.objects.filter(function (o) { return o.id !== id; });
-      var n = before - this.data.objects.length;
-      if (n) this.invalidate();
-      return n;
+      return this.removeObjectsWhere(function (o) { return o.id === id; });
+    }
+    // 只释放本次删除对象的最后引用；未知类型的引用与历史孤立路径也保真。
+    // 与 objects 同属已有整图编辑事务，不另建撤销点。
+    removeObjectsWhere(predicate) {
+      var removed = this.data.objects.filter(predicate);
+      if (!removed.length) return 0;
+      var deleted = new Set(removed);
+      var candidates = new Set(removed.map(function (o) { return o.pathId; }).filter(Boolean));
+      this.data.objects = this.data.objects.filter(function (o) { return !deleted.has(o); });
+      this.data.objects.forEach(function (o) { candidates.delete(o.pathId); });
+      this.data.paths = this.data.paths.filter(function (p) { return !candidates.has(p.id); });
+      this.invalidate();
+      return removed.length;
     }
     uniqueObjectId(type) {
       var base = String(type || 'obj').replace(/[^A-Za-z0-9_-]+/g, '_') || 'obj';
@@ -491,9 +511,11 @@
         pathId: null
       };
       this.data.objects.push(rec);
-      // 对象占的格子必须是空的(和旧编辑器"用字符替换地块"一致)
-      this.data.terrain.tiles[r][c] = 0;
-      this.clearSpawnAt(c, r);
+      // 27/28:怪物不替换真实地形/机关,也不删同格异类;同类画笔幂等由 brushObject 处理
+      if (!isKeepPlacementType(type)) {
+        this.data.terrain.tiles[r][c] = 0;
+        this.clearSpawnAt(c, r);
+      }
       this.invalidate();
       return LD.ok(rec);
     }
@@ -885,8 +907,8 @@
       if (this.data.spawn && (this.data.spawn.col >= cols || this.data.spawn.row >= rows)) {
         this.data.spawn = null;
       }
-      this.data.objects = this.data.objects.filter(function (o) {
-        return o.col < cols && o.row < rows;
+      this.removeObjectsWhere(function (o) {
+        return o.col >= cols || o.row >= rows;
       });
       this.data.paths = this.data.paths.filter(function (p) {
         return (p.points || []).every(function (pt) { return pt.col < cols && pt.row < rows; });
@@ -983,9 +1005,16 @@
         if (!reg) { unknown = true; add(o.col, o.row); return; }
         var rad = Number(o.params && o.params.radiusTiles);
         if (!isFinite(rad)) rad = 0.5;
-        add(o.col - Math.ceil(rad), o.row - Math.ceil(rad));
-        add(o.col + Math.ceil(rad), o.row + Math.ceil(rad));
-      });
+        if (o.type === 'flail') {
+          // 4格轨道是固定规则;包络只算圆周扫掠(含头半径),且不擅自扩出原图
+          var orbit = 4;
+          add(Math.max(0, o.col - orbit), Math.max(0, o.row - orbit));
+          add(Math.min(this.cols - 1, o.col + orbit), Math.min(this.rows - 1, o.row + orbit));
+        } else {
+          add(o.col - Math.ceil(rad), o.row - Math.ceil(rad));
+          add(o.col + Math.ceil(rad), o.row + Math.ceil(rad));
+        }
+      }, this);
       (this.data.paths || []).forEach(function (p) {
         var b = RA.PathGeometry ? RA.PathGeometry.sweptBounds(p, 0.5) : null;
         if (b && b.ok) { add(b.value.minCol, b.value.minRow); add(b.value.maxCol, b.value.maxRow); }
@@ -1131,7 +1160,8 @@
       this.paletteItems = [];
       this.grid = true;
       this.showEntities = true;
-      this.autoGrow = false;
+      var bootPrefs = loadPrefs();
+      this.autoGrow = !!(bootPrefs && bootPrefs.autoGrow);
 
       this.undoStack = [];      // [{json, bytes}]
       this.redoStack = [];
@@ -1141,6 +1171,9 @@
       this.selection = null;
       this.portMark = null;
       this.gearGesture = null;
+      this.soulGesture = null;
+      this.sewageStroke = false;
+      this.directStroke = false;
       this.consumeUntilRelease = false;
       this.mouse = { x: 0, y: 0, outside: true };
       this.prevMouse = null;
@@ -1177,6 +1210,7 @@
       this.refreshEditorPanels();
       this.assets.loadAll(() => { this.buildPalette(); });
       this.refreshDrafts(true);
+      this.openTrialReturn();       // 只有 ?from=trial&draft=... 才自动打开原草稿
       this.loop();
     }
 
@@ -1209,7 +1243,7 @@
       click('btn-theme', () => self.toggleTheme());
       on('chk-grid', 'change', () => { self.grid = !!self.$('chk-grid').checked; });
       on('chk-entities', 'change', () => { self.showEntities = !!self.$('chk-entities').checked; });
-      on('chk-autogrow', 'change', () => { self.autoGrow = !!self.$('chk-autogrow').checked; });
+      on('chk-autogrow', 'change', () => { self.autoGrow = !!self.$('chk-autogrow').checked; self.savePrefs(); });
 
       on('name', 'input', () => {
         // 一次连续输入算一步撤销:第一次按键前记快照,失焦/回车后重新武装
@@ -1256,20 +1290,11 @@
       click('btn-copy', () => self.copyJSON());
       click('btn-view-json', () => self.showJSON());
       click('btn-play', () => { self.openPlaytest(); });
-      click('btn-standard', () => { self.openPlaytest(); });
       click('btn-publish', () => { self.publishCurrent(); });
       click('btn-start-mark', () => self.beginPortMark('start'));
       click('btn-finish-mark', () => self.beginPortMark('finish'));
       click('btn-start-clear', () => self.clearEndpointUI('start'));
       click('btn-finish-clear', () => self.clearEndpointUI('finish'));
-      click('btn-obj-apply', () => self.applyObjectForm());
-      click('btn-obj-del', () => self.deleteObjectUI());
-      click('btn-path-new', () => self.newPathUI());
-      click('btn-path-apply', () => self.applyPathForm());
-      click('btn-path-del', () => self.deletePathUI());
-      on('obj-list', 'change', () => self.fillObjectForm());
-      on('obj-type', 'change', () => self.fillObjectParams());
-      on('path-list', 'change', () => self.fillPathForm());
       click('btn-draft', () => { self.saveDraft(); });
       click('btn-draft-open', () => self.openSelectedDraft());
       click('btn-draft-refresh', () => self.refreshDrafts());
@@ -1352,6 +1377,42 @@
           RA.rect(ctx, 0, 0, S, S, [36, 32, 20], 6);
           ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.26, 0, Math.PI * 2); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(S * 0.5, S * 0.18); ctx.lineTo(S * 0.5, S * 0.82); ctx.stroke();
+        } else if (item.type === 'fireball_moving') {
+          RA.rect(ctx, 0, 0, S, S, [44, 30, 26], 6);
+          ctx.strokeStyle = 'rgba(255,209,102,.75)'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(S * 0.18, S * 0.78); ctx.lineTo(S * 0.5, S * 0.78);
+          ctx.lineTo(S * 0.5, S * 0.25); ctx.lineTo(S * 0.82, S * 0.25); ctx.stroke();
+          ctx.fillStyle = '#ff5e3a'; ctx.beginPath(); ctx.arc(S * 0.5, S * 0.25, S * 0.16, 0, Math.PI * 2); ctx.fill();
+        } else if (item.type === 'flail') {
+          RA.rect(ctx, 0, 0, S, S, [30, 36, 54], 6);
+          ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(S / 2, S * 0.3); ctx.lineTo(S / 2, S * 0.68); ctx.stroke();
+          ctx.fillStyle = '#c7d2fe'; ctx.beginPath(); ctx.arc(S / 2, S * 0.3, S * 0.07, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(S / 2, S * 0.68, S * 0.16, 0, Math.PI * 2); ctx.fill();
+        } else if (item.type === 'soul') {
+          RA.rect(ctx, 0, 0, S, S, [16, 30, 46], 6);
+          ctx.fillStyle = '#9fd8ff'; ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.24, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(S / 2, S / 2); ctx.lineTo(S * 0.76, S / 2); ctx.stroke();
+        } else if (item.type === 'sewage_pool') {
+          RA.rect(ctx, 0, 0, S, S, [18, 34, 20], 6);
+          ctx.fillStyle = 'rgba(79,143,69,.85)'; ctx.fillRect(S * 0.18, S * 0.18, S * 0.64, S * 0.64);
+          ctx.strokeStyle = '#9dd47a'; ctx.lineWidth = 2; ctx.strokeRect(S * 0.18, S * 0.18, S * 0.64, S * 0.64);
+        } else if (item.type === 'coin') {
+          RA.rect(ctx, 0, 0, S, S, [34, 30, 16], 6);
+          ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.26, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 2; ctx.stroke();
+          ctx.strokeStyle = 'rgba(255,255,255,.8)';
+          ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.13, 0, Math.PI * 2); ctx.stroke();
+        } else if (item.type === 'archer') {
+          RA.rect(ctx, 0, 0, S, S, [16, 34, 28], 6);
+          ctx.fillStyle = '#8ef0c0'; ctx.beginPath(); ctx.arc(S * 0.44, S * 0.5, S * 0.18, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#1f7a5a'; ctx.lineWidth = 2; ctx.stroke();
+          ctx.strokeStyle = '#f4f7ff'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(S * 0.44, S * 0.5); ctx.lineTo(S * 0.86, S * 0.5); ctx.stroke();
+          ctx.fillStyle = '#c9f7e4';
+          ctx.beginPath(); ctx.moveTo(S * 0.92, S * 0.5); ctx.lineTo(S * 0.72, S * 0.4); ctx.lineTo(S * 0.72, S * 0.6);
+          ctx.closePath(); ctx.fill();
         } else {
           RA.rect(ctx, 0, 0, S, S, [30, 36, 54], 6);
           RA.text(ctx, (item.short || '?').slice(0, 1), Math.round(S * 0.5), [255, 255, 255], S / 2, S / 2,
@@ -1424,6 +1485,9 @@
     }
 
     setTool(id) {
+      if (this.soulGesture) this.cancelSoulGesture();
+      this.sewageStroke = false;
+      this.directStroke = false;
       this.tool = id;
       this.stroke = null;
       this.highlightTools();
@@ -1432,6 +1496,7 @@
     }
 
     selectChar(ch) {
+      if (this.soulGesture && this.ch !== ch) this.cancelSoulGesture();
       this.ch = ch;
       if (this.tool === 'erase' || this.tool === 'pick') this.setTool('brush');
       this.highlightPalette();
@@ -1532,6 +1597,12 @@
       };
       try {
         this.model = model;
+        this.gearGesture = null;
+        this.soulGesture = null;
+        this.sewageStroke = false;
+        this.directStroke = false;
+        this.portMark = null;
+        this.stroke = null;
         this.draftId = '';
         this.draftRevision = null;
         this.lastSavedHash = '';
@@ -1628,6 +1699,7 @@
      */
     async saveDraft(opts) {
       opts = opts || {};
+      if (this.soulGesture) { this.say('灵魂方向还未确认;先左键确认或右键/Esc取消,再保存', 'warn'); return false; }
       if (!this.repo) { this.say('这个环境没有草稿仓库;请导出 JSON', 'bad'); return false; }
       if (this._saving) { this.say('正在保存上一份草稿,请稍候', 'warn'); return false; }
       var token = this.workspaceToken;
@@ -1734,6 +1806,42 @@
       return true;
     }
 
+    /**
+     * 24号卡:只有从试玩结果页"返回编辑器"时才按 ?from=trial&draft=<id> 打开;
+     * 这时打开该草稿**最新已保存版本**——试玩写回的通过记录就在这一 revision 里。
+     * 普通直接打开 editor.html 不读任何历史 handoff,保持原来的新建行为。
+     */
+    openTrialReturn() {
+      var loc = globalThis.location;
+      if (!loc || typeof loc.search !== 'string') return false;
+      if (!/[?&]from=trial(?:&|$)/.test(loc.search)) return false;
+      var m = loc.search.match(/[?&]draft=([^&]+)/);
+      if (!m) return false;
+      var draftId = '';
+      try { draftId = decodeURIComponent(m[1]); } catch (e) { draftId = m[1]; }
+      if (!draftId) return false;
+      this._trialReturnDraft = draftId;
+      this.setDraftStatus('从试玩返回,正在打开原草稿「' + draftId + '」的最新保存版本…');
+      var self = this;
+      this.openDraftById(draftId).then(function (opened) {
+        if (opened) {
+          self.setDraftStatus('已打开试玩返回的原草稿 revision ' + self.draftRevision +
+            ';通过记录随草稿读入,可直接点「发布」');
+          // 清掉查询串,之后刷新/直接打开不再自动载入,避免覆盖新工作
+          try {
+            if (globalThis.history && typeof globalThis.history.replaceState === 'function') {
+              globalThis.history.replaceState(null, '', 'editor.html');
+            }
+          } catch (e) { /* 清不掉也不影响当前本地工作 */ }
+        } else {
+          self.say('打开试玩返回的草稿「' + draftId + '」失败;当前工作保留,可手动从草稿列表选择', 'bad');
+        }
+      }).catch(function (e) {
+        self.say('打开试玩返回的草稿失败:' + (e && e.message) + ';当前工作保留', 'bad');
+      });
+      return true;
+    }
+
     /** 打开下拉框里的内置旧关卡(只读复制,不回写 levels/) */
     openFromPool() {
       var sel = this.$('pool-select');
@@ -1777,6 +1885,7 @@
     }
 
     downloadJSON() {
+      if (this.soulGesture) { this.say('灵魂方向还未确认;先左键确认或右键/Esc取消,再导出', 'warn'); return false; }
       var res = this.model.toJSON();
       if (!res.ok) {
         this.say('导出失败:[' + res.error.code + '] ' + res.error.message +
@@ -1837,17 +1946,9 @@
     }
 
     /**
-     * 开发试玩:先按 play 用途校验(接口/出生点/未知对象等),再保存草稿快照,
-     * 最后把"当前层 + 下一层开发样例"交给 devplay.html 的新运行时。
-     * 不合法接口在这里明确提示,不会降级成旧 TXT。
+     * 24号卡:旧「对象 / 参数 / 路径」表单已移除,这里只保留端点只读显示与
+     * 画布工具状态,不再依赖已删除的 DOM。对象/路径数据与模型方法不受影响。
      */
-    // ================= B2 编辑工具:接口/对象/路径 =================
-    selectedObject() {
-      var sel = this.$('obj-list');
-      var id = sel ? sel.value : '';
-      return id ? this.model.objectById(id) : null;
-    }
-
     refreshEditorPanels() {
       if (this._syncingPanels) return;
       this._syncingPanels = true;
@@ -1871,144 +1972,192 @@
           ? 'cloud-pipe-v2:起点 ' + (sc === null ? '未设' : '(' + sc + ',' + sr + ')') +
             ' / 终点 ' + (fc === null ? '未设' : '(' + fc + ',' + fr + ')') + ';管内 2×3,两端顶面差 4 格。'
           : (ports ? '旧接口/' + (ports.profile || '未知') + ' 仅保真;请重新标记两格云板。' : '未设置云板端点;草稿可保存,试玩/发布会被拦截。');
-        var typeSel = this.$('obj-type');
-        if (typeSel) {
-          var cur = typeSel.value;
-          typeSel.innerHTML = '';
-          RA.EntityRegistry.list().forEach(function (e) {
-            var op = document.createElement('option');
-            op.value = e.type; op.textContent = e.name + '(' + e.type + ')';
-            typeSel.appendChild(op);
-          });
-          if (cur) typeSel.value = cur;
-        }
-        var list = this.$('obj-list');
-        if (list) {
-          var keep = list.value;
-          list.innerHTML = '';
-          var o0 = document.createElement('option');
-          o0.value = ''; o0.textContent = '(新对象)';
-          list.appendChild(o0);
-          model.data.objects.forEach(function (o, i) {
-            var op = document.createElement('option');
-            op.value = o.id;
-            op.textContent = (i + 1) + '. ' + o.type + ' @' + o.col + ',' + o.row;
-            list.appendChild(op);
-          });
-          if (keep && model.objectById(keep)) list.value = keep;
-        }
-        [['obj-path', true], ['path-list', false]].forEach(function (spec) {
-          var sel = this.$(spec[0]);
-          if (!sel) return;
-          var keep = sel.value;
-          sel.innerHTML = '';
-          if (spec[1]) {
-            var none = document.createElement('option');
-            none.value = ''; none.textContent = '(无路径)';
-            sel.appendChild(none);
-          }
-          (model.data.paths || []).forEach(function (p) {
-            var op = document.createElement('option');
-            op.value = p.id; op.textContent = p.id + ' · ' + p.mode;
-            sel.appendChild(op);
-          });
-          if (keep && model.data.paths.some(function (p) { return p.id === keep; })) sel.value = keep;
-        }, this);
-        this.fillObjectParams();
       } finally {
         this._syncingPanels = false;
       }
     }
 
-    fillObjectParams() {
-      var host = this.$('obj-params');
-      var typeSel = this.$('obj-type');
-      if (!host || !typeSel) return;
-      var info = RA.EntityRegistry.get(typeSel.value);
-      var selected = this.selectedObject();
-      var params = selected && selected.type === typeSel.value ? selected.params : null;
-      host.innerHTML = '';
-      if (!info) return;
-      info.params.forEach(function (p) {
-        var row = document.createElement('div');
-        row.className = 'row';
-        var lab = document.createElement('span');
-        lab.className = 'lab'; lab.textContent = p.label;
-        var input = document.createElement('input');
-        input.type = 'number'; input.min = p.min; input.max = p.max; input.step = 'any';
-        input.value = params && params[p.name] !== undefined ? params[p.name] : p.def;
-        input.dataset.param = p.name;
-        var unit = document.createElement('span');
-        unit.className = 'unit'; unit.textContent = p.unit || '';
-        row.appendChild(lab); row.appendChild(input); row.appendChild(unit);
-        host.appendChild(row);
-      });
-      var pathSel = this.$('obj-path');
-      if (pathSel && selected) pathSel.value = selected.pathId || '';
+    /** 齿轮专属画布工具:往返/闭合在工具栏,默认沿用 pingpong */
+    gearRouteMode() {
+      var sel = this.$('gear-mode');
+      return sel && sel.value === 'loop' ? 'loop' : 'pingpong';
     }
 
-    fillObjectForm() {
-      var o = this.selectedObject();
-      if (!o) { this.refreshEditorPanels(); return; }
-      var t = this.$('obj-type'); if (t) t.value = o.type;
-      var c = this.$('obj-col'), r = this.$('obj-row');
-      if (c) c.value = o.col;
-      if (r) r.value = o.row;
-      this.fillObjectParams();
-      this.refreshEditorPanels();
+    /** 齿轮/移动火球共用的路径类工具 */
+    pathToolType() {
+      if (this.ch === '~gear') return 'gear';
+      if (this.ch === '~fireball_moving') return 'fireball_moving';
+      return '';
     }
 
-    applyObjectForm() {
-      var type = this.$('obj-type') ? this.$('obj-type').value : '';
-      var col = parseInt(this.$('obj-col') ? this.$('obj-col').value : '', 10);
-      var row = parseInt(this.$('obj-row') ? this.$('obj-row').value : '', 10);
-      if (isNaN(col) || isNaN(row)) { this.say('对象 col/row 必须是整数', 'bad'); return false; }
-      var params = {};
-      var host = this.$('obj-params');
-      if (host && host.querySelectorAll) {
-        Array.prototype.forEach.call(host.querySelectorAll('input[data-param]'), function (inp) {
-          var v = Number(inp.value);
-          if (isFinite(v)) params[inp.dataset.param] = v;
-        });
-      }
-      var pathSel = this.$('obj-path');
-      var pathId = pathSel && pathSel.value ? pathSel.value : null;
-      this.pushUndo();
-      var selected = this.selectedObject();
-      var res;
-      if (selected) {
-        res = this.model.updateObject(selected.id, { type: type, col: col, row: row, params: params, pathId: pathId });
-      } else {
-        res = this.model.placeObject(type, col, row);
-        if (res.ok) res = this.model.updateObject(res.value.id, { params: params, pathId: pathId });
-      }
-      if (!res.ok) { this.popUndo(); this.say('对象保存失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
-      this.markDirty(); this.syncUI(); this.say('对象已更新(可撤销)');
-      return true;
-    }
-
-    deleteObjectUI() {
-      var o = this.selectedObject();
-      if (!o) { this.say('先选择一个对象', 'bad'); return false; }
-      this.pushUndo(); this.model.removeObject(o.id);
-      this.markDirty(); this.syncUI(); this.say('对象已删除(可撤销)');
-      return true;
-    }
-
-    beginGearGesture(cell) {
+    beginGearGesture(cell, type) {
       if (this.model.readOnly) return false;
+      var objType = type || 'gear';
+      if (objType !== 'gear' && objType !== 'fireball_moving') return false;
+      // 事务边界:先记住开始前的数据、dirty 与整个撤销上下文,再放齿轮/建路径。
+      // 取消只能恢复到开始前,不能把放置后的状态当"开始前",也不能弹掉用户之前的撤销。
+      var before = {
+        json: this.snapshotJSON(),
+        dirty: this.dirty,
+        undo: this.undoStack.slice(),
+        redo: this.redoStack.slice(),
+        undoBytes: this.undoBytes,
+        redoBytes: this.redoBytes
+      };
       this.pushUndo();
-      var res = this.model.placeObject('gear', cell.c, cell.r);
-      if (!res.ok) { this.popUndo(); this.say('放置齿轮失败:' + res.error.message, 'bad'); return false; }
+      var res = this.model.placeObject(objType, cell.c, cell.r);
+      if (!res.ok) {
+        this.undoStack = before.undo; this.redoStack = before.redo;
+        this.undoBytes = before.undoBytes; this.redoBytes = before.redoBytes;
+        this.say('放置' + (objType === 'gear' ? '齿轮' : '移动火球') + '失败:' + res.error.message, 'bad'); return false;
+      }
       var gear = res.value;
       var pathId = this.model.uniquePathId();
-      var mode = this.$('gear-mode') ? this.$('gear-mode').value : 'pingpong';
+      var mode = this.gearRouteMode();
       gear.pathId = pathId;
       this.model.data.paths.push({ id: pathId, mode: mode, points: [{ col: cell.c, row: cell.r }] });
       this.model.invalidate();
-      this.gearGesture = { gearId: gear.id, pathId: pathId, mode: mode, startJSON: this.snapshotJSON() };
+      this.gearGesture = { type: objType, gearId: gear.id, pathId: pathId, mode: mode, before: before };
       this.markDirty(); this.syncUI();
-      this.say('已放齿轮并开始画路线:左键加节点,右键完成,单点即静止');
+      this.say('已放' + (objType === 'gear' ? '齿轮' : '移动火球') + '并开始画路线(' + mode + '):左键加节点,右键完成,Esc 取消');
+      return true;
+    }
+
+    /** 28:编辑器预览用的方块几何(terrain/云板 + 初始门/浮石/弹簧;不含怪物) */
+    editorBlockGeometry() {
+      var m = this.model;
+      return RA.BlockGeometry ? RA.BlockGeometry.create({
+        cols: m.cols, rows: m.rows, revision: function () { return 0; },
+        isBlock: function (r, c) {
+          if (!m.inBounds(c, r)) return false;
+          var tile = m.getTile(c, r);
+          if (tile >= 1 && tile <= 5) return true;
+          var at = m.objectsAt(c, r);
+          for (var i = 0; i < at.length; i++) {
+            var o = at[i];
+            if (o.type === 'crumble_door' && !o.broken) return true;
+            if (o.type === 'blink_platform' && o.state !== 'gone') return true;
+            if (o.type === 'spring') return true;
+          }
+          return false;
+        }
+      }) : null;
+    }
+
+    beginSoulGesture(cell) {
+      if (this.model.readOnly) return false;
+      var geom = this.editorBlockGeometry();
+      if (!geom || !RA.SoulMotion) { this.say('当前环境缺少灵魂运动模块', 'bad'); return false; }
+      var dirs = RA.SoulMotion.availableDirections(geom, cell.c, cell.r, 0.5);
+      if (!dirs.length) {
+        this.consumeUntilRelease = true;
+        this.say('灵魂必须放在与真实方块相邻的空格,且该位置有可贴边方向', 'bad');
+        return false;
+      }
+      this.soulGesture = { col: cell.c, row: cell.r, directions: dirs, dir: dirs[0] };
+      this.consumeUntilRelease = true; // 同一次按压不能立刻当第二次确认
+      this.updateSoulDirection(this.mouse);
+      this.say('已锁定灵魂位置;移动鼠标选择合法箭头,左键确认,右键/Esc取消', 'warn');
+      return true;
+    }
+
+    updateSoulDirection(mouse) {
+      var g = this.soulGesture; if (!g || !mouse || mouse.outside) return;
+      var q = this.cellToScreen(g.col + 0.5, g.row + 0.5);
+      var dx = mouse.x - q.x, dy = mouse.y - q.y;
+      if (Math.abs(dx) + Math.abs(dy) < 2) return;
+      var best = g.dir, bestDot = -Infinity;
+      var dirsV = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+      g.directions.forEach(function (d) {
+        var v = dirsV[d];
+        var dot = dx * v.x + dy * v.y;
+        if (dot > bestDot) { bestDot = dot; best = d; }
+      });
+      g.dir = best;
+    }
+
+    commitSoulGesture() {
+      var g = this.soulGesture; if (!g) return false;
+      this.pushUndo();
+      var res = this.model.placeObject('soul', g.col, g.row);
+      if (!res.ok) {
+        this.popUndo();
+        this.say('放置灵魂失败:' + res.error.message, 'bad');
+        return false;
+      }
+      res.value.params.initialDirection = g.dir;
+      this.model.invalidate();
+      this.soulGesture = null;
+      this.consumeUntilRelease = true;
+      this.markDirty(); this.syncUI();
+      this.say('已放灵魂:初始方向 ' + g.dir + '(0上1右2下3左);沿真实方块外轮廓运动', 'ok');
+      return true;
+    }
+
+    cancelSoulGesture() {
+      if (!this.soulGesture) return false;
+      this.soulGesture = null;
+      this.consumeUntilRelease = true;
+      this.syncUI();
+      this.say('已取消灵魂放置;没有写入对象/dirty/撤销', 'warn');
+      return true;
+    }
+
+    placeSewage(cell) {
+      if (this.model.readOnly) return false;
+      var at = this.model.objectsAt(cell.c, cell.r);
+      for (var i = 0; i < at.length; i++) if (at[i].type === 'sewage_pool') return false;
+      if (!this.sewageStroke) {
+        this.pushUndo();
+        this.sewageStroke = true;
+      }
+      var res = this.model.placeObject('sewage_pool', cell.c, cell.r);
+      if (!res.ok) {
+        if (this.sewageStroke) { this.popUndo(); this.sewageStroke = false; }
+        this.say('放置污水池失败:' + res.error.message, 'bad');
+        return false;
+      }
+      this.model.invalidate(); this.markDirty(); this.syncUI();
+      return true;
+    }
+
+    /** 流星锤:只点一个端点,不建 path、不填半径。 */
+    placeFlail(cell) {
+      if (this.model.readOnly) return false;
+      this.pushUndo();
+      var res = this.model.placeObject('flail', cell.c, cell.r);
+      if (!res.ok) {
+        this.popUndo();
+        this.say('放置流星锤失败:' + res.error.message, 'bad');
+        return false;
+      }
+      this.model.invalidate();
+      this.markDirty();
+      this.syncUI();
+      this.consumeUntilRelease = true;
+      this.say('已放流星锤端点 (' + cell.c + ',' + cell.r + ');半径4格、正下方顺时针、约5秒一圈;单击只放一个端点', 'ok');
+      return true;
+    }
+
+    /**
+     * 30:金币/弓箭手的直接放置。一次左键放一个;同一拖动内只记一步撤销。
+     * 同格同 type 幂等(已有同类不新增);不擦真实地形/机关/出生点,不删同格异类。
+     */
+    placeDirectObject(type, cell) {
+      if (this.model.readOnly) return false;
+      if (type !== 'coin' && type !== 'archer') return false;
+      var at = this.model.objectsAt(cell.c, cell.r);
+      for (var i = 0; i < at.length; i++) if (at[i].type === type) return false;
+      if (!this.directStroke) { this.pushUndo(); this.directStroke = true; }
+      var res = this.model.placeObject(type, cell.c, cell.r);
+      if (!res.ok) {
+        if (this.directStroke) { this.popUndo(); this.directStroke = false; }
+        this.say('放置' + (type === 'coin' ? '金币' : '弓箭手') + '失败:' + res.error.message, 'bad');
+        return false;
+      }
+      this.model.invalidate();
+      this.markDirty();
+      this.syncUI();
       return true;
     }
 
@@ -2034,16 +2183,28 @@
         path.points = c.value.points; path.mode = 'loop';
       }
       this.model.invalidate(); this.gearGesture = null; this.markDirty(); this.syncUI();
+      // 右键完成也要吃掉这次按压,避免同一次操作顺势平移/涂画
+      this.consumeUntilRelease = true;
       this.say('路线完成:' + path.points.length + ' 点 · ' + path.mode + ';右键结束不追加节点', 'ok');
       return true;
     }
-
     cancelGearGesture() {
       var g = this.gearGesture; if (!g) return false;
-      var data = JSON.parse(g.startJSON);
-      this.model = EditorModel.fromTrusted(data);
-      this.popUndo(); this.gearGesture = null; this.markDirty(); this.syncUI();
-      this.say('已取消本次齿轮路线,恢复开始前工作', 'warn'); return true;
+      var before = g.before || {};
+      // 只回滚本次事务:数据/dirty/撤销/重做都回到开始前,不能留下齿轮或路径
+      if (before.json !== undefined) {
+        this.model = EditorModel.fromTrusted(JSON.parse(before.json));
+        this.model.importWarnings = [];
+        this.model.invalidate();
+      }
+      if (before.undo) { this.undoStack = before.undo; this.undoBytes = before.undoBytes; }
+      if (before.redo) { this.redoStack = before.redo; this.redoBytes = before.redoBytes; }
+      this.dirty = !!before.dirty;
+      this.gearGesture = null;
+      this.consumeUntilRelease = true;      // 同一次左键按下不能紧接着再放齿轮
+      this.syncUI();
+      this.say('已取消本次' + (g.type === 'fireball_moving' ? '移动火球' : '齿轮') +
+        '路线:数据回到开始前,之前的撤销还在', 'warn'); return true;
     }
 
     beginPortMark(role) {
@@ -2116,118 +2277,45 @@
       return true;
     }
 
-    parsePathPoints() {
-      var ta = this.$('path-points');
-      var out = [];
-      String(ta ? ta.value : '').split(/\r?\n/).forEach(function (line) {
-        if (!line.trim()) return;
-        var m = line.split(',');
-        var c = parseInt(m[0], 10), r = parseInt(m[1], 10);
-        if (!isNaN(c) && !isNaN(r)) out.push({ col: c, row: r });
-      });
-      return out;
-    }
-
-    newPathUI() {
-      var mode = this.$('path-mode') ? this.$('path-mode').value : 'loop';
-      var points = this.parsePathPoints();
-      if (points.length < 2) { this.say('先填至少两行 col,row', 'bad'); return false; }
-      this.pushUndo();
-      var res = this.model.addPath(mode, points);
-      if (!res.ok) { this.popUndo(); this.say('新建路径失败:' + res.error.message, 'bad'); return false; }
-      this.markDirty(); this.syncUI(); this.say('已新建路径 ' + res.value.id + '(可撤销)');
-      return true;
-    }
-
-    applyPathForm() {
-      var sel = this.$('path-list');
-      var id = sel ? sel.value : '';
-      if (!id) { this.say('先选择路径;新路径用「新建路径」', 'bad'); return false; }
-      var mode = this.$('path-mode') ? this.$('path-mode').value : 'loop';
-      this.pushUndo();
-      var res = this.model.updatePath(id, mode, this.parsePathPoints());
-      if (!res.ok) { this.popUndo(); this.say('路径保存失败:' + res.error.message, 'bad'); return false; }
-      this.markDirty(); this.syncUI(); this.say('路径已更新(可撤销)');
-      return true;
-    }
-
-    fillPathForm() {
-      var sel = this.$('path-list');
-      var id = sel ? sel.value : '';
-      var path = this.model.data.paths.filter(function (p) { return p.id === id; })[0];
-      if (!path) return;
-      var mode = this.$('path-mode'); if (mode) mode.value = path.mode;
-      var ta = this.$('path-points');
-      if (ta) ta.value = path.points.map(function (p) { return p.col + ',' + p.row; }).join('\n');
-    }
-
-    deletePathUI() {
-      var sel = this.$('path-list');
-      var id = sel ? sel.value : '';
-      if (!id) { this.say('先选择路径', 'bad'); return false; }
-      this.pushUndo();
-      var res = this.model.removePath(id);
-      if (!res.ok) { this.popUndo(); this.say('不能删除:' + res.error.message, 'bad'); return false; }
-      this.markDirty(); this.syncUI(); this.say('路径已删除(可撤销)');
-      return true;
-    }
-
-    async openStandardPlaytest() {
-      var rules = RA.RULES || {};
-      var issues = LD.validate(this.model.data, {
-        purpose: 'publish',
-        rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
-      });
-      var errors = LD.errorsOf(issues).filter(function (e) {
-        // 标准试玩前本来就允许没有认证;只拦结构/接口/规则内容错误
-        return String(e.path || '').indexOf('/certification') !== 0;
-      });
-      if (errors.length) {
-        this.say('现在不能标准试玩:[' + errors[0].code + '] ' + errors[0].path + ' ' + errors[0].message, 'bad');
+    async publishCurrent() {
+      if (this.soulGesture) { this.say('灵魂方向还未确认;先左键确认或右键/Esc取消,再发布', 'warn'); return false; }
+      if (!this.repo) { this.say('没有草稿/发布库', 'bad'); return false; }
+      if (!this.draftId) { this.say('先保存草稿并试玩通过', 'bad'); return false; }
+      if (!(this.model.data.kind === 'normal' &&
+        [1, 2, 3, 4].indexOf(Number(this.model.data.difficulty)) >= 0)) {
+        this.say('发布前先在「难度」选择 1–4 档(正式池按 1–9/11–19/21–29/31–39 分档抽选);改难度后要重新试玩', 'bad');
         return false;
       }
-      var token = this.workspaceToken;
-      var snapshot = this.model.toData();
-      var saved = await this.saveDraft({ silent: true });
-      if (token !== this.workspaceToken) { this.say('保存期间切图,已取消标准试玩', 'warn'); return false; }
-      if (!saved) { this.say('草稿保存失败,没有开始标准试玩', 'bad'); return false; }
-      if (this.dirty) { this.say('保存期间又有改动,先再保存一次', 'warn'); return false; }
-      var enc = LD.encode(snapshot);
-      if (!enc.ok) { this.say('标准试玩快照编码失败:' + enc.error.message, 'bad'); return false; }
-      var handoff = {
-        version: 1, from: 'editor', template: JSON.parse(enc.value),
-        draftId: this.draftId, revision: this.draftRevision,
-        contentHash: LD.hashSync(snapshot),
-        rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint,
-        profile: 'standard-v1'
-      };
-      try { sessionStorage.setItem('RA_STANDARD_V1', JSON.stringify(handoff)); }
-      catch (e) { this.say('浏览器不允许暂存标准试玩数据', 'bad'); return false; }
-      this.say('正在打开标准试玩(无光环、冷却 20 秒)…');
-      if (location) location.href = 'standard.html';
-      return true;
-    }
-
-    async publishCurrent() {
-      if (!this.repo) { this.say('没有草稿/发布库', 'bad'); return false; }
-      if (!this.draftId) { this.say('先保存草稿并标准试玩通关', 'bad'); return false; }
       var cert = this.model.data.certification;
-      if (!cert) { this.say('还没有标准试玩认证;先点「标准试玩」实际通关', 'bad'); return false; }
+      if (!cert) { this.say('还没有本图的试玩通过记录;先点「试玩」实际走到 finish', 'bad'); return false; }
       var res = await this.repo.publish({ draftId: this.draftId, expectedRevision: this.draftRevision, receipt: cert });
       if (!res.ok) { this.say('发布失败:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
       var ps = this.$('publish-status');
-      if (ps) ps.textContent = '已发布 ' + res.value.levelId + ' @ ' + res.value.contentHash.slice(0, 18) + '…';
-      this.say('已发布到本地正式池;正式短塔可抽到');
+      if (ps) ps.textContent = '已发布 ' + res.value.levelId + ' @ ' + res.value.contentHash.slice(0, 18) + '…(难度 ' +
+        this.model.data.difficulty + ' 档)';
+      this.say('已发布到本地正式池(难度 ' + this.model.data.difficulty + ' 档);完整塔按对应层段抽选');
       return true;
     }
 
     async openPlaytest() {
-      var issues = LD.validate(this.model.data, { purpose: 'play' });
-      var errors = LD.errorsOf(issues);
-      if (errors.length) {
-        var first = errors[0];
+      if (this.soulGesture) {
+        this.say('灵魂方向还未确认;先左键确认或右键/Esc取消,再试玩', 'warn');
+        return false;
+      }
+      // 只检查"能不能读/跑起来":结构 + 云板 start/finish + 对象参数/引用。
+      // 几何、净空、最高行、可达性等不再作为试玩门槛,关卡能不能过由作者实际试玩决定。
+      var readErr = RA.TrialSession && RA.TrialSession.readableIssues
+        ? RA.TrialSession.readableIssues(this.model.data)
+        : LD.errorsOf(LD.validate(this.model.data, { purpose: 'load' }));
+      if (readErr.length) {
+        var first = readErr[0];
         this.say('现在不能试玩:[' + first.code + '] ' + first.path + ' ' + first.message +
-          '(共 ' + errors.length + ' 个结构错误;修好后会打开新运行时,不是旧 TXT)', 'bad');
+          '(共 ' + readErr.length + ' 个读取/运行必需问题;几何能否通过以实际试玩为准)', 'bad');
+        return false;
+      }
+      if (!(this.model.data.kind === 'normal' &&
+        [1, 2, 3, 4].indexOf(Number(this.model.data.difficulty)) >= 0)) {
+        this.say('试玩前先在「难度」选择 1–4 档(正式池按档抽选);难度改动会让旧通过记录失效', 'bad');
         return false;
       }
       // 试玩会离开当前页面:先把发起时的快照写进草稿,避免未保存工作丢失
@@ -2254,15 +2342,18 @@
         return false;
       }
       var handoffTemplate = JSON.parse(enc.value);
-      var playIssues = LD.validate(handoffTemplate, { purpose: 'play' });
-      if (LD.errorsOf(playIssues).length) {
-        this.say('试玩快照没有通过 play 校验,已留在编辑器', 'bad');
+      var playIssues = RA.TrialSession && RA.TrialSession.readableIssues
+        ? RA.TrialSession.readableIssues(handoffTemplate)
+        : LD.errorsOf(LD.validate(handoffTemplate, { purpose: 'load' }));
+      if (playIssues.length) {
+        this.say('试玩快照有读取问题:[' + playIssues[0].code + '] ' + playIssues[0].message + ',已留在编辑器', 'bad');
         return false;
       }
       var handoff = {
         version: 3,
         kind: 'editor-validation',
-        profileId: 'standard-v1',
+        // 试玩就是普通游玩初态(run-v1):满血、技能开局可用;只有当前一张图
+        profileId: 'run-v1',
         template: handoffTemplate,
         subjectRef: { levelId: handoffTemplate.id, contentHash: handoffTemplate.contentHash || null },
         draftRef: { draftId: this.draftId, revision: this.draftRevision },
@@ -2271,7 +2362,7 @@
       };
       var planCheck = RA.TrialSession && RA.TrialSession.build(handoff);
       if (!planCheck || !planCheck.ok) {
-        this.say('单关试玩数据无效:' + (planCheck && planCheck.error ? planCheck.error.message : '缺少 TrialSession'), 'bad');
+        this.say('单张图试玩数据无效:' + (planCheck && planCheck.error ? planCheck.error.message : '缺少 TrialSession'), 'bad');
         return false;
       }
       try {
@@ -2281,7 +2372,7 @@
           ');请检查隐私模式后重试', 'bad');
         return false;
       }
-      this.say('已保存草稿 revision ' + this.draftRevision + ',正在打开试玩验证…');
+      this.say('已保存草稿 revision ' + this.draftRevision + ',正在打开当前图试玩…');
       var loc = globalThis.location;
       if (loc) loc.href = 'trial.html?from=editor';
       return true;
@@ -2579,11 +2670,17 @@
         if (just('Escape')) this.cancelGearGesture();
         else if (inp.buttons[2]) this.finishGearGesture();
       }
+      if (this.soulGesture) {
+        this.updateSoulDirection(mouse);
+        if (just('Escape') || inp.buttons[2]) this.cancelSoulGesture();
+      }
       if (this.portMark) {
         this.updatePortMark(mouse);
         if (just('Escape') || inp.buttons[2]) this.cancelPortMark();
       }
-      var panning = !this.portMark && !this.gearGesture && (!!inp.buttons[2] || !!inp.buttons[1] ||
+      if (!inp.buttons[0]) { this.sewageStroke = false; this.directStroke = false; }
+      var panning = !this.portMark && !this.gearGesture && !this.soulGesture &&
+        (!!inp.buttons[2] || !!inp.buttons[1] ||
         (!!inp.buttons[0] && !!inp.codes.Space));
       if (panning) {
         if (this.prevMouse && !this.prevMouse.outside) {
@@ -2597,6 +2694,8 @@
         this.paintStep(mouse);
       } else {
         if (this.stroke) this.endStroke();
+        if (this.sewageStroke) this.sewageStroke = false;
+        if (this.directStroke) this.directStroke = false;
       }
 
       this.mouse = { x: mouse.x, y: mouse.y, outside: mouse.outside };
@@ -2637,8 +2736,27 @@
       var tool = this.stroke ? this.stroke.tool : this.tool;
       var ch = tool === 'erase' ? AIR : this.ch;
       if (this.portMark) { this.updatePortMark(mouse); this.commitPortMark(); return; }
-      if (this.ch === '~gear' && this.tool === 'brush') {
-        if (!this.gearGesture) this.beginGearGesture(cell); else this.appendGearNode(cell);
+      var pathType = this.pathToolType();
+      if (pathType && this.tool === 'brush') {
+        if (!this.gearGesture) this.beginGearGesture(cell, pathType); else this.appendGearNode(cell);
+        return;
+      }
+      if (this.ch === '~soul' && this.tool === 'brush') {
+        if (this.soulGesture) this.commitSoulGesture(); else this.beginSoulGesture(cell);
+        return;
+      }
+      if (this.ch === '~sewage_pool' && this.tool === 'brush') {
+        this.placeSewage(cell);
+        return;
+      }
+      if (this.ch === '~flail' && this.tool === 'brush') {
+        this.placeFlail(cell);
+        return;
+      }
+      // 30:金币/弓箭手直接放置工具 —— 一次左键放一个,无方向/参数/路径二次确认;
+      // 连续拖画仍按同类幂等笔刷(同格同 type 不重复,不擦地形/机关/异类)
+      if ((this.ch === '~coin' || this.ch === '~archer') && this.tool === 'brush') {
+        this.placeDirectObject(this.ch.slice(1), cell);
         return;
       }
       if (tool === 'select') {
@@ -2659,8 +2777,13 @@
           this.say('取到 ' + (picked === AIR ? '空气' : "'" + picked + "'"));
           return;
         }
+        var priorRedo = this.redoStack, priorRedoBytes = this.redoBytes;
+        var priorUndo = this.undoStack.slice(), priorUndoBytes = this.undoBytes, priorDirty = this.dirty;
         this.pushUndo();                 // 整笔拖动算一步撤销
-        this.stroke = { tool: tool, start: cell, end: cell, last: cell };
+        this.stroke = { tool: tool, start: cell, end: cell, last: cell,
+          beforeJSON: this.undoStack[this.undoStack.length - 1].json,
+          priorRedo: priorRedo, priorRedoBytes: priorRedoBytes,
+          priorUndo: priorUndo, priorUndoBytes: priorUndoBytes, priorDirty: priorDirty };
         if (tool === 'fill') {
           if (this.autoGrow) {
             var sf = this.growTo(cell.c, cell.r, cell.c, cell.r);
@@ -2708,25 +2831,27 @@
     paintLine(a, b, ch) {
       var dx = Math.abs(b.c - a.c), dy = Math.abs(b.r - a.r);
       var sx = a.c < b.c ? 1 : -1, sy = a.r < b.r ? 1 : -1;
-      var err = dx - dy, x = a.c, y = a.r, guard = 0;
+      var err = dx - dy, x = a.c, y = a.r, guard = 0, changed = false;
       while (guard++ < 4000) {
-        this.stamp(x, y, ch);
+        if (this.stamp(x, y, ch)) changed = true;
         if (x === b.c && y === b.r) break;
         var e2 = 2 * err;
         if (e2 > -dy) { err -= dy; x += sx; }
         if (e2 < dx) { err += dx; y += sy; }
       }
-      this.afterEdit();
+      if (changed) this.afterEdit();
     }
 
     stamp(c, r, ch) {
       var n = this.brush;
       var half = Math.floor((n - 1) / 2);
+      var changed = false;
       for (var dr = -half; dr < n - half; dr++) {
         for (var dc = -half; dc < n - half; dc++) {
-          this.model.applyChar(c + dc, r + dr, ch);
+          if (this.model.applyChar(c + dc, r + dr, ch)) changed = true;
         }
       }
+      return changed;
     }
 
     endStroke() {
@@ -2753,7 +2878,11 @@
         this.model.fillRect(s.start.c, s.start.r, s.end.c, s.end.r, ch);
         this.say('画了一个矩形(' + ch + ')');
       }
-      this.afterEdit();
+      if (s.beforeJSON && s.beforeJSON === this.snapshotJSON()) {
+        this.undoStack = s.priorUndo; this.undoBytes = s.priorUndoBytes;
+        this.redoStack = s.priorRedo; this.redoBytes = s.priorRedoBytes;
+        this.dirty = s.priorDirty;
+      } else this.afterEdit();
     }
 
     afterEdit() {
@@ -2839,7 +2968,16 @@
         // 对象:注册类型画自己的图标;未注册类型画占位并标出来
         var self = this;
         m.data.objects.forEach(function (obj) {
-          if (obj.col < vc0 || obj.col > vc1 || obj.row < vr0 || obj.row > vr1) return;
+          var fh = obj.type === 'flail' && RA.flailHead ? RA.flailHead(obj) : null;
+          var headScreen = fh ? self.cellToScreen(fh.x / TS, fh.y / TS) : null;
+          if (fh) {
+            var anchorScreen = self.cellToScreen(fh.anchor.x / TS, fh.anchor.y / TS);
+            var pad = Math.max(4, ts * 0.5);
+            if (Math.max(anchorScreen.x, headScreen.x) + pad < 0 ||
+                Math.min(anchorScreen.x, headScreen.x) - pad > self.W ||
+                Math.max(anchorScreen.y, headScreen.y) + pad < 0 ||
+                Math.min(anchorScreen.y, headScreen.y) - pad > self.H) return;
+          } else if (obj.col < vc0 || obj.col > vc1 || obj.row < vr0 || obj.row > vr1) return;
           var q2 = self.cellToScreen(obj.col, obj.row);
           var reg = RA.EntityRegistry.get(obj.type);
           var letter = reg && reg.letter;
@@ -2850,18 +2988,79 @@
             ctx.fillStyle = hashColor(letter);
             ctx.fillRect(q2.x, q2.y, ts + 0.5, ts + 0.5);
           } else {
-            // 注册了但没有旧字符的机关(火球/地刺/齿轮)用蓝灰占位;
-            // 完全未注册的对象用紫色占位 —— 文件和画面里都不会消失
+            // 注册了但没有旧字符的机关用具体图形;未注册对象仍用紫色占位
             var knownNoLetter = !!reg;
-            RA.rect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2,
-              knownNoLetter ? [34, 48, 78] : [72, 40, 96], 4);
-            RA.strokeRect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2,
-              knownNoLetter ? [120, 176, 236] : [206, 130, 255], 2, 4);
-            if (ts >= 12) {
-              var mark = knownNoLetter ? (obj.type || '?').slice(0, 2) : '?';
-              RA.text(ctx, mark, Math.max(7, ts * 0.3),
-                knownNoLetter ? [198, 224, 255] : [238, 214, 255],
+            if (obj.type === 'fireball_moving') {
+              RA.rect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2, [50, 30, 26], 4);
+              ctx.fillStyle = '#ff5e3a';
+              ctx.beginPath(); ctx.arc(q2.x + ts / 2, q2.y + ts / 2, Math.max(3, ts * 0.24), 0, Math.PI * 2); ctx.fill();
+              if (ts >= 12) RA.text(ctx, '移动火球', Math.max(7, ts * 0.26), [255, 210, 190],
+                q2.x + ts / 2, q2.y - 3, { bold: true, shadow: false });
+            } else if (obj.type === 'flail') {
+              var ax = q2.x + ts / 2, ay = q2.y + ts / 2;
+              ctx.fillStyle = '#c7d2fe';
+              ctx.beginPath(); ctx.arc(ax, ay, Math.max(3, ts * 0.1), 0, Math.PI * 2); ctx.fill();
+              if (fh) {
+                var hx = headScreen.x, hy = headScreen.y;
+                ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(hx, hy); ctx.stroke();
+                ctx.fillStyle = '#f97316';
+                ctx.beginPath(); ctx.arc(hx, hy, Math.max(4, ts * 0.18), 0, Math.PI * 2); ctx.fill();
+              }
+              if (ts >= 12) RA.text(ctx, '锤', Math.max(7, ts * 0.3), [255, 210, 190],
+                ax, ay - ts * 0.18, { bold: true, shadow: false });
+            } else if (obj.type === 'soul') {
+              var sx0 = q2.x + ts / 2, sy0 = q2.y + ts / 2;
+              ctx.fillStyle = 'rgba(159,216,255,.8)';
+              ctx.beginPath(); ctx.arc(sx0, sy0, Math.max(4, ts * 0.22), 0, Math.PI * 2); ctx.fill();
+              ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 2;
+              var sd = Number(obj.params && obj.params.initialDirection);
+              var sv2 = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }][sd] || { x: 0, y: -1 };
+              ctx.beginPath(); ctx.moveTo(sx0, sy0); ctx.lineTo(sx0 + sv2.x * ts * 0.38, sy0 + sv2.y * ts * 0.38); ctx.stroke();
+              if (ts >= 12) RA.text(ctx, '魂', Math.max(7, ts * 0.26), [210, 240, 255],
+                sx0, q2.y - 3, { bold: true, shadow: false });
+            } else if (obj.type === 'sewage_pool') {
+              ctx.globalAlpha = 0.55; ctx.fillStyle = '#4f8f45';
+              ctx.fillRect(q2.x + 1, q2.y + 1, ts - 2, ts - 2);
+              ctx.globalAlpha = 1; ctx.strokeStyle = '#9dd47a'; ctx.lineWidth = 2;
+              ctx.strokeRect(q2.x + 1, q2.y + 1, ts - 2, ts - 2);
+              if (ts >= 12) RA.text(ctx, '污', Math.max(7, ts * 0.26), [225, 255, 205],
                 q2.x + ts / 2, q2.y + ts / 2, { bold: true, shadow: false });
+            } else if (obj.type === 'coin') {
+              // 30:金币是拾取物;编辑器里画成金币图标,不当敌对单位占位
+              ctx.fillStyle = '#ffd166';
+              ctx.beginPath(); ctx.arc(q2.x + ts / 2, q2.y + ts / 2, Math.max(4, ts * 0.26), 0, Math.PI * 2); ctx.fill();
+              ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 2; ctx.stroke();
+              ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1.5;
+              ctx.beginPath(); ctx.arc(q2.x + ts / 2, q2.y + ts / 2, Math.max(2, ts * 0.12), 0, Math.PI * 2); ctx.stroke();
+              if (ts >= 12) RA.text(ctx, '币', Math.max(7, ts * 0.26), [255, 240, 200],
+                q2.x + ts / 2, q2.y - 3, { bold: true, shadow: false });
+            } else if (obj.type === 'archer') {
+              // 30:弓静止不动;编辑器显示本体与朝右的弓,方便看清位置
+              var ax0 = q2.x + ts / 2, ay0 = q2.y + ts / 2;
+              ctx.fillStyle = '#8ef0c0';
+              ctx.beginPath(); ctx.arc(ax0, ay0, Math.max(4, ts * 0.26), 0, Math.PI * 2); ctx.fill();
+              ctx.strokeStyle = '#1f7a5a'; ctx.lineWidth = 2; ctx.stroke();
+              ctx.strokeStyle = '#f4f7ff'; ctx.lineWidth = 2;
+              ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(ax0 + ts * 0.4, ay0); ctx.stroke();
+              ctx.fillStyle = '#c9f7e4';
+              ctx.beginPath(); ctx.moveTo(ax0 + ts * 0.46, ay0);
+              ctx.lineTo(ax0 + ts * 0.26, ay0 - ts * 0.1);
+              ctx.lineTo(ax0 + ts * 0.26, ay0 + ts * 0.1);
+              ctx.closePath(); ctx.fill();
+              if (ts >= 12) RA.text(ctx, '弓', Math.max(7, ts * 0.26), [205, 255, 235],
+                ax0, q2.y - 3, { bold: true, shadow: false });
+            } else {
+              RA.rect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2,
+                knownNoLetter ? [34, 48, 78] : [72, 40, 96], 4);
+              RA.strokeRect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2,
+                knownNoLetter ? [120, 176, 236] : [206, 130, 255], 2, 4);
+              if (ts >= 12) {
+                var mark = knownNoLetter ? (obj.type || '?').slice(0, 2) : '?';
+                RA.text(ctx, mark, Math.max(7, ts * 0.3),
+                  knownNoLetter ? [198, 224, 255] : [238, 214, 255],
+                  q2.x + ts / 2, q2.y + ts / 2, { bold: true, shadow: false });
+              }
             }
           }
         });
@@ -2942,6 +3141,44 @@
         }, this);
         ctx.restore();
       }, this);
+      // 流星锤悬停预览:端点、4格轨道辅助圆、初始正下方链条;不创建第二份路径真值
+      if (!this.mouse.outside && this.ch === '~flail' && this.tool === 'brush' && !m.readOnly) {
+        var fc = this.cellAt(this.mouse.x, this.mouse.y);
+        var cq = this.cellToScreen(fc.c, fc.r);
+        var ccx = cq.x + ts / 2, ccy = cq.y + ts / 2;
+        var orbit = 4 * ts;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(148,163,184,.65)'; ctx.setLineDash && ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.arc(ccx, ccy, orbit, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash && ctx.setLineDash([]);
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = Math.max(2, ts * 0.06);
+        ctx.beginPath(); ctx.moveTo(ccx, ccy); ctx.lineTo(ccx, ccy + orbit); ctx.stroke();
+        ctx.fillStyle = '#c7d2fe';
+        ctx.beginPath(); ctx.arc(ccx, ccy, Math.max(3, ts * 0.12), 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath(); ctx.arc(ccx, ccy + orbit, Math.max(4, ts * 0.18), 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      if (this.soulGesture) {
+        var sg = this.soulGesture;
+        var qs = this.cellToScreen(sg.col + 0.5, sg.row + 0.5);
+        ctx.save();
+        ctx.fillStyle = 'rgba(159,216,255,.22)';
+        ctx.beginPath(); ctx.arc(qs.x, qs.y, ts * 0.28, 0, Math.PI * 2); ctx.fill();
+        var sv = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+        sg.directions.forEach(function (d) {
+          var v = sv[d], chosen = d === sg.dir;
+          var ex = qs.x + v.x * ts * 0.85, ey = qs.y + v.y * ts * 0.85;
+          ctx.strokeStyle = chosen ? '#9fd8ff' : 'rgba(159,216,255,.38)';
+          ctx.lineWidth = chosen ? 3 : 2;
+          ctx.beginPath(); ctx.moveTo(qs.x, qs.y); ctx.lineTo(ex, ey); ctx.stroke();
+          if (chosen) {
+            ctx.fillStyle = '#d8f1ff';
+            ctx.beginPath(); ctx.arc(ex, ey, Math.max(3, ts * 0.09), 0, Math.PI * 2); ctx.fill();
+          }
+        });
+        ctx.restore();
+      }
       if (this.portMark && this.portMark.anchor) {
         var pa = this.portMark.anchor;
         var pq = this.cellToScreen(pa.col, pa.row);
@@ -3008,15 +3245,32 @@
       this.announce(text, kind);
     }
 
+    /**
+     * 合并写回编辑器偏好:保留已有字段(如 autoGrow 之外将来加的偏好),
+     * 只覆盖当前主题/自动扩图。返回是否真的写成功。
+     */
+    savePrefs() {
+      var prefs = loadPrefs() || { schemaVersion: 1 };
+      prefs = Object.assign({}, prefs, { theme: this.theme, autoGrow: !!this.autoGrow });
+      if (!prefs.schemaVersion) prefs.schemaVersion = 1;
+      try {
+        if (!globalThis.localStorage) return false;
+        localStorage.setItem('ra_editor_preferences_v1', JSON.stringify(prefs));
+        return true;
+      } catch (e) { return false; }
+    }
+
+    /**
+     * 主题按钮只有一个接线(Editor.wire 的 click;HTML 里不再有内联 onclick),
+     * 所以键盘激活(Enter/Space)和鼠标点击都只切一次。
+     * 主题是编辑器偏好:只写 ra_editor_preferences_v1,不碰 LevelData/hash/dirty/通过记录;
+     * 合并保存时保留已有字段,保存失败仍临时切换但不谎报"已保存"。
+     */
     toggleTheme() {
       var next = this.theme === 'dark' ? 'light' : 'dark';
       this.theme = next;
       applyTheme(next);
-      var saved = true;
-      try {
-        if (!globalThis.localStorage) saved = false;
-        else localStorage.setItem('ra_editor_preferences_v1', JSON.stringify({ schemaVersion: 1, theme: next, autoGrow: this.autoGrow }));
-      } catch (e) { saved = false; }
+      var saved = this.savePrefs();
       this.syncUI();
       this.say(saved ? ('已切换到' + (next === 'dark' ? '深色' : '浅色') + '主题') : '本次已切换,但偏好保存失败(刷新后可能回退)', saved ? 'ok' : 'warn');
       return saved;
@@ -3045,6 +3299,12 @@
       set('chk-grid', 'checked', this.grid);
       set('chk-entities', 'checked', this.showEntities);
       set('chk-autogrow', 'checked', this.autoGrow);
+
+      // 24号卡:齿轮的往返/闭合只作为齿轮专属工具显示,不占用别的元素
+      var gearRow = this.$('gear-mode-row'), gearNote = this.$('gear-mode-note');
+      var showGear = this.ch === '~gear' || this.ch === '~fireball_moving';
+      if (gearRow) gearRow.style.display = showGear ? 'flex' : 'none';
+      if (gearNote) gearNote.style.display = showGear ? 'block' : 'none';
 
       var skySel = this.$('sky-select');
       if (skySel) skySel.value = this.model.backgroundId || '';
@@ -3076,14 +3336,16 @@
       }
       var pl = this.$('pool-label');
       if (pl) {
-        pl.textContent = '内置关卡 ' + Object.keys(RA.LEVEL_TEXT || {}).length +
-          ' 张:打开后是可编辑的迁移副本;导出为新的 JSON,不回写 levels/';
+        var legacyCount = Object.keys(RA.LEVEL_TEXT || {}).length;
+        pl.textContent = legacyCount
+          ? '内置关卡 ' + legacyCount + ' 张:打开后是可编辑的迁移副本;导出为新的 JSON,不回写 levels/'
+          : '活动内置普通池已清空(旧 floor01–12 归档于 levels/archive/legacy-pool-2026-11-09);下方只保留固定场景只读副本';
       }
 
       var ro = this.model.readOnly;
       var banner = this.$('readonly-banner');
       if (banner) banner.hidden = !ro;
-      ['name', 'w-input', 'h-input', 'btn-apply-size', 'btn-crop', 'btn-play', 'btn-standard', 'btn-publish', 'btn-start-mark', 'btn-finish-mark', 'btn-start-clear', 'btn-finish-clear', 'btn-obj-apply', 'btn-obj-del', 'btn-path-apply', 'btn-path-new', 'btn-path-del', 'btn-undo', 'btn-redo'].forEach(function (id) {
+      ['name', 'w-input', 'h-input', 'btn-apply-size', 'btn-crop', 'btn-play', 'btn-publish', 'btn-start-mark', 'btn-finish-mark', 'btn-start-clear', 'btn-finish-clear', 'btn-undo', 'btn-redo'].forEach(function (id) {
         var el = self.$(id); if (el) el.disabled = ro;
       });
       if (ro) {

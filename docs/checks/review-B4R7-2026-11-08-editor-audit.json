@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-08",
+  "head": "d41e07d",
+  "delivery": "B4-R7 uncommitted working tree",
+  "scope": "Code/controller audit only; no actual browser screen or map compliance tests. User reports trial playing correctly.",
+  "records": [
+    {
+      "name": "Single theme click has two real callbacks",
+      "before": "light",
+      "inline": "RA.editor&&RA.editor.toggleTheme()",
+      "afterInline": "dark",
+      "afterListener": "light",
+      "toggleCalls": 2,
+      "stored": {
+        "schemaVersion": 1,
+        "theme": "light",
+        "autoGrow": false
+      },
+      "mapHashUnchanged": true,
+      "scope": "Actual callbacks; DOM substitute does not itself execute inline HTML, so both callbacks are invoked explicitly."
+    },
+    {
+      "name": "Cancel a newly placed gear gesture",
+      "begun": true,
+      "cancelled": true,
+      "before": {
+        "hash": "sha256:99928db1d9d6dfdde746763723cbc20ca91dfe901091a57b42ace52e8f2349d5",
+        "objects": 0,
+        "paths": 0,
+        "undo": 0,
+        "dirty": false
+      },
+      "after": {
+        "hash": "sha256:9b0c08cc5c20e6e45ffca6d488ae8c0153b3d9ebf6147a2cd8504a3dd2ff6824",
+        "objects": 1,
+        "paths": 1,
+        "undo": 0,
+        "dirty": true
+      }
+    },
+    {
+      "name": "Same historical manual-pass declaration, local versus JSON import",
+      "hash": "sha256:5856f2dced92839089945d85a047ab2901ffbb2d32e1b73b54ce9cb11364e4bf",
+      "localPublish": {
+        "ok": true,
+        "value": {
+          "levelId": "review24_memory_only",
+          "contentHash": "sha256:5856f2dced92839089945d85a047ab2901ffbb2d32e1b73b54ce9cb11364e4bf",
+          "revision": 1
+        }
+      },
+      "localCandidateCount": 1,
+      "imported": {
+        "ok": true,
+        "value": {
+          "draftId": "review24_memory_only",
+          "revision": 1,
+          "levelRef": {
+            "levelId": "review24_memory_only",
+            "contentHash": "sha256:5856f2dced92839089945d85a047ab2901ffbb2d32e1b73b54ce9cb11364e4bf"
+          },
+          "eligible": false,
+          "runnable": true,
+          "source": "uncertified",
+          "issues": [
+            "认证规则版本已过期"
+          ]
+        }
+      },
+      "importPublish": {
+        "ok": false,
+        "error": {
+          "code": "CERT_REQUIRED",
+          "message": "导入内容没有匹配当前内容/声明的通过记录(旧规则声明另行保留,不自动入池)",
+          "issues": []
+        }
+      },
+      "note": "Synthetic in-memory history fixture, not an actual author clear or user storage mutation."
+    },
+    {
+      "name": "Plain editor.html boot does not restore originating draft",
+      "trialReturnHref": "<a id=\"btn-done-editor\" href=\"editor.html\" style=\"color:#cfd8ea\">",
+      "editorDraftId": "",
+      "currentMapId": "level_mw7z6wpr_qs",
+      "storedDraftCount": 1,
+      "note": "Draft exists, but constructor creates a new map and list refresh asks user to open a draft manually."
+    },
+    {
+      "name": "Old standard page remains executable with V1 handoff",
+      "standardHtmlLoadsOldController": true,
+      "createdSession": true,
+      "floorCount": 3,
+      "initialCooldown": 20,
+      "note": "Old controller boots three floors/CD20; no frames, finish, or certificate save were simulated."
+    }
+  ],
+  "fileHashes": {
+    "editor.html": "a35d2630efebafb219caaa448f0210e86ac41b9178c174fd628e204ed9bea025",
+    "css/editor.css": "36da24d7191d703e4a18d833daa067ad137d5d9fac8b7455ceca8fbce56b29f4",
+    "js/editor.js": "ea4fd196c1a0e682fabb67384aa9046c3effa950a160760639c915b81f2fc98a",
+    "js/trial.js": "e295ee5480736d65c24008458a68747a36fd973abb1a745f2cefdbe7d3661f0f",
+    "js/trial-session.js": "c52b10f985283515449fdaf9ac92eae0f3526002c9baa0d49d944e4deddea3a1",
+    "js/content-repository.js": "5b3759a373c08fa1159a677887a78e0b8a251bba8c9c95017743aca7562cbe6d",
+    "js/level-data.js": "0b40cb753ce8cd39df6fac933b289dc0917692350db82fca4605e58e91a06017",
+    "js/session.js": "7841504b31b03d1119963b14e4d95ffbf72335e7caea84e4b7f0f0dea613e27f",
+    "js/world.js": "9c7b177983d2fe242dc8d508ec35a40233bec75feeaf57ccd032a15d9ae66196"
+  }
+}

@@ -1,128 +1,92 @@
 #!/usr/bin/env node
-/* -*- coding: utf-8 -*- */
+/* -*- coding: utf-8 -*-
 /*
- * sync_levels.mjs —— 把 levels/*.json 打包成 levels/levels.js
- * =========================================================
- * 为什么需要这一步:双击 legacy.html/short.html 打开时是 file:// 协议,浏览器**不许**
- * 网页读本地文件,所以关卡数据得先内嵌进一个 js 文件里。
+ * sync_levels.mjs —— 29号卡:把 levels/normal/difficulty-1..4 中已通过、可读取的
+ * schema2 普通图打包成 file:///HTTP 共用的内置正式候选(levels/levels.js)。
  *
- * 用法:
  *     node tools/sync_levels.mjs
  *
- * 什么时候要跑:
- *   · 新加 / 删掉 / 改了 levels/*.json 之后
- *   · (_ 开头的文件是模板,不会被打包)
- *
- * 顺便把每个 json 体检一遍:id 要和文件名一致、要有 asc(地图)、难度要在 1~4、
- * verified 要是布尔、size 要和 asc 对得上 —— 有问题直接报错退出,不生成半成品。
- * 用 python -m http.server 之类的 http 方式打开时,游戏会直接 fetch json,
- * 那一份是实时的,不用跑这个脚本。
+ * 只扫描这四个难度目录;fixed/fallback/archive 永不进入普通池。
+ * 无有效人工通过声明的文件明确跳过;档案/固定/补位不扫描。
+ * 任何坏 JSON/坏 hash/难度与目录不符/读取失败都会失败且不写半成品。
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
+import { readdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadEngine } from './loader.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIR = join(ROOT, 'levels');
-const SKY_COUNT = 8;               // 与 config.SKY_COUNT 一致
+const LEVELS = join(ROOT, 'levels');
+const OUT = join(LEVELS, 'levels.js');
+const RA = loadEngine();
+const LD = RA.LevelData;
+const DIRS = [
+  ['difficulty-1', 1], ['difficulty-2', 2], ['difficulty-3', 3], ['difficulty-4', 4]
+];
 
-const files = readdirSync(DIR)
-  .filter((f) => f.endsWith('.json') && !f.startsWith('_'))
-  .sort();
-
-if (!files.length) {
-  console.error('levels/ 里一个关卡 json 都没有');
-  process.exit(1);
+function walk(dir) {
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const e of readdirSync(dir)) {
+    const p = join(dir, e);
+    if (statSync(p).isDirectory()) out.push(...walk(p));
+    else if (e.toLowerCase().endsWith('.json')) out.push(p);
+  }
+  return out;
 }
 
-const out = {};
-const problems = [];
-let warned = 0;
-
-for (const f of files) {
-  const id = basename(f, '.json');
-  let data;
-  try {
-    data = JSON.parse(readFileSync(join(DIR, f), 'utf8'));
-  } catch (e) {
-    problems.push(`${f}: 不是合法的 json(${e.message})`);
-    continue;
+const problems = [], skipped = [], entries = [], seen = new Set();
+for (const [sub, difficulty] of DIRS) {
+  const dir = join(LEVELS, 'normal', sub);
+  for (const file of walk(dir).sort()) {
+    const rel = relative(ROOT, file).replace(/\\/g, '/');
+    let data;
+    try { data = JSON.parse(readFileSync(file, 'utf8')); }
+    catch (e) { problems.push(rel + ': JSON 无法解析(' + e.message + ')'); continue; }
+    const read = LD.readableIssues ? LD.readableIssues(data) : LD.errorsOf(LD.validate(data, { purpose: 'load' }));
+    if (read.length) { problems.push(rel + ': 读取检查失败 ' + read[0].code + ' ' + read[0].path + ' ' + read[0].message); continue; }
+    if (Number(data.difficulty) !== difficulty || !Number.isInteger(data.difficulty)) {
+      problems.push(rel + ': 目录 ' + sub + ' 要求 difficulty=' + difficulty + ',实际 ' + JSON.stringify(data.difficulty));
+      continue;
+    }
+    const hash = LD.hashSync(data);
+    const pass = RA.ContentRepository && RA.ContentRepository.certState
+      ? RA.ContentRepository.certState(data, hash, RA.RULES) : { ok: false, reason: '无通过判定' };
+    if (!pass.ok) {
+      skipped.push({ path: rel, reason: pass.reason || '未通过', levelId: data.id });
+      continue;
+    }
+    const key = String(data.id) + '\u0000' + hash;
+    if (seen.has(key)) { skipped.push({ path: rel, reason: '同 id/hash 重复,已去重', levelId: data.id }); continue; }
+    seen.add(key);
+    entries.push({ levelId: data.id, contentHash: hash, source: 'builtin', path: rel, requiredDifficulty: difficulty, data });
   }
-  if (data.id !== id) problems.push(`${f}: id 是 "${data.id}",应该和文件名一样是 "${id}"`);
-  if (typeof data.asc === 'string') data.asc = data.asc.replace(/\r\n/g, '\n').split('\n');
-  if (!Array.isArray(data.asc) || !data.asc.some((l) => String(l).trim())) {
-    problems.push(`${f}: 没有 asc(地图一行都没写)`);
-    continue;
-  }
-  const asc = data.asc.map((l) => String(l).replace(/\s+$/, ''));
-  const cols = asc.reduce((m, l) => Math.max(m, l.length), 0);
-  const rows = asc.length;
-  if (!Number.isInteger(data.difficulty) || data.difficulty < 1 || data.difficulty > 4) {
-    problems.push(`${f}: difficulty 要是 1~4 的整数(现在是 ${JSON.stringify(data.difficulty)})`);
-  }
-  if (typeof data.verified !== 'boolean') {
-    problems.push(`${f}: verified 要是 true / false(现在是 ${JSON.stringify(data.verified)})`);
-  }
-  if (!data.size || data.size.cols !== cols || data.size.rows !== rows) {
-    problems.push(`${f}: size 和 asc 对不上 —— 现在应该是 {"cols": ${cols}, "rows": ${rows}}` +
-      `(写的是 ${JSON.stringify(data.size)})`);
-  }
-  if (data.objects !== undefined && !Array.isArray(data.objects)) {
-    problems.push(`${f}: objects 要是数组`);
-  }
-  if (data.sky !== undefined && data.sky !== 0 &&
-      (!Number.isInteger(data.sky) || data.sky < 1 || data.sky > SKY_COUNT)) {
-    problems.push(`${f}: sky 只能是 0(自动)或者 1~${SKY_COUNT}`);
-  }
-  // 轻量体检:行长度是不是一致(不一致不算错,但通常是画歪了)
-  const widths = [...new Set(asc.filter((l) => l.trim()).map((l) => l.length))];
-  if (widths.length > 1) {
-    warned++;
-    console.warn(`  ⚠ ${f}: 每行长度不一致(${widths.join('/')})—— 确认不是画歪了`);
-  }
-  out[id] = data;
 }
 
 if (problems.length) {
-  console.error('levels/ 里有 ' + problems.length + ' 个问题,先修好再同步:');
-  problems.forEach((p) => console.error('  ✗ ' + p));
+  console.error('levels/normal 有 ' + problems.length + ' 个问题;未写入 levels.js:');
+  problems.forEach((p) => console.error('  - ' + p));
   process.exit(1);
 }
 
-// 顺手提醒一下还留在 levels/ 里的老格式文件(游戏已经不读它们了)
-const legacy = readdirSync(DIR).filter((f) => f.endsWith('.txt') && !f.startsWith('_'));
-if (legacy.length) {
-  console.warn('  ⚠ levels/ 里还有老格式的 txt(游戏不读它们了,要就用编辑器另存,要就删掉):' +
-    legacy.join('、'));
-}
-
+entries.sort((a, b) => (a.levelId + a.contentHash).localeCompare(b.levelId + b.contentHash));
 const body = `/* -*- coding: utf-8 -*- */
-/*
- * levels.js —— 关卡数据的内嵌副本(自动生成,别手改!)
- * =====================================================
- * 由 tools/sync_levels.mjs 从 levels/*.json 生成。
- * 改了 json 就重新跑一次:  node tools/sync_levels.mjs
- *
- * 一个键 = 一层关卡:{"id", "difficulty", "verified", "size", "sky", "objects", "asc"}
- *   · id      关卡的固定身份(名字已经去掉了,显示也用 id)
- *   · asc     地图本体,一行一格
- *   · 其它    难度(1~4)/ 验过没有 / 大小 / 天空 / 带参数的元素
- * 游戏启动时如果发现是 http 打开的,会用 fetch 读 levels/*.json 覆盖这里的内容,
- * 所以本地调试改 json 可以不用跑同步(但要刷新页面)。
+/* 由 tools/sync_levels.mjs 从 levels/normal/difficulty-1..4 生成;不要手改。
+ * 只包含有有效人工通过声明且当前内容可读取的普通图;fixed/fallback/archive 永不入池。
+ * 改 JSON 后运行: node tools/sync_levels.mjs
  */
 (function (RA) {
   'use strict';
-  RA.LEVEL_DATA = ${JSON.stringify(out, null, 2)};
-
-  // 兼容层:关卡编辑器现在读的是这一份(id → asc 文本)。等编辑器接了新格式就能删。
+  RA.NORMAL_LEVELS = ${JSON.stringify(entries, null, 2)};
+  // 旧编辑器/旧页面读取的兼容别名;新正式入口只用 NORMAL_LEVELS。
+  RA.LEVEL_DATA = {};
   RA.LEVEL_TEXT = {};
-  Object.keys(RA.LEVEL_DATA).forEach(function (id) {
-    RA.LEVEL_TEXT[id] = RA.LEVEL_DATA[id].asc.join('\\n');
-  });
 })(globalThis.RA = globalThis.RA || {});
 `;
-
-writeFileSync(join(DIR, 'levels.js'), body, 'utf8');
-console.log(`已生成 levels/levels.js:${files.length} 个关卡`);
-files.forEach((f) => console.log('  · ' + f));
-if (warned) console.log(`(${warned} 个文件有提醒,见上)`);
+writeFileSync(OUT, body, 'utf8');
+console.log('已生成 levels/levels.js: ' + entries.length + ' 张内置普通图');
+entries.forEach((e) => console.log('  · ' + e.data.difficulty + '  ' + e.levelId + '  ' + e.path));
+if (skipped.length) {
+  console.log('跳过 ' + skipped.length + ' 个未入池文件:');
+  skipped.forEach((s) => console.log('  - ' + s.path + ': ' + s.reason));
+}

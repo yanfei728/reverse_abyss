@@ -35,7 +35,19 @@
     bridge: null,
     lifecycle: null,
     imported: null,
-    importedData: null
+    importedData: null,
+    repo: null,
+    poolInfo: null,
+    debugJumped: false,
+    seedText: 'RA-1',
+    seedValue: 1,
+    savedSeeds: [],
+    stopped: false,
+    raf: 0,
+    // 30:只读的历史最高分(独立 key,只存一个 max;不存逐局记录)
+    bestScore: 0,
+    bestSubmitted: 0,
+    highScoreError: ''
   };
   RA.short = { state: state };
 
@@ -47,6 +59,9 @@
   }
 
   function fixedFloors() {
+    if (RA.FULL40 && RA.FULL40.fixed) {
+      return { lobby: clone(RA.FULL40.fixed.lobby), rest: clone(RA.FULL40.fixed.rest), boss: clone(RA.FULL40.fixed.boss) };
+    }
     var s = sampleSet();
     return { lobby: clone(s.lobby), rest: clone(s.rest), boss: clone(s.boss) };
   }
@@ -58,9 +73,68 @@
     });
   }
 
+  function isFull40() {
+    return !!(state.manifest && state.manifest.layout === 'full40-v1');
+  }
+
+  async function ensurePool() {
+    var repo = state.repo;
+    // 内置候选不依赖浏览器发布库;无 repo 时仍可开始(test3补位/内置图)
+    if (!repo) return { ok: true, value: { resetApplied: false, noRepo: true } };
+    var epoch = (RA.FULL40 && RA.FULL40.poolEpoch) || '';
+    if (typeof repo.ensurePoolEpoch !== 'function') return { ok: true, value: { resetApplied: false } };
+    return repo.ensurePoolEpoch(epoch);
+  }
+
+  function builtinCandidates() {
+    return (RA.NORMAL_LEVELS || []).filter(function (r) {
+      return r && r.data && (r.data.kind === 'normal') &&
+        [1, 2, 3, 4].indexOf(Number(r.data.difficulty)) >= 0;
+    }).map(function (r) {
+      return { levelId: r.levelId, contentHash: r.contentHash, source: 'builtin', data: clone(r.data) };
+    });
+  }
+
+  function collectCandidates(published) {
+    var seen = {}, out = [];
+    builtinCandidates().concat(published || []).forEach(function (r) {
+      var d = r.data || r;
+      if (!d || d.kind !== 'normal' || [1, 2, 3, 4].indexOf(Number(d.difficulty)) < 0) return;
+      var hash = r.contentHash || (RA.LevelData && RA.LevelData.hashSync ? RA.LevelData.hashSync(d) : '');
+      var k = String(d.id || r.levelId) + '\u0000' + hash;
+      if (seen[k]) return;
+      seen[k] = true;
+      out.push({ levelId: d.id || r.levelId, contentHash: hash, source: r.source || 'published', data: clone(d) });
+    });
+    out.sort(function (a, b) { return (a.levelId + a.contentHash).localeCompare(b.levelId + b.contentHash); });
+    return out;
+  }
+
+  async function refreshPoolStatus() {
+    var el = $('pool-status');
+    if (!el) return;
+    var builtin = builtinCandidates();
+    var published = [];
+    var prep = await ensurePool();
+    if (!prep.ok) { el.textContent = '正式池准备失败:[' + prep.error.code + '] ' + prep.error.message; return; }
+    if (state.repo) {
+      var list = await state.repo.listEligible({});
+      if (!list.ok) { el.textContent = '发布库读取失败:[' + list.error.code + '] ' + list.error.message; return; }
+      published = list.value;
+    }
+    var all = collectCandidates(published), by = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    all.forEach(function (r) { var d = r.data && r.data.difficulty; if (by[d] !== undefined) by[d]++; });
+    el.textContent = '正式池:' + all.length + ' 张(1档 ' + by[1] + ' / 2档 ' + by[2] +
+      ' / 3档 ' + by[3] + ' / 4档 ' + by[4] + ';内置 ' + builtin.length +
+      ',浏览器发布 ' + published.length + ';每档最多9,不足test3补位)';
+    return all;
+  }
+
+
   function showMenu() {
     state.session = null;
     var ip0 = $('interact-prompt'); if (ip0) ip0.style.display = 'none';
+    var score0 = $('score-text'); if (score0) score0.style.display = 'none';
     state.overlay = '';
     if (state.input) state.input.clearAll();
     clearTouchInput();
@@ -77,26 +151,32 @@
     if (hud) hud.style.display = 'none';
     var msg = $('menu-status');
     if (msg) msg.textContent = RA.short.lastMessage || '';
+    refreshPoolStatus();
   }
 
   function start(floors, manifest, mode) {
-    if (!hasSamples()) {
-      $('menu-status').textContent = '缺少开发模板 js/b2-samples.js;运行 node tools/sync_b2_levels.mjs';
+    if (!Array.isArray(floors) || !floors.length) {
+      $('menu-status').textContent = '没有可运行的楼层数据';
       return false;
     }
+    var prevSession = state.session;
     var res = RA.GameSession.create({
       floors: floors, mode: mode, manifest: manifest || null, profile: 'run-v1', requireCloud: true
     });
     if (!res.ok) {
-      $('menu-status').textContent = '短塔启动失败:[' + res.error.code + '] ' + res.error.message;
+      $('menu-status').textContent = '完整塔启动失败:[' + res.error.code + '] ' + res.error.message;
       return false;
     }
     state.session = res.value;
+    if (prevSession && prevSession.dispose) prevSession.dispose();   // 30:旧局的箭/射击计时随会话释放
     if (state.assets) state.session.player.loadSprites(state.assets);
     state.floors = floors;
     state.manifest = manifest || null;
     state.mode = mode;
     state.paused = false;
+    state.debugJumped = false;
+    // 30:新局从 0 分开始;已保存的最高分不动。重试同塔也是新局 0(manifest 仍是原清单)。
+    state.bestSubmitted = 0;
     state.held = { left: false, right: false, jump: false };
     if (state.input) state.input.clearAll();
     clearTouchInput();
@@ -115,56 +195,205 @@
   }
 
   async function startDev() {
+    if (!hasSamples()) {
+      $('menu-status').textContent = '缺少开发模板 js/b2-samples.js;运行 node tools/sync_b2_levels.mjs';
+      return false;
+    }
     var s = RA.B2_SAMPLES;
     var floors = devFloors();
     var manifest = {
       manifestId: 'dev-short-v1',
+      layout: 'short-v1',
       profile: 'short-v2',
+      gameplayProfile: 'run-v1',
       dev: true,
       floors: floors.map(function (f) { return { levelId: f.id, contentHash: f.contentHash }; })
     };
     return start(floors, manifest, 'short-dev');
   }
 
-  async function startFormal() {
-    var repo = RA.short.repo;
-    if (!repo) { $('menu-status').textContent = '浏览器草稿/发布库不可用'; return false; }
-    var eligible = await repo.listEligible({ difficulty: 1, rules: RA.RULES });
-    if (!eligible.ok) {
-      $('menu-status').textContent = '读取正式池失败:[' + eligible.error.code + '] ' + eligible.error.message;
+  async function startFormal(seedArg) {
+    if (!RA.FULL40 || !RA.FULL40.fixed || !RA.FULL40.fallback) {
+      $('menu-status').textContent = '缺少完整塔运行数据 js/full40-samples.js;运行 node tools/sync_full40_levels.mjs';
       return false;
     }
-    if (!eligible.value.length) {
-      $('menu-status').textContent = '正式池还没有已认证并发布的普通层。请先在编辑器制作、标准试玩通关并发布;或用开发短塔。';
+    var seedSource = seedArg;
+    if (!seedSource) { var si = $('seed-input'); if (si && si.value.trim()) seedSource = si.value; }
+    var parsed = RA.SeedText ? RA.SeedText.parse(seedSource || state.seedText) : { ok: false, message: '缺少种子模块' };
+    if (!parsed.ok) {
+      $('menu-status').textContent = '种子无效:' + (parsed.message || parsed.code);
       return false;
     }
-    var fixed = fixedFloors();
-    var plan = RA.TowerPlanner.build({
-      profile: 'short-v1', seed: Date.now(), fixedLevels: fixed,
-      candidates: eligible.value, rules: RA.RULES
+    state.seedText = parsed.text;
+    state.seedValue = parsed.value;
+    var prep = await ensurePool();
+    if (!prep.ok) {
+      $('menu-status').textContent = '正式池准备失败:[' + prep.error.code + '] ' + prep.error.message;
+      return false;
+    }
+    var published = [];
+    if (state.repo) {
+      var eligible = await state.repo.listEligible({});
+      if (!eligible.ok) {
+        $('menu-status').textContent = '读取正式池失败:[' + eligible.error.code + '] ' + eligible.error.message;
+        return false;
+      }
+      published = eligible.value;
+    }
+    var candidates = collectCandidates(published);
+    var plan = RA.TowerPlanner.buildFull40({
+      seed: parsed.value,
+      candidates: candidates,
+      fixedLevels: fixedFloors(),
+      fallback: RA.FULL40.fallback,
+      poolEpoch: (RA.FULL40 && RA.FULL40.poolEpoch) || ''
     });
     if (!plan.ok) {
-      $('menu-status').textContent = '抽塔失败:[' + plan.error.code + '] ' + plan.error.message;
+      $('menu-status').textContent = '生成完整塔失败:[' + plan.error.code + '] ' + plan.error.message;
       return false;
     }
+    state.poolInfo = {
+      published: published.length,
+      builtin: builtinCandidates().length,
+      candidates: candidates.length,
+      fallback: plan.value.fallbackCount,
+      perDifficulty: plan.value.perDifficulty
+    };
     var floors = plan.value.floors.map(function (f) { return clone(f.data); });
-    return start(floors, plan.value, 'short-formal');
+    var okStart = start(floors, plan.value, 'full40-formal');
+    if (okStart) {
+      $('menu-status').textContent = '';
+      refreshPoolStatus();
+    }
+    return okStart;
   }
 
   function retrySame() {
-    if (!state.floors.length) { showMenu(); return; }
-    start(state.floors, state.manifest, state.mode);
+    if (!state.floors.length) { showMenu(); return false; }
+    // 重试使用本局清单快照,不重新读取发布池
+    return start(state.floors, state.manifest, state.mode);
+  }
+
+  /**
+   * 调试跳层:只用于定位 10/20/30/40 生命周期与验收,不是正式流程,
+   * 不产生认证、不冒充真人从 0 通关;HUD 会标“调试跳层”。
+   */
+  function debugJumpTo(n) {
+    var s = state.session;
+    if (!s || !s.world) return false;
+    var res = s.world.activateSlot(n);
+    if (!res.ok) return res;
+    var inst = res.value.inst;
+    s.boss = null;
+    s._onFloorEntered({ from: res.value.floor, to: res.value.floor });
+    var p = s.player;
+    p.level = inst.view;
+    if (inst.cloud && inst.level.startLocalX !== undefined) {
+      p.x = inst.level.startX;
+      p.y = inst.level.startFeet - p.h;
+    } else if (inst.fixedLobby) {
+      var fs = inst.data.extensions && inst.data.extensions.fixedScene;
+      var sp = fs && fs.playerSpawn;
+      if (sp) {
+        p.x = inst.origin.x + sp.centerCol * TS - p.w / 2;
+        p.y = inst.origin.y + (sp.feetRow - 1) * TS - p.h;
+      }
+    } else {
+      p.x = inst.origin.x + 2 * TS;
+      p.y = inst.origin.y + 2 * TS;
+    }
+    p.vx = 0; p.vy = 0; p.onGround = false;
+    p.coyote = 0; p.jumpBuffer = 0; p.jumpsUsed = 0;
+    state.cam.x = p.x + p.w / 2 - state.cw / 2;
+    state.cam.y = p.y + p.h / 2 - state.ch / 2;
+    state.debugJumped = true;
+    return res;
   }
 
   function finish(kind) {
     var ov = $('result-overlay');
     if (!ov) return;
     ov.style.display = 'flex';
-    $('result-title').textContent = kind === 'won' ? '短塔通过' : '死亡';
+    var full = isFull40();
+    $('result-title').textContent = kind === 'won' ? (full ? '完整塔通过' : '短塔通过') : '死亡';
     $('result-text').textContent = kind === 'won'
-      ? '开发短塔/正式短塔已通关。未通过标准试玩的草稿不会因此获得认证。'
-      : '已回到大厅状态。可以重试同一座塔,不会重新抽选。';
+      ? (full ? '0–40 完整塔已通关(20 层后按 F 进入 21,40 层 BOSS 击败)。本次为本地运行结果,不生成作者认证。'
+        : '调试短塔已通关;这不是完整塔胜利,也不生成认证。')
+      : (full ? '已回到 0 层状态。可以重试同一座塔(同一份 41 槽清单),不会重新抽选。'
+        : '已回到大厅状态。可以重试同一座塔,不会重新抽选。');
     $('btn-retry').style.display = kind === 'dead' ? 'inline-block' : 'none';
+    // 30:死亡/胜利界面显示本次得分(与被冻结的会话 score 一致);试玩/调试短塔没有分数
+    var scoreEl = $('result-score');
+    if (scoreEl) {
+      var snap = state.session && state.session.snapshot ? state.session.snapshot() : null;
+      if (snap && typeof snap.score === 'number') {
+        scoreEl.style.display = 'block';
+        scoreEl.textContent = '本次得分 ' + snap.score;
+        // 结果界面再结算一次最高分(已写过的不会重复写;写失败会如实留着提示)
+        retryHighScore();
+        if (state.highScoreError) scoreEl.textContent += '(最高分未保存)';
+      } else {
+        scoreEl.style.display = 'none';
+        scoreEl.textContent = '';
+      }
+    }
+  }
+
+  // ---------------- 30:只读历史最高分(独立 key,只存一个 max) ----------------
+  /** 读回可信历史最高分;损坏/不可用时保留 0 并记下真实原因,不清理别的存储 */
+  function readHighScore() {
+    var store = RA.HighScoreStore;
+    if (!store) { state.highScoreError = '缺少最高分模块'; return 0; }
+    var res = store.read(globalThis.localStorage);
+    if (res.ok) { state.highScoreError = ''; return res.value.bestScore; }
+    state.highScoreError = (res.error && res.error.message) || '最高分不可用';
+    return (res.value && res.value.bestScore) || 0;
+  }
+
+  function renderHighScore() {
+    var v = $('high-score-value');
+    if (v) v.textContent = String(state.bestScore || 0);
+    var st = $('high-score-status');
+    if (st) {
+      st.textContent = state.highScoreError
+        ? (state.highScoreError + ';本局得分仍正常,原最高分没有被覆盖')
+        : '只保存一个历史最高值;没有逐局记录/日期/种子排行';
+    }
+  }
+
+  /** 提交一次 max;只在破纪录时调用(不每帧写) */
+  function submitHighScore(score) {
+    var store = RA.HighScoreStore;
+    if (!store) return false;
+    var res = store.submit(globalThis.localStorage, score);
+    if (res.ok) {
+      state.bestScore = res.value.bestScore;
+      state.highScoreError = '';
+      renderHighScore();
+      return true;
+    }
+    state.highScoreError = (res.error && res.error.message) || '最高分未保存';
+    renderHighScore();
+    return false;
+  }
+
+  /** 本局分数超过已尝试提交的最大值才写一次;失败后不会每帧重试 */
+  function trackScore(score) {
+    if (typeof score !== 'number' || !isFinite(score)) return;
+    if (!(score > state.bestSubmitted)) return;
+    state.bestSubmitted = score;
+    if (score > state.bestScore) submitHighScore(score);
+  }
+
+  /** 显式重试(结果页/设置打开时):仍是取 max,旧合法最高分不会被降低 */
+  function retryHighScore() {
+    var s = state.session;
+    if (!s || s.formal !== true) return false;
+    var snap = s.snapshot ? s.snapshot() : null;
+    if (!snap || typeof snap.score !== 'number') return false;
+    if (snap.score <= state.bestScore) return false;
+    state.bestSubmitted = Math.max(state.bestSubmitted, snap.score);
+    return submitHighScore(snap.score);
   }
 
   // ---------------- B3 语义输入 / 触控 / 布局 / 生命周期 ----------------
@@ -350,6 +579,8 @@
     }
     globalThis.addEventListener('keydown', function (e) {
       if (e.repeat) return;
+      var tg = e.target;
+      if (tg && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(tg.tagName || '')) return;
       var a = keyAction(e.code);
       if (a) { e.preventDefault(); state.input.setHeld('key:' + e.code, a, true); return; }
       if (e.code === 'KeyK') { e.preventDefault(); state.input.press('skill'); return; }
@@ -440,6 +671,8 @@
     }
     setMenuNote('已加入正式池(来源 imported-declaration);仍是本地内容,不冒充 PC 人工通关。');
     var add = $('btn-add-import'); if (add) add.style.display = 'none';
+    await refreshPublishedVersions();
+    await refreshSettingsPool();
     return true;
   }
 
@@ -533,46 +766,8 @@
     };
   }
 
-  function drawObject(ctx, inst, o, cam) {
-    var x = o.rx !== undefined ? o.rx : o.col * TS + TS / 2;
-    var y = o.ry !== undefined ? o.ry : o.row * TS + TS / 2;
-    var sx = inst.origin.x + x - cam.x;
-    var sy = inst.origin.y + y - cam.y;
-    if (o.type === 'fireball_static') {
-      if (!o.alive) return;
-      ctx.fillStyle = '#ff7043';
-      ctx.beginPath(); ctx.arc(sx, sy, (o.params.radiusTiles || 0.5) * TS, 0, Math.PI * 2); ctx.fill();
-    } else if (o.type === 'gear') {
-      ctx.fillStyle = '#ffd166';
-      ctx.beginPath(); ctx.arc(sx, sy, (o.params.radiusTiles || 0.5) * TS, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#6b4f00'; ctx.lineWidth = 2; ctx.stroke();
-    } else if (o.type === 'spring') {
-      ctx.fillStyle = '#7ee0a8';
-      ctx.fillRect(sx - TS / 2 + 4, sy + TS / 2 - 10, TS - 8, 8);
-    } else if (o.type === 'spike') {
-      ctx.fillStyle = '#9aa8c7';
-      var base = sy + TS / 2 - 12;
-      ctx.fillRect(sx - TS / 2 + 2, base, TS - 4, 12);
-      if (o.state === 'active') {
-        ctx.fillStyle = '#ff8a65';
-        for (var i = 0; i < 3; i++) {
-          ctx.beginPath();
-          ctx.moveTo(sx - TS / 2 + 5 + i * 12, base);
-          ctx.lineTo(sx - TS / 2 + 11 + i * 12, base - 16);
-          ctx.lineTo(sx - TS / 2 + 17 + i * 12, base);
-          ctx.fill();
-        }
-      }
-    } else if (o.type === 'crumble_door') {
-      if (o.broken) return;
-      ctx.fillStyle = '#9c7bd8';
-      ctx.fillRect(sx - TS / 2 + 2, sy - TS / 2 + 2, TS - 4, TS - 4);
-    } else if (o.type === 'blink_platform') {
-      if (o.state === 'gone') return;
-      ctx.fillStyle = o.state === 'warning' ? '#ffd166' : '#7fb3ff';
-      ctx.fillRect(sx - TS / 2 + 2, sy - TS / 2 + 2, TS - 4, TS - 4);
-    }
-  }
+  // 对象绘制与单图试玩共用同一份(位置/存活状态一致,不在页面里各写一套)
+  function drawObject(ctx, inst, o, cam) { return RA.drawFloorObject(ctx, inst, o, cam); }
 
   function render() {
     var ctx = state.ctx;
@@ -589,15 +784,26 @@
         return;
       }
       inst.level.draw(ctx, { ox: cam.x - inst.origin.x, oy: cam.y - inst.origin.y, vw: state.cw, vh: state.ch }, state.assets);
-      inst.objects.forEach(function (o) { drawObject(ctx, inst, o, cam); });
+      inst.objects.forEach(function (o) {
+        if (o.type !== 'sewage_pool') return;
+        if (RA.drawObjectTrack) RA.drawObjectTrack(ctx, inst, o, cam);
+        drawObject(ctx, inst, o, cam);
+      });
+      inst.objects.forEach(function (o) {
+        if (o.type === 'sewage_pool') return;
+        if (RA.drawObjectTrack) RA.drawObjectTrack(ctx, inst, o, cam);
+        drawObject(ctx, inst, o, cam);
+      });
+      // 30:箭只属于当前 active 实例,朝发射方向画细长占位图
+      if (RA.drawFloorArrows) RA.drawFloorArrows(ctx, inst, cam);
       var openL = inst.origin.x + inst.exitCol * TS - cam.x;
       var openR = openL + RA.LevelData.PORT.openingCols * TS;
       ctx.strokeStyle = inst.exitOpen === false ? 'rgba(255,120,100,.7)' : 'rgba(255,205,110,.45)';
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(openL, inst.origin.y - cam.y); ctx.lineTo(openR, inst.origin.y - cam.y); ctx.stroke();
     });
-    // 云板石管:管内只读几何,按 World 生成坐标画,不写回模板
-    (state.session.world.links || []).forEach(function (link) {
+    // 云板石管:只画“两端实例都已实存”的运行几何;规划链接不是加载状态
+    (state.session.world.liveStoneLinks ? state.session.world.liveStoneLinks() : []).forEach(function (link) {
       if (!link || link.kind !== 'stone-pipe' || !link.walls) return;
       ctx.fillStyle = 'rgba(8,10,16,.9)';
       ctx.fillRect(link.inner.x - cam.x, link.inner.y - cam.y, link.inner.w, link.inner.h);
@@ -646,12 +852,16 @@
     }
     var fl = $('floor-text');
     if (fl) {
-      var fi = snap.floorIndex, label;
-      if (fi === 0) label = '大厅（0层）';
-      else if (fi >= 1 && fi <= 3) label = '第 ' + fi + '/3 层 · 普通';
-      else if (fi === 4) label = '休整层';
-      else label = 'Boss层';
-      fl.textContent = label + ' · ' + (snap.floor ? snap.floor.kind : '');
+      var fi = snap.floorNumber !== undefined ? snap.floorNumber : snap.floorIndex;
+      var total = (state.manifest && state.manifest.layout === 'full40-v1') ? 40 : (snap.floorCount - 1);
+      var kind = snap.floor ? snap.floor.kind : 'normal';
+      var label;
+      if (kind === 'lobby') label = '大厅（0层）';
+      else if (kind === 'rest') label = '第 ' + fi + '/' + total + ' 层 · 休整';
+      else if (kind === 'boss') label = '第 ' + fi + '/' + total + ' 层 · BOSS';
+      else label = '第 ' + fi + '/' + total + ' 层 · 普通';
+      if (state.debugJumped) label += ' · 调试跳层';
+      fl.textContent = label;
     }
     var prompt = $('interact-prompt');
     if (prompt) {
@@ -665,9 +875,21 @@
         (snap.boss.state === 'shielded' ? ' ' + snap.boss.shieldRemaining.toFixed(1) + 's' : '');
       else bs.textContent = '';
     }
+    // 30:正式塔右上角显示得分;调试短塔/试玩 snapshot.score 为 null,不显示
+    var scoreEl = $('score-text');
+    if (scoreEl) {
+      if (typeof snap.score === 'number') {
+        scoreEl.style.display = 'block';
+        scoreEl.textContent = '得分 ' + snap.score;
+        trackScore(snap.score);
+      } else {
+        scoreEl.style.display = 'none';
+      }
+    }
   }
 
   function tick(now) {
+    if (state.stopped) return;
     var dt = state.lastT ? (now - state.lastT) / 1000 : 0;
     state.lastT = now;
     if (dt > 0.25) dt = 0.25;
@@ -690,13 +912,216 @@
         state.cam.y += (ty - state.cam.y) * k;
       }
       s.drainEvents().forEach(function (ev) {
+        if (ev.type === 'floorEntered' && ev.transfer) {
+          // 传送后相机立即对准目标层,不缓慢穿过两段地图之间的空白
+          var tp = s.player;
+          state.cam.x = tp.x + tp.w / 2 - state.cw / 2;
+          state.cam.y = tp.y + tp.h / 2 - state.ch / 2;
+        }
         if (ev.type === 'dead') finish('dead');
         if (ev.type === 'won') finish('won');
       });
       render();
       updateHud();
     }
-    requestAnimationFrame(tick);
+    state.raf = requestAnimationFrame(tick);
+  }
+
+  var SEED_KEY = 'ra_seed_texts_v1';
+
+  function readSeedStore() {
+    try {
+      var raw = globalThis.localStorage && localStorage.getItem(SEED_KEY);
+      var p = raw ? JSON.parse(raw) : null;
+      if (!p || p.version !== 1) return { activeSeed: state.seedText, savedSeeds: [] };
+      return {
+        activeSeed: typeof p.activeSeed === 'string' ? p.activeSeed : state.seedText,
+        savedSeeds: Array.isArray(p.savedSeeds) ? p.savedSeeds.filter(function (s) { return typeof s === 'string'; }) : []
+      };
+    } catch (e) { return { activeSeed: state.seedText, savedSeeds: [] }; }
+  }
+  function writeSeedStore(active, saved) {
+    try {
+      localStorage.setItem(SEED_KEY, JSON.stringify({ version: 1, activeSeed: active, savedSeeds: saved }));
+      return true;
+    } catch (e) { return false; }
+  }
+  function seedStatus(text) {
+    var a = $('seed-status'); if (a) a.textContent = text || '';
+    setMenuNote(text || '');
+  }
+  function refreshSeedUI() {
+    var inp = $('seed-input');
+    if (inp && document.activeElement !== inp) inp.value = state.seedText;
+    var sel = $('seed-saved');
+    if (sel) {
+      sel.innerHTML = '';
+      state.savedSeeds.forEach(function (s) {
+        var o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o);
+      });
+      if (!state.savedSeeds.length) { var o0 = document.createElement('option'); o0.value = ''; o0.textContent = '(无)'; sel.appendChild(o0); }
+    }
+    // 发布池数量由当前仓库读取结果显示，不用已开始塔的 poolInfo 覆盖（下架不改旧塔）。
+  }
+  function applySeed(text) {
+    var p = RA.SeedText ? RA.SeedText.parse(text) : { ok: false, code: 'NO_SEED', message: '缺少种子模块' };
+    if (!p.ok) { seedStatus('种子未应用:' + (p.message || p.code)); return false; }
+    state.seedText = p.text; state.seedValue = p.value;
+    seedStatus('已按种子 ' + p.text + ' 重构;开始游戏会按当前正式池生成同一清单。');
+    refreshSeedUI();
+    previewSeed();
+    return true;
+  }
+  function previewSeed() {
+    if (!RA.TowerPlanner || !RA.FULL40 || !RA.FULL40.fallback) return;
+    refreshPoolStatus().then(function (all) {
+      var plan = RA.TowerPlanner.buildFull40({
+        seed: state.seedValue,
+        candidates: all || [],
+        fixedLevels: fixedFloors(),
+        fallback: RA.FULL40.fallback,
+        poolEpoch: (RA.FULL40 && RA.FULL40.poolEpoch) || ''
+      });
+      if (!plan.ok) { seedStatus('重构失败:[' + plan.error.code + '] ' + plan.error.message); return; }
+      state.pendingPlan = plan.value;
+      var by = plan.value.perDifficulty || {};
+      seedStatus('已重构 41 槽(种子 ' + state.seedText + ';每档 ' + JSON.stringify(by) + ');开始游戏时用当前池生成。');
+    }).catch(function () { seedStatus('重构失败:正式池读取异常'); });
+  }
+  function randomSeed() {
+    var r = RA.SeedText ? RA.SeedText.random(state.seedValue) : { text: 'RA-1', value: 1 };
+    state.seedText = r.text; state.seedValue = r.value;
+    seedStatus('已随机重构种子 ' + r.text + '(与之前不同)。');
+    refreshSeedUI();
+    previewSeed();
+    return true;
+  }
+  function saveSeedText() {
+    var p = RA.SeedText ? RA.SeedText.parse(state.seedText) : { ok: false, message: '缺少种子模块' };
+    if (!p.ok) { seedStatus('保存失败:种子无效'); return false; }
+    var saved = state.savedSeeds.slice();
+    if (saved.indexOf(p.text) < 0) saved.push(p.text);
+    saved.sort();
+    if (!writeSeedStore(p.text, saved)) { seedStatus('保存失败:本地存储不可用;当前种子' + p.text + '仅本次有效'); return false; }
+    state.savedSeeds = saved; state.seedText = p.text; state.seedValue = p.value;
+    seedStatus('已保存种子文本 ' + p.text + '(只保存文本,不保存塔快照)。');
+    refreshSeedUI();
+    return true;
+  }
+  var publishedVersions = [], publishedBusy = false, publishedLoading = false, publishedRequest = 0;
+  function publishedKey(r) { return JSON.stringify([r.levelId, r.contentHash]); }
+  function selectedPublished() {
+    var sel = $('published-version');
+    return publishedVersions.find(function (r) { return sel && publishedKey(r) === sel.value; });
+  }
+  function builtinVersionNote(r) {
+    var builtin = r && (RA.NORMAL_LEVELS || []).find(function (b) {
+      return b.levelId === r.levelId && b.contentHash === r.contentHash;
+    });
+    return builtin ? '还有内置来源' + (builtin.path ? '（' + builtin.path + '）' : '') +
+      '，需另删或移出 normal 源 JSON 并运行 node tools/sync_levels.mjs，刷新后才会完全退出新塔候选。' : '';
+  }
+  function publishedControls() {
+    var sel = $('published-version'), btn = $('btn-unpublish'), refresh = $('btn-published-refresh');
+    if (sel) sel.disabled = publishedBusy || publishedLoading || !publishedVersions.length;
+    if (btn) btn.disabled = publishedBusy || publishedLoading || !selectedPublished();
+    if (refresh) refresh.disabled = publishedBusy || publishedLoading;
+    var source = $('published-source'), r = selectedPublished();
+    if (source) source.textContent = r ? r.levelId + ' / ' + r.contentHash + '。' + builtinVersionNote(r) : '';
+  }
+  function unpublishStatus(message) { var el = $('unpublish-status'); if (el) el.textContent = message; }
+  async function refreshSettingsPool() {
+    await refreshPoolStatus();
+    var d = $('pool-detail'), p = $('pool-status');
+    if (d && p) d.textContent = p.textContent;
+  }
+  async function refreshPublishedVersions(preserveMessage) {
+    if (publishedBusy) return false;
+    var request = ++publishedRequest, sel = $('published-version');
+    if (!sel) return false;
+    var previous = sel.value;
+    publishedLoading = true; publishedControls();
+    try {
+      if (!state.repo) throw new Error('浏览器发布库不可用');
+      var res = await state.repo.listPublishedVersions();
+      if (request !== publishedRequest) return false;
+      if (!res.ok) throw new Error(res.error.message);
+      publishedVersions = res.value;
+      sel.textContent = '';
+      publishedVersions.forEach(function (r) {
+        var option = document.createElement('option'); option.value = publishedKey(r);
+        option.textContent = r.title + ' · 难度 ' + (r.difficulty || '未知') + ' · ' + r.levelId +
+          ' · ' + String(r.contentHash).replace(/^sha256:/, '').slice(0, 12) + (builtinVersionNote(r) ? ' · 另有内置' : '');
+        sel.appendChild(option);
+      });
+      if (!publishedVersions.length) {
+        var empty = document.createElement('option'); empty.value = ''; empty.textContent = '暂无浏览器发布版本'; sel.appendChild(empty);
+      } else if (publishedVersions.some(function (r) { return publishedKey(r) === previous; })) sel.value = previous;
+      if (!preserveMessage) unpublishStatus(state.repo.persistent ? '只列出当前浏览器发布记录。' : '当前为临时内存库，刷新后不保留。');
+      return true;
+    } catch (e) {
+      if (request === publishedRequest) unpublishStatus('读取版本列表失败：' + e.message + '；保留原列表，可重试刷新。');
+      return false;
+    } finally {
+      if (request === publishedRequest) { publishedLoading = false; publishedControls(); }
+    }
+  }
+  async function unpublishSelected() {
+    if (publishedBusy || publishedLoading) return false;
+    var selected = selectedPublished();
+    if (!selected) return false;
+    // 捕获点击身份，不以异步返回时的新选择作为删除目标。
+    var target = { levelId: selected.levelId, contentHash: selected.contentHash };
+    if (!globalThis.confirm('移出浏览器发布池？\n' + selected.title + '\n' + target.levelId + '\n' + target.contentHash +
+      '\n草稿、通过历史和磁盘文件保留。\n' + builtinVersionNote(target))) {
+      unpublishStatus('已取消，发布池未变。'); return false;
+    }
+    publishedBusy = true; ++publishedRequest; publishedControls(); unpublishStatus('正在移出，等待存储事务完成…');
+    try {
+      var res = await state.repo.unpublish(target);
+      if (!res.ok) throw new Error(res.error.message);
+      unpublishStatus((res.value.removed ? '已移出浏览器发布池：' : '已不在浏览器发布池：') + target.levelId +
+        ' / ' + target.contentHash + '。草稿和通过历史保留。' + builtinVersionNote(target));
+      publishedBusy = false;
+      await refreshPublishedVersions(true);
+      await refreshSettingsPool();
+      return true;
+    } catch (e) {
+      unpublishStatus('移出失败：' + e.message + '；未报告成功，请刷新或重试。'); return false;
+    } finally { publishedBusy = false; publishedControls(); }
+  }
+  function openMainSettings() {
+    var ov = $('main-settings'); if (ov) ov.style.display = 'flex';
+    // 30:设置只显示只读历史最高分;打开时读回可信值并给一次显式重试机会
+    state.bestScore = readHighScore();
+    retryHighScore();
+    renderHighScore();
+    refreshPublishedVersions();
+    refreshPoolStatus().then(function () {
+      var d = $('pool-detail'), p = $('pool-status');
+      if (d && p) d.textContent = p.textContent;
+      refreshSeedUI();
+    }).catch(function () { refreshSeedUI(); });
+  }
+  function closeMainSettings() { var ov = $('main-settings'); if (ov) ov.style.display = 'none'; }
+  function quitGame() {
+    if (state.session && state.session.dispose) state.session.dispose();
+    state.session = null;
+    state.stopped = true;
+    if (state.raf) { try { cancelAnimationFrame(state.raf); } catch (e) { /* ignore */ } state.raf = 0; }
+    try { if (state.input) state.input.clearAll(); } catch (e) { /* ignore */ }
+    showMenu();
+    var ov = $('exit-overlay'); if (ov) ov.style.display = 'flex';
+    var txt = $('exit-text');
+    if (txt) txt.textContent = '本局已结束。浏览器不允许脚本关闭此标签页;请手动关闭标签页/窗口,或点返回主界面。';
+    try { if (globalThis.close) globalThis.close(); } catch (e) { /* browser blocks it */ }
+    return true;
+  }
+  function exitBack() {
+    var ov = $('exit-overlay'); if (ov) ov.style.display = 'none';
+    state.stopped = false; state.lastT = 0;
+    if (!state.raf) state.raf = requestAnimationFrame(tick);
+    showMenu();
   }
 
   function boot() {
@@ -728,6 +1153,10 @@
     state.assets.loadAll(function () { if (state.session) state.session.player.loadSprites(state.assets); });
     setupLifecycle();
     RA.short.repo = RA.ContentRepository ? RA.ContentRepository.create() : null;
+    state.repo = RA.short.repo;
+    RA.short.debugJumpTo = debugJumpTo;
+    RA.short.startFormal = startFormal;
+    RA.short.retrySame = retrySame;
     var startDevBtn = $('btn-dev');
     if (startDevBtn) startDevBtn.addEventListener('click', function () { startDev(); });
     var startFormalBtn = $('btn-formal');
@@ -762,8 +1191,41 @@
     if (importBtn) importBtn.addEventListener('click', function () { pickImport(); });
     var addImportBtn = $('btn-add-import');
     if (addImportBtn) addImportBtn.addEventListener('click', function () { addImported(); });
-    var exportBtn = $('btn-export');
-    if (exportBtn) exportBtn.addEventListener('click', function () { exportCurrent(); });
+    var seedStore = readSeedStore();
+    state.seedText = seedStore.activeSeed; state.savedSeeds = seedStore.savedSeeds;
+    var parsedSeed = RA.SeedText ? RA.SeedText.parse(state.seedText) : { ok: false };
+    if (!parsedSeed.ok) { state.seedText = 'RA-1'; parsedSeed = { ok: true, value: 1, text: 'RA-1' }; }
+    state.seedValue = parsedSeed.value;
+    var bind = function (id, fn) { var el = $(id); if (el) el.addEventListener('click', fn); };
+    bind('btn-main-settings', openMainSettings);
+    bind('btn-main-settings-close', closeMainSettings);
+    bind('btn-unpublish', unpublishSelected);
+    bind('btn-published-refresh', function () { refreshPublishedVersions(); });
+    var publishedSelect = $('published-version');
+    if (publishedSelect) publishedSelect.addEventListener('change', publishedControls);
+    bind('btn-quit', quitGame);
+    bind('btn-main-menu', showMenu);
+    bind('btn-exit-back', exitBack);
+    bind('btn-open-editor', function () { globalThis.location.href = 'editor.html'; });
+    bind('btn-seed-apply', function () { applySeed($('seed-input') ? $('seed-input').value : state.seedText); });
+    bind('btn-seed-random', randomSeed);
+    bind('btn-seed-save', saveSeedText);
+    bind('btn-seed-use', function () {
+      var sel = $('seed-saved');
+      if (!sel || !sel.value) { seedStatus('没有已保存种子可选'); return; }
+      applySeed(sel.value);
+    });
+    var seedInput = $('seed-input');
+    if (seedInput) seedInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') applySeed(seedInput.value); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var ov = $('main-settings');
+      if (ov && ov.style.display === 'flex') { closeMainSettings(); e.preventDefault(); e.stopPropagation(); }
+    }, true);
+    refreshSeedUI();
+    // 30:启动时读回历史最高分(只读显示);读失败/损坏不清理任何记录
+    state.bestScore = readHighScore();
+    renderHighScore();
     showMenu();
     applyLayout();
     requestAnimationFrame(tick);

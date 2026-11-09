@@ -5,6 +5,7 @@
  * 只测模型/控制器/共享几何;浏览器真实鼠标由 browser_editor19 单独验证。
  */
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { strict as assert } from 'node:assert';
 import { loadEditor, ROOT } from './loader.mjs';
 
@@ -19,10 +20,12 @@ function check(name, fn) {
 }
 function stubEditor(model) {
   const e = Object.create(RA.Editor.prototype);
-  e.model = model; e.undoStack = []; e.selection = null; e.portMark = null; e.gearGesture = null;
+  e.model = model; e.undoStack = []; e.redoStack = []; e.undoBytes = 0; e.redoBytes = 0;
+  e.selection = null; e.portMark = null; e.gearGesture = null;
+  e.dirty = false; e.consumeUntilRelease = false;
   e.say = () => {}; e.markDirty = () => { e.dirty = true; }; e.syncUI = () => {};
-  e.pushUndo = () => e.undoStack.push(model.toData());
-  e.popUndo = () => e.undoStack.pop();
+  e.pushUndo = () => { const json = JSON.stringify(model.toData()); e.undoStack.push({ json: json, bytes: json.length }); e.undoBytes += json.length; e.redoStack = []; e.redoBytes = 0; };
+  e.popUndo = () => { const old = e.undoStack.pop(); if (old) e.undoBytes -= old.bytes; };
   e.snapshotJSON = () => JSON.stringify(model.toData());
   e.$ = (id) => ({ value: id === 'gear-mode' ? 'pingpong' : '' });
   e.setTool = (t) => { e.tool = t; e.stroke = null; };
@@ -90,6 +93,7 @@ check('裁剪后旧selection不参与标记:控制器只用portMark anchor', () 
 check('齿轮首点放置/追加/右键完成:单点静止,重复不生成零段', () => {
   const m = RA.EditorModel.create({ cols: 20, rows: 20 });
   const e = stubEditor(m);
+  const undo0 = e.undoStack.length;
   assert.equal(e.beginGearGesture({ c: 3, r: 5 }), true);
   assert.equal(m.objects.length, 1); assert.equal(m.paths.length, 1);
   assert.equal(m.paths[0].points.length, 1);
@@ -98,6 +102,35 @@ check('齿轮首点放置/追加/右键完成:单点静止,重复不生成零段
   assert.equal(e.appendGearNode({ c: 8, r: 5 }), false);
   assert.equal(e.finishGearGesture(), true);
   assert.equal(e.gearGesture, null);
+  // 一次画完只留一条撤销
+  assert.equal(e.undoStack.length, undo0 + 1);
+  assert.equal(e.consumeUntilRelease, true);
+});
+check('齿轮取消:零残留、dirty/撤销恢复,不影响之前操作', () => {
+  const m = RA.EditorModel.create({ cols: 20, rows: 20 });
+  const e = stubEditor(m);
+  // 之前的一次用户操作(留一条撤销)
+  e.pushUndo();
+  m.data.title = 'before-gear';
+  m.invalidate(); e.markDirty();
+  const before = {
+    hash: LD.hashSync(m.toData()), objs: m.data.objects.length, paths: m.data.paths.length,
+    dirty: e.dirty, undo: e.undoStack.length, title: m.data.title
+  };
+  assert.equal(e.beginGearGesture({ c: 3, r: 5 }), true);
+  assert.equal(e.model.data.objects.length, before.objs + 1);
+  assert.equal(e.cancelGearGesture(), true);
+  // 取消后控制器换成了"开始前"的模型,e.model 才是当前真值
+  assert.equal(e.model.data.objects.length, before.objs, '不能留下齿轮');
+  assert.equal(e.model.data.paths.length, before.paths, '不能留下路径');
+  assert.equal(e.dirty, before.dirty, 'dirty 要回到开始前');
+  assert.equal(e.undoStack.length, before.undo, '不能弹掉之前的撤销');
+  assert.equal(LD.hashSync(e.model.toData()), before.hash, '内容要回到开始前');
+  assert.equal(e.model.data.title, before.title);
+  assert.equal(e.consumeUntilRelease, true, '同一次左键按下不能再放齿轮');
+  // 取消后还能撤销之前那一步
+  e.undo();
+  assert.equal(e.undoStack.length, before.undo - 1);
 });
 check('标记自动选云板并消费左键至松手', () => {
   const m = RA.EditorModel.fromData(RA.B4_SAMPLES.normal1).value;
@@ -121,10 +154,12 @@ check('标记非法点击不改地形/端点', () => {
   assert.equal(LD.hashSync(m.toData()), h);
 });
 
-check('R3 开发试玩 handoff 使用云板夹具而非旧 floorB', () => {
-  const next = RA.B4_SAMPLES.normal2;
-  assert.ok(RA.CloudPipe.isCloud(next.ports));
-  assert.ok(next.id !== 'floorB');
+check('旧开发/标准/短塔页只跳 index,不再加载旧控制器', () => {
+  for (const f of ['devplay.html', 'standard.html', 'short.html', 'legacy.html']) {
+    const h = readFileSync(join(ROOT, f), 'utf8');
+    assert.equal(/url=index\.html/.test(h), true, f + ' 缺 index 跳转');
+    assert.equal(h.indexOf('js/devplay.js') < 0 && h.indexOf('js/standard.js') < 0 && h.indexOf('js/short.js') < 0, true, f + ' 仍加载旧控制器');
+  }
 });
 check('路径规则进入 LevelData play 校验', () => {
   const d = RA.EditorModel.create({ cols: 10, rows: 10 });

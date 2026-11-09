@@ -1,0 +1,122 @@
+{
+  "date": "2026-11-09",
+  "kind": "isolated-model-and-real-draw-command-probe",
+  "limits": "Not browser screenshots or human play. No author storage, maps, publishing or implementation changes.",
+  "paths": [
+    {
+      "type": "gear",
+      "operation": "removeObject",
+      "beforeObjects": 1,
+      "beforePaths": 1,
+      "afterObjects": 0,
+      "afterPaths": 1,
+      "orphanPathPresent": true
+    },
+    {
+      "type": "gear",
+      "operation": "eraseCell",
+      "beforeObjects": 1,
+      "beforePaths": 1,
+      "afterObjects": 0,
+      "afterPaths": 1,
+      "orphanPathPresent": true
+    },
+    {
+      "type": "fireball_moving",
+      "operation": "removeObject",
+      "beforeObjects": 1,
+      "beforePaths": 1,
+      "afterObjects": 0,
+      "afterPaths": 1,
+      "orphanPathPresent": true
+    },
+    {
+      "type": "fireball_moving",
+      "operation": "eraseCell",
+      "beforeObjects": 1,
+      "beforePaths": 1,
+      "afterObjects": 0,
+      "afterPaths": 1,
+      "orphanPathPresent": true
+    }
+  ],
+  "flail": [
+    {
+      "col": 6,
+      "row": 7,
+      "view": {
+        "x": 0,
+        "y": 0,
+        "zoom": 1
+      },
+      "expected": {
+        "from": {
+          "x": 292.5,
+          "y": 337.5
+        },
+        "to": {
+          "x": 292.5,
+          "y": 517.5
+        }
+      },
+      "actual": null,
+      "headPositionErrorPx": null,
+      "expectedHeadVisible": true,
+      "headWasDrawn": false,
+      "bugReproduced": true
+    },
+    {
+      "col": 6,
+      "row": 7,
+      "view": {
+        "x": 81,
+        "y": 135,
+        "zoom": 0.5
+      },
+      "expected": {
+        "from": {
+          "x": 105.75,
+          "y": 101.25
+        },
+        "to": {
+          "x": 105.75,
+          "y": 191.25
+        }
+      },
+      "actual": null,
+      "headPositionErrorPx": null,
+      "expectedHeadVisible": true,
+      "headWasDrawn": false,
+      "bugReproduced": true
+    },
+    {
+      "col": 6,
+      "row": 2,
+      "view": {
+        "x": 0,
+        "y": 180,
+        "zoom": 1
+      },
+      "expected": {
+        "from": {
+          "x": 292.5,
+          "y": -67.5
+        },
+        "to": {
+          "x": 292.5,
+          "y": 112.5
+        }
+      },
+      "actual": null,
+      "headPositionErrorPx": null,
+      "expectedHeadVisible": true,
+      "headWasDrawn": false,
+      "bugReproduced": true
+    }
+  ],
+  "unpublishApi": false,
+  "conclusions": {
+    "orphanPath": true,
+    "flailDraw": true
+  }
+}

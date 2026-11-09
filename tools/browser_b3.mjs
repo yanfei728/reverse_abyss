@@ -265,8 +265,8 @@ async function main() {
     await shot('b3r1-browser-touch-layout.png');
     await evaluate('document.getElementById("btn-layout-close").click()');
 
-    // 实际 IndexedDB:旧声明→当前声明重导入后读回,验证 revision/认证持久化
-    const n1 = JSON.parse(readFileSync(join(ROOT, 'levels/b2/normal-1.json'), 'utf8'));
+    // 实际 IndexedDB:旧声明与当前声明对同内容一致可选;重复导入不改写原通过条件
+    const n1 = JSON.parse(readFileSync(join(ROOT, 'levels/archive/b2/normal-1.json'), 'utf8'));
     const rules = await evaluate('({v:RA.RULES.rulesVersion,f:RA.RULES.rulesFingerprint})');
     const n1Hash = await evaluate('RA.LevelData.hashSync(' + JSON.stringify(n1) + ')');
     const oldData = Object.assign({}, n1, { contentHash: null, certification: {
@@ -279,12 +279,14 @@ async function main() {
     }});
     const oldImp = await evaluate('RA.short.repo.importLevel(' + JSON.stringify(JSON.stringify(oldData)) + ')');
     const curImp = await evaluate('RA.short.repo.importLevel(' + JSON.stringify(JSON.stringify(curData)) + ')');
-    check('实际 IndexedDB 旧认证→当前认证更新 revision', oldImp.ok && curImp.ok &&
-      curImp.value.revision === oldImp.value.revision + 1 && curImp.value.eligible === true);
+    check('实际 IndexedDB 旧技术版本声明同内容也可选、重导入不改 revision',
+      oldImp.ok && oldImp.value.eligible === true && curImp.ok &&
+      curImp.value.eligible === true && curImp.value.revision === oldImp.value.revision);
     await send('Page.reload');
     await waitFor('!!RA.short && !!RA.short.repo', 10000);
     const persisted = await evaluate('RA.short.repo.loadDraft(' + JSON.stringify(curImp.value.draftId) + ')');
-    check('重启读回当前认证持久化', persisted.ok && persisted.value.data.certification.rulesVersion === rules.v);
+    check('重启读回原通过条件(不被改写成本版本)',
+      persisted.ok && persisted.value.data.certification.rulesVersion === 'old-browser-fixture');
     const repeat = await evaluate('RA.short.repo.importLevel(' + JSON.stringify(JSON.stringify(curData)) + ')');
     check('实际 IndexedDB 同有效声明重复导入幂等', repeat.ok && repeat.value.revision === curImp.value.revision);
 

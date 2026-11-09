@@ -25,7 +25,7 @@ function check(name, cond, extra) {
 }
 function head(t) { console.log('\n▌ ' + t); }
 const clone = (v) => JSON.parse(JSON.stringify(v));
-const readDev = (name) => JSON.parse(readFileSync(join(ROOT, 'levels/dev', name), 'utf8'));
+const readDev = (name) => JSON.parse(readFileSync(join(ROOT, 'levels/archive/dev', name), 'utf8'));
 
 const floorA = readDev('floor-a.json');
 const floorB = readDev('floor-b.json');
@@ -198,15 +198,11 @@ head('暂停冻结模拟,恢复不追算后台时间');
 head('页面入口与样例文件同步');
 {
   const fs = { readFileSync };
+  // 24号卡:旧 devplay 页停用,只留历史说明+回编辑器;开发样例数据仍保留给短塔/历史工具
   const html = fs.readFileSync(join(ROOT, 'devplay.html'), 'utf8');
-  const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map((m) => m[1]);
-  const { DEVPLAY_SCRIPTS } = await import('./loader.mjs');
-  check('devplay.html 的脚本顺序 = 引擎 + devplay.js',
-    scripts.join(',') === DEVPLAY_SCRIPTS.join(','),
-    scripts.length + ' vs ' + DEVPLAY_SCRIPTS.length);
-  check('devplay.html 有 canvas / HUD / 暂停按钮',
-    ['dev-canvas', 'hud', 'btn-pause', 'pause-overlay', 'dev-error']
-      .every((id) => html.indexOf('id="' + id + '"') >= 0));
+  check('devplay.html 不再加载旧控制器', html.indexOf('js/devplay.js') < 0 && html.indexOf('RA.DEV_SAMPLES') < 0);
+  check('devplay.html 只跳正式 index',
+    html.indexOf('url=index.html') >= 0 && html.indexOf('js/devplay.js') < 0);
   check('开发样例已嵌入且与 JSON 一致',
     RA.DEV_SAMPLES && RA.DEV_SAMPLES.floorA.id === floorA.id &&
     RA.DEV_SAMPLES.floorB.id === floorB.id &&
@@ -221,7 +217,7 @@ head('页面入口与样例文件同步');
   const sync = spawnSync(process.execPath, [join(ROOT, 'tools/sync_dev_levels.mjs'), '--check'], {
     encoding: 'utf8', windowsHide: true
   });
-  check('js/dev-samples.js 与 levels/dev/*.json 同步', sync.status === 0,
+  check('js/dev-samples.js 与 levels/archive/dev/*.json 同步', sync.status === 0,
     (sync.stdout || '') + (sync.stderr || ''));
 }
 

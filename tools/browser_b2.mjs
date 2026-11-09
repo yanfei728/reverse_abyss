@@ -107,9 +107,13 @@ async function main() {
       (await evaluate('location.pathname.indexOf("short.html") >= 0')));
     check('菜单默认可见', await evaluate('getComputedStyle(document.getElementById("menu")).display') === 'flex');
     await evaluate('document.getElementById("btn-formal").click()');
-    await sleep(300);
-    check('正式池为空时明确提示,不启动', (await evaluate('document.getElementById("menu-status").textContent')).indexOf('正式池') >= 0 &&
-      await evaluate('!RA.short.state.session'));
+    await sleep(400);
+    // 25号卡:正式池为空也能开始完整塔(36 个普通槽用 test3 补位)
+    check('正式池为空也能开始完整塔', await waitFor('!!RA.short.state.session', 8000) &&
+      await evaluate('(function(){var s=RA.short.state.session;return s.world.floorCount===41 && RA.short.state.manifest.layout==="full40-v1";})()'));
+    await send('Page.reload');
+    await sleep(500);
+    await waitFor('!!RA.short && !!RA.short.state', 12000);
     await evaluate('document.getElementById("btn-dev").click()');
     check('开发短塔启动', await waitFor('!!RA.short.state.session', 8000));
     check('从大厅开始、生命 100', await evaluate('(function(){var s=RA.short.state.session.snapshot();return s.floor.kind==="lobby"&&s.hp===100&&s.floorCount===6;})()'));
@@ -128,14 +132,18 @@ async function main() {
     await sleep(250);
     check('继续后恢复', await evaluate('RA.short.state.session.paused') === false);
 
-    // 调试定位到大厅出口前,真实键盘跳过去(不是重新初始化)
+    // 调试短塔也从 0 层大厅按 F 出发(与完整塔同一套传送;不再翻越上边界/石管)
     await evaluate(`(function(){
       var s=RA.short.state.session, f=s.world.currentFloor, p=s.player;
-      p.x=f.origin.x+f.exitCol*45+8; p.y=f.seamY-p.h+5; p.vy=-360; p.onGround=false;
+      var fs=f.data.extensions && f.data.extensions.fixedScene;
+      var sp=fs && fs.playerSpawn;
+      if(sp){ p.x=f.origin.x+sp.centerCol*45-p.w/2; p.y=f.origin.y+(sp.feetRow-1)*45-p.h; }
+      p.vx=0; p.vy=0;
     })()`);
-    await key('rawKeyDown', 'Space', ' ', 32); await key('keyUp', 'Space', ' ', 32);
+    await sleep(150);
+    await key('rawKeyDown', 'KeyF', 'f', 70); await key('keyUp', 'KeyF', 'f', 70);
     const crossed = await waitFor('RA.short.state.session.floorIndex === 1', 3000);
-    check('真实输入越过大堂接口进入普通层', crossed);
+    check('真实按 F 从大厅进入普通层', crossed);
     check('HUD/会话保留生命与光环', await evaluate('(function(){var s=RA.short.state.session.snapshot();return s.hp===100 && s.castId===1;})()'));
     await shot('b2r1-browser-short-floor2.png');
 
@@ -150,71 +158,40 @@ async function main() {
       await evaluate('RA.short.state.manifest.manifestId') === oldManifest);
     await shot('b2r1-browser-short-retry.png');
 
-    // 编辑器 B2 工具:接口/对象/路径面板
+    // 24号卡后的编辑器:旧“对象/参数/路径”面板已移除,数据与画布工具保留
     await send('Page.navigate', { url: 'file:///' + join(ROOT, 'editor.html').replace(/\\/g, '/') });
     await sleep(800);
     check('编辑器加载', await waitFor('!!RA.editor && !!RA.editor.model', 15000));
-    const sample = readFileSync(join(ROOT, 'levels/b2/normal-1.json'), 'utf8');
+    const sample = readFileSync(join(ROOT, 'levels/archive/b2/normal-1.json'), 'utf8');
     check('打开普通层模板', await evaluate('RA.editor.openJSONText(' + JSON.stringify(sample) + ', "n1.json")') === true);
-    check('接口/对象/路径面板已填充',
-      await evaluate('document.getElementById("obj-list").children.length > 1') &&
-      await evaluate('document.getElementById("path-list").children.length >= 1') &&
-      await evaluate('document.getElementById("port-entry").value') !== '');
-    await evaluate(`(function(){
-      document.getElementById('port-entry').value='3';
-      document.getElementById('port-exit').value='5';
-      document.getElementById('btn-ports-apply').click();
-    })()`);
-    check('接口编辑写入模型', await evaluate('RA.editor.model.data.ports.entry.col===3 && RA.editor.model.data.ports.exit.col===5'));
-    await evaluate(`(function(){
-      document.getElementById('path-points').value='2,4\\n8,4';
-      document.getElementById('btn-path-new').click();
-    })()`);
-    check('路径点工具新增路径', await evaluate('RA.editor.model.data.paths.length >= 2'));
-    await evaluate(`(function(){
-      document.getElementById('obj-type').value='fireball_static';
-      document.getElementById('obj-col').value='5';
-      document.getElementById('obj-row').value='4';
-      document.getElementById('btn-obj-apply').click();
-    })()`);
-    check('对象参数工具新增对象', await evaluate('RA.editor.model.data.objects.some(function(o){return o.type==="fireball_static"})'));
-    await shot('b2r1-browser-editor-tools.png');
+    check('旧对象/参数/路径面板已移除',
+      await evaluate('document.getElementById("obj-list") === null && document.getElementById("obj-type") === null && ' +
+        'document.getElementById("path-list") === null && document.getElementById("btn-obj-apply") === null && ' +
+        'document.getElementById("btn-path-apply") === null'));
+    check('对象/路径数据仍在,端点区域仍显示',
+      await evaluate('RA.editor.model.data.objects.length > 0 && RA.editor.model.data.paths.length > 0') &&
+      await evaluate('!!document.getElementById("start-coord") && !!document.getElementById("finish-coord")'));
+    check('齿轮专属控件在画布工具旁,选齿轮时才显示',
+      await evaluate('!!document.getElementById("gear-mode")') &&
+      await evaluate('(function(){RA.editor.selectChar("~gear");return document.getElementById("gear-mode-row").style.display!=="none";})()') &&
+      await evaluate('(function(){RA.editor.selectChar("^");return document.getElementById("gear-mode-row").style.display==="none";})()'));
+    await shot('b2r1-browser-editor-after-24.png');
 
-    // 标准试玩页:只验证真实 standard-v1 页面/入口/无光环,不伪造通关认证
-    const n1 = JSON.parse(readFileSync(join(ROOT, 'levels/b2/normal-1.json'), 'utf8'));
-    const rulesVersion = await evaluate('RA.RULES.rulesVersion');
-    const rulesFingerprint = await evaluate('RA.RULES.rulesFingerprint');
-    await evaluate('sessionStorage.setItem("RA_STANDARD_V1", ' + JSON.stringify(JSON.stringify({
-      version: 1, template: n1, draftId: n1.id, revision: 1,
-      contentHash: n1.contentHash, rulesVersion: rulesVersion,
-      rulesFingerprint: rulesFingerprint, profile: 'standard-v1'
-    })) + ')');
+    // 旧标准试玩页:24号卡起只留说明+回编辑器,不再启动旧控制器
     await send('Page.navigate', { url: 'file:///' + join(ROOT, 'standard.html').replace(/\\/g, '/') });
     await sleep(700);
-    check('标准试玩页加载', await waitFor('!!RA.standard && !!RA.standard.session', 15000));
-    const stdSnap = await evaluate('(function(){var s=RA.standard.session;return {floors:s.world.floorCount,allow:s.profile.allowSkill,cd:s.snapshot().haloCooldownRemaining,err:document.getElementById("std-error").textContent};})()');
-    check('标准会话三层(入口/作者层/出口)且初始无活动光环',
-      stdSnap && stdSnap.floors === 3 && stdSnap.allow === true &&
-      stdSnap.cd > 18 && stdSnap.cd <= 20, JSON.stringify(stdSnap));
-    const stdHud = await evaluate('document.getElementById("std-hud").textContent');
-    check('标准页 HUD 显示初始冷却、不是永久禁用', stdHud.indexOf('技能冷却') >= 0 &&
-      stdHud.indexOf('无光环') < 0, stdHud);
-    await evaluate('RA.standard.session.run.haloCooldownRemaining = 0');
-    await key('rawKeyDown', 'KeyK', 'k', 75); await key('keyUp', 'KeyK', 'k', 75);
-    await sleep(150);
-    check('标准页 CD 归零后按 K 真正施放光环',
-      await evaluate('RA.standard.session.run.castId === 1') &&
-      await evaluate('RA.standard.session.run.haloActiveRemaining > 13'));
-    check('标准页光环 HUD/可见状态更新',
-      (await evaluate('document.getElementById("std-hud").textContent')).indexOf('光环') >= 0);
-    await shot('b2r1-browser-standard-start.png');
+    check('旧标准页不再启动旧控制器',
+      await evaluate('(typeof RA === "undefined" ? "undefined" : typeof RA.standard) === "undefined"') &&
+      await evaluate('document.body.textContent.indexOf("停用") >= 0') &&
+      await evaluate('!!document.querySelector(\'a[href="editor.html"]\')'));
+    await shot('b2r1-browser-standard-disabled.png');
 
     const evidence = {
       date: new Date().toISOString(), browser: browser.version.Browser,
       executable: browser.exe, userAgent: await evaluate('navigator.userAgent'),
       durationMs: Date.now() - t0, pass, fail, results,
       screenshots: ['docs/checks/b2r1-browser-short-start.png', 'docs/checks/b2r1-browser-short-floor2.png',
-        'docs/checks/b2r1-browser-short-retry.png', 'docs/checks/b2r1-browser-editor-tools.png', 'docs/checks/b2r1-browser-standard-start.png'],
+        'docs/checks/b2r1-browser-short-retry.png', 'docs/checks/b2r1-browser-editor-after-24.png', 'docs/checks/b2r1-browser-standard-disabled.png'],
       note: '标准试玩/人工通关认证未由自动化伪造;正式池此时为空。'
     };
     writeFileSync(join(OUT, 'browser-b2r1-2026-11-06.json'), JSON.stringify(evidence, null, 2) + '\n', 'utf8');

@@ -4,7 +4,7 @@
  * migrate_levels.mjs —— 把 levels/*.json(旧 asc 格式)一次性迁移成 v2 草稿
  * =======================================================================
  *     node tools/migrate_levels.mjs
- *     node tools/migrate_levels.mjs --in levels --out levels/v2 \
+ *     node tools/migrate_levels.mjs --in levels --out levels/archive/v2 \
  *          --report docs/checks/T01-legacy-migration.md [--force]
  *
  * 路径安全(2026-10-31 验收 R2):
@@ -32,7 +32,7 @@ const LD = RA.LevelData;
 
 export const DEFAULTS = {
   inDir: 'levels',
-  outDir: 'levels/v2',
+  outDir: 'levels/archive/v2',
   report: 'docs/checks/T01-legacy-migration.md'
 };
 
@@ -102,7 +102,7 @@ export function planMigration(opts) {
   if (inKey === outKey) {
     errors.push(planError('PATH_CONFLICT',
       '输入与输出是同一个目录(' + inDir + '):迁移会覆盖源文件,拒绝执行。' +
-      '请把 --out 指到独立目录,例如 levels/v2'));
+      '请把 --out 指到独立目录,例如 levels/archive/v2'));
   }
   if (pathKey(reportPath) === pathKey(reportJsonPath)) {
     errors.push(planError('REPORT_CONFLICT', 'Markdown 报告和 JSON 报告是同一个路径:' + reportPath));
@@ -345,7 +345,7 @@ export function buildReport(plan, now) {
   md.push('```powershell');
   md.push('node tools/migrate_levels.mjs                      # 重新生成（内容相同则幂等跳过）');
   md.push('node tools/migrate_levels.mjs --force              # 显式覆盖内容不同的既有输出');
-  md.push('git checkout -- levels/v2                          # 只撤销迁移输出');
+  md.push('git checkout -- levels/archive/v2                          # 只撤销迁移输出');
   md.push('```');
   md.push('');
   return md.join('\n');

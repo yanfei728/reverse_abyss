@@ -554,7 +554,7 @@ let tempRoots = [];
 const levelsAfter = snapshotTree(LEVELS_DIR);
 const v2After = snapshotTree(V2_DIR);
 check('测试没有改动正式 levels/*.json', JSON.stringify(levelsBefore) === JSON.stringify(levelsAfter));
-check('测试没有改动正式 levels/v2/*.json', JSON.stringify(v2Before) === JSON.stringify(v2After));
+check('测试没有改动正式 levels/archive/v2/*.json', JSON.stringify(v2Before) === JSON.stringify(v2After));
 const outsideTmp = tempRoots.filter((d) => pathKey(d).indexOf(pathKey(tmpdir())) !== 0);
 check('R2 夹具全部在系统临时目录内', outsideTmp.length === 0,
   outsideTmp.join(','));

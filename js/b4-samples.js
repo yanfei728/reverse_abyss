@@ -1,5 +1,5 @@
 /* -*- coding: utf-8 -*- */
-/* 由 tools/sync_b4_levels.mjs 从 levels/authored/short 与 levels/authored/fixed 生成;不要手改。 */
+/* 由 tools/sync_b4_levels.mjs 从 levels/archive/authored/short 与 levels/archive/authored/fixed 生成;不要手改。 */
 (function (RA) {
   'use strict';
   RA.B4_SAMPLES = {

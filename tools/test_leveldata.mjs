@@ -67,13 +67,20 @@ head('SHA-256:与 node:crypto 一致(跨 Node / 浏览器同一个 hash)');
 }
 
 // ================= ② 对象注册表 =================
-head('对象注册表:首版六个类型、参数描述与默认值');
+head('对象注册表:类型、参数描述与默认值');
 {
   const types = RA.EntityRegistry.types();
-  check('注册了 6 种首版对象', types.length === 6, types.join(', '));
-  check('包含 spring / crumble_door / blink_platform / fireball_static / spike / gear',
-    ['spring', 'crumble_door', 'blink_platform', 'fireball_static', 'spike', 'gear']
+  check('注册了 12 种对象(30号卡新增 coin / archer)', types.length === 12, types.join(', '));
+  check('包含 spring / crumble_door / blink_platform / fireball_static / fireball_moving / spike / gear / flail / soul / sewage_pool / coin / archer',
+    ['spring', 'crumble_door', 'blink_platform', 'fireball_static', 'fireball_moving', 'spike', 'gear', 'flail', 'soul', 'sewage_pool', 'coin', 'archer']
       .every((t) => RA.EntityRegistry.has(t)));
+  check('coin 是拾取物、archer 是敌对单位(类别分流,不把金币当怪物)',
+    RA.EntityRegistry.get('coin').category === 'collectible' &&
+    RA.EntityRegistry.get('archer').category === 'hostile' &&
+    RA.EntityRegistry.get('coin').params.length === 0 &&
+    RA.EntityRegistry.get('archer').params.length === 0 &&
+    RA.EntityRegistry.get('coin').requiresPath === false &&
+    RA.EntityRegistry.get('archer').requiresPath === false);
   check('旧字符映射:S→spring, x→crumble_door, y→blink_platform',
     RA.EntityRegistry.typeOfLetter('S') === 'spring' &&
     RA.EntityRegistry.typeOfLetter('x') === 'crumble_door' &&
@@ -81,16 +88,19 @@ head('对象注册表:首版六个类型、参数描述与默认值');
   check('没有注册的旧字符返回 null', RA.EntityRegistry.typeOfLetter('Z') === null);
   const gear = RA.EntityRegistry.get('gear');
   check('gear 标记为必须引用路径', gear.requiresPath === true);
-  check('每个参数都有中文名、单位、范围与默认值',
-    RA.EntityRegistry.list().every((t) => t.params.length > 0 && t.params.every((p) =>
+  check('移动火球必须引用路径,流星锤不需要',
+    RA.EntityRegistry.get('fireball_moving').requiresPath === true &&
+    RA.EntityRegistry.get('flail').requiresPath === false);
+  check('每个参数都有中文名、单位、范围与默认值;无参类型允许空参数',
+    RA.EntityRegistry.list().every((t) => t.params.every((p) =>
       p.label && typeof p.unit === 'string' && typeof p.def === 'number' &&
       typeof p.min === 'number' && typeof p.max === 'number' && p.def >= p.min && p.def <= p.max)));
-  check('必填参数默认值与 config 一致(齿轮速度 2 格/秒)',
+  check('必填参数默认值与 config 一致(齿轮兼容速度 = 340/45 格/秒)',
     RA.EntityRegistry.defaults('gear').speedTilesPerSecond === RA.C.OBJECT_PARAMS.gear.speedTilesPerSecond.def);
   check('可选参数不强行补默认值(弹簧的弹力覆盖)',
     Object.keys(RA.EntityRegistry.defaults('spring')).length === 0);
   check('注册表没有被调用方共享可变引用',
-    (() => { const a = RA.EntityRegistry.get('gear'); a.params[0].def = 999; return RA.EntityRegistry.get('gear').params[0].def === 2; })());
+    (() => { const a = RA.EntityRegistry.get('gear'); a.params[0].def = 999; return RA.EntityRegistry.get('gear').params[0].def === 340 / 45; })());
   check('内置背景 id 是 sky1~sky8', RA.EntityRegistry.backgroundIds().join(',') ===
     ['sky1', 'sky2', 'sky3', 'sky4', 'sky5', 'sky6', 'sky7', 'sky8'].join(','));
   check('注册表不会把 Object.prototype 的键当成对象类型',
@@ -490,15 +500,16 @@ head('认证:内容变化后失效,写文件时不会带出过期的认证');
     }), { purpose: 'draft' }), 'INVALID_FIELD', '/certification/source'));
 }
 
-// ================= ⑨ 旧图迁移(真实 12 张) =================
-head('旧图迁移:12 张内置图逐格保真、对象/入口/出口保真、原文件不变');
-const LEVEL_DIR = join(ROOT, 'levels');
-const V2_DIR = join(LEVEL_DIR, 'v2');
+// ================= ⑨ 旧图迁移(真实 12 张,只读归档) =================
+head('旧图迁移:12 张归档旧图逐格保真、对象/入口/出口保真、原文件不变');
+// 25号卡后活动普通池为空,旧 12 张移入只读归档;迁移结果仍放在 levels/archive/v2/
+const LEVEL_DIR = join(ROOT, 'levels', 'archive', 'legacy-pool-2026-11-09');
+const V2_DIR = join(ROOT, 'levels', 'archive', 'v2');
 const levelFiles = readdirSync(LEVEL_DIR)
   .filter((f) => f.endsWith('.json') && !f.startsWith('_')).sort();
 const srcHashesBefore = levelFiles.map((f) => sha256File(join(LEVEL_DIR, f)));
 
-check('12 张旧图都在', levelFiles.length === 12, levelFiles.length + ' 张');
+check('归档里 12 张旧图都在', levelFiles.length === 12, levelFiles.length + ' 张');
 check('迁移输出目录存在', existsSync(V2_DIR));
 check('模板 _template.json 没有被迁移', !existsSync(join(V2_DIR, '_template.json')));
 
@@ -579,9 +590,9 @@ check('模板 _template.json 没有被迁移', !existsSync(join(V2_DIR, '_templa
 
     // 磁盘上的 v2 文件必须和"现在重新迁移"的结果一模一样(工具输出不漂移)
     const diskPath = join(V2_DIR, id + '.json');
-    if (!existsSync(diskPath)) mismatch.push(id + ': levels/v2/' + id + '.json 不存在');
+    if (!existsSync(diskPath)) mismatch.push(id + ': levels/archive/v2/' + id + '.json 不存在');
     else if (readFileSync(diskPath, 'utf8') !== enc.value) {
-      mismatch.push(id + ': levels/v2/' + id + '.json 与重新迁移的结果不一致(要重跑 tools/migrate_levels.mjs)');
+      mismatch.push(id + ': levels/archive/v2/' + id + '.json 与重新迁移的结果不一致(要重跑 tools/migrate_levels.mjs)');
     } else if (!LD.decode(readFileSync(diskPath, 'utf8')).ok) {
       mismatch.push(id + ': v2 文件 hash 校验失败');
     }
@@ -595,7 +606,7 @@ check('模板 _template.json 没有被迁移', !existsSync(join(V2_DIR, '_templa
   const srcHashesAfter = levelFiles.map((f) => sha256File(join(LEVEL_DIR, f)));
   check('迁移没有改动任何原文件(前后 sha256 一致)',
     srcHashesBefore.join(',') === srcHashesAfter.join(','));
-  check('levels/ 下仍然只有旧格式的正式关卡(没有覆盖旧图)',
+  check('归档里仍然只有旧格式的正式关卡(没有覆盖旧图)',
     levelFiles.every((f) => JSON.parse(readFileSync(join(LEVEL_DIR, f), 'utf8')).schemaVersion === undefined));
 }
 

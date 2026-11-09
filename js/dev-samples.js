@@ -1,7 +1,7 @@
 /* -*- coding: utf-8 -*- */
 /*
  * dev-samples.js —— 连续试玩用的开发样例(自动生成,不要手改)
- * 来源:levels/dev/*.json;重新生成:node tools/sync_dev_levels.mjs
+ * 来源:levels/archive/dev/*.json;重新生成:node tools/sync_dev_levels.mjs
  * 开发模式样例,未认证;不进入正式随机池。
  */
 (function (RA) {

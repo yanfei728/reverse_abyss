@@ -36,15 +36,35 @@ const RA = loadEngine();
 const canvas = RA.__canvas;
 const ctx = canvas.getContext('2d');
 
+// 25号卡:活动普通池已清空,旧 12 张只在只读归档里;引擎/旧原型的历史检查显式读归档。
+const ARCHIVE_DIR = join(ROOT, 'levels', 'archive', 'legacy-pool-2026-11-09');
+function readArchive() {
+  const out = {};
+  if (!existsSync(ARCHIVE_DIR)) return out;
+  readdirSync(ARCHIVE_DIR).filter((f) => f.endsWith('.json')).sort().forEach((f) => {
+    out[basename(f, '.json')] = JSON.parse(readFileSync(join(ARCHIVE_DIR, f), 'utf8'));
+  });
+  return out;
+}
+const ARCHIVE = readArchive();
+const ARCHIVE_TEXT = {};
+Object.keys(ARCHIVE).forEach((id) => {
+  const d = ARCHIVE[id];
+  const asc = Array.isArray(d.asc) ? d.asc.join('\n') : String(d.asc || '');
+  ARCHIVE_TEXT[id] = asc;
+});
+
 // ================= ① levels.js 与 levels/*.json 同步 =================
-head('关卡数据:levels/*.json 与内嵌 levels.js 是否一致');
+head('关卡数据:活动内置普通池为空、levels.js 与 levels/*.json 一致');
 {
   const dir = join(ROOT, 'levels');
   const jsons = readdirSync(dir)
     .filter((f) => f.endsWith('.json') && !f.startsWith('_')).sort();
   const embedded = RA.LEVEL_DATA || {};
-  check('levels.js 存在并且有内容', Object.keys(embedded).length > 0,
-    Object.keys(embedded).length + ' 个关卡');
+  check('25号卡:活动内置普通池已清空', jsons.length === 0 && Object.keys(embedded).length === 0,
+    jsons.length + ' 个活动 json / ' + Object.keys(embedded).length + ' 个内嵌关卡');
+  check('旧 12 张只读归档仍存在(未删除原图)',
+    Object.keys(ARCHIVE).length === 12, Object.keys(ARCHIVE).length + ' 张');
   jsons.forEach((f) => {
     const id = basename(f, '.json');
     const disk = JSON.parse(readFileSync(join(dir, f), 'utf8'));
@@ -74,32 +94,27 @@ head('页面引用的脚本:路径对不对、顺序和引擎清单一致吗');
     while ((m = re.exec(html))) out.push(m[1].replace(prefix, ''));
     return out;
   };
-  const idx = scripts('legacy.html', '');
-  check('legacy.html 引用了全部引擎脚本(顺序和 loader.mjs 一致)',
-    idx.slice(0, -1).join(',') === ENGINE.join(','),
-    idx.length + ' 个 / 期望 ' + (ENGINE.length + 1));
-  check('legacy.html 最后引的是 main.js', idx[idx.length - 1] === 'js/main.js');
-  idx.forEach((s) => check('legacy.html 里 ' + s + ' 这个文件存在', existsSync(join(ROOT, s))));
+  for (const f of ['legacy.html', 'short.html', 'tests/browser.html']) {
+    const h = readFileSync(join(ROOT, f), 'utf8');
+    check(f + ' 只跳 index,不加载旧 main/game', /url=(?:\.\.\/)?index\.html/.test(h) &&
+      h.indexOf('js/main.js') < 0 && h.indexOf('js/game.js') < 0 && h.indexOf('js/tower.js') < 0);
+  }
   const indexHtml = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  check('index.html 默认指向当前短塔', indexHtml.indexOf('short.html') >= 0 &&
-    indexHtml.indexOf('http-equiv="refresh"') >= 0);
-  check('index.html 不再启动旧 main.js', indexHtml.indexOf('js/main.js') < 0 &&
-    indexHtml.indexOf('js/game.js') < 0);
-  check('旧原型有明确历史入口', indexHtml.indexOf('legacy.html') >= 0 &&
-    existsSync(join(ROOT, 'legacy.html')));
-
-  const br = scripts('tests/browser.html', '../');
-  check('tests/browser.html 引用的脚本和引擎清单一样',
-    br.slice(0, -1).join(',') === ENGINE.join(','), br.length + ' 个');
-  br.forEach((s) => check('tests/browser.html 里 ' + s + ' 这个文件存在', existsSync(join(ROOT, s))));
+  check('index 是唯一正式壳:英文logo/开始/退出/设置', indexHtml.indexOf('REVERSE ABYSS') >= 0 &&
+    indexHtml.indexOf('btn-formal') >= 0 && indexHtml.indexOf('btn-quit') >= 0 &&
+    indexHtml.indexOf('btn-main-settings') >= 0);
+  check('index 加载正式控制器/完整塔数据且不启动旧 main/game', indexHtml.indexOf('js/short.js') >= 0 &&
+    indexHtml.indexOf('js/full40-samples.js') >= 0 && indexHtml.indexOf('js/main.js') < 0 &&
+    indexHtml.indexOf('js/game.js') < 0 && indexHtml.indexOf('js/tower.js') < 0);
+  check('index 不再自动跳 short/旧原型', indexHtml.indexOf('http-equiv="refresh"') < 0);
 
   check('css/style.css 存在', existsSync(join(ROOT, 'css/style.css')));
   check('README.md 存在', existsSync(join(ROOT, 'README.md')));
 }
 
 // ================= ② 关卡池体检 =================
-head('关卡池体检');
-const pack = buildPack(RA);
+head('关卡池体检(只读归档的 12 张旧图,活动池不再使用)');
+const pack = buildPack(RA, ARCHIVE);
 check('关卡池非空', pack.pool.length > 0, pack.pool.length + ' 个模板');
 pack.pool.forEach((e) => {
   check(`${e.id} 尺寸合理`, e.rows >= 8 && e.cols >= 6, `${e.rows}×${e.cols}`);
@@ -193,10 +208,11 @@ head('http 打开时会 fetch levels/<id>.json(磁盘上的内容盖过内嵌那
 {
   const realFetch = globalThis.fetch;
   const realLoc = globalThis.location;
-  const dir = join(ROOT, 'levels');
   const files = {};
-  readdirSync(dir).filter((f) => f.endsWith('.json') && !f.startsWith('_'))
-    .forEach((f) => { files['levels/' + f] = readFileSync(join(dir, f), 'utf8'); });
+  // 活动池已空;这里用归档的旧图内容模拟"磁盘上仍有 levels/<id>.json"
+  Object.keys(ARCHIVE).forEach((id) => {
+    files['levels/' + id + '.json'] = JSON.stringify(ARCHIVE[id]);
+  });
 
   globalThis.location = { protocol: 'http:', search: '', href: 'http://localhost:8000/' };
   globalThis.fetch = (url) => Promise.resolve({
@@ -309,6 +325,7 @@ const res = RA.Smoke.runAll(game, (line, kind) => {
 // ================= ⑥ 绘制冒烟 =================
 // 浏览器里改过的层:读不到 txt(file://)时游戏要用浏览器那份
 const ovId0 = pack.pool[0].id;
+const baseText0 = pack.pool[0].text;
 RA.LevelPack.putOverride(ovId0, '// name: 起攀(改过)\n+++G+\n+++++\n+P+++\n+^^^+\n+===+\n');
 const g2 = new RA.Game(canvas, pack);
 check('游戏会拿浏览器里的覆盖换掉同一层', g2.pool()[0].text === RA.LevelPack.readOverrides()[ovId0]);
@@ -317,14 +334,14 @@ check('池子里没有多出一层(还是同一个 id)', g2.pool()[0].id === ovI
 RA.LevelPack.removeOverride(ovId0);
 const g3 = new RA.Game(canvas, pack);
 check('清掉覆盖之后回到 txt / 内嵌那份',
-  g3.pool()[0].text === RA.LEVEL_TEXT[ovId0]);
+  g3.pool()[0].text === baseText0);
 check('读得到 txt 时以 txt 为准(liveText 的层不会被覆盖盖住)',
   (() => {
     RA.LevelPack.putOverride(ovId0, '// name: 不该赢\n+++G+\n+++++\n+P+++\n+^^^+\n+===+\n');
-    const p2 = buildPack(RA);
+    const p2 = buildPack(RA, ARCHIVE);
     p2.pool[0].liveText = true;                 // 假装 http 下 fetch 到了 txt
     const g4 = new RA.Game(canvas, p2);
-    const got = g4.pool()[0].text === RA.LEVEL_TEXT[ovId0];
+    const got = g4.pool()[0].text === baseText0;
     RA.LevelPack.removeOverride(ovId0);
     return got;
   })());
@@ -712,10 +729,13 @@ head('开局界面 + 设置面板交互');
 head('浏览器入口 main.js:整条启动链路');
 {
   let ok = true, msg = '';
+  const savedLevelData = RA.LEVEL_DATA;
+  RA.LEVEL_DATA = ARCHIVE;   // 旧原型入口仍用归档旧图做启动链路检查;活动池本身为空
   try {
     vm.runInThisContext(readFileSync(join(ROOT, 'js/main.js'), 'utf8'),
       { filename: 'js/main.js' });
   } catch (e) { ok = false; msg = (e && e.message) + '\n' + (e && e.stack); }
+  finally { RA.LEVEL_DATA = savedLevelData; }
   check('main.js 能跑起来(它会自己 boot)', ok, msg);
   check('入口把 Game 建好了并挂在 RA.game 上', RA.game instanceof RA.Game);
   check('入口建好的游戏停在开局界面', RA.game && RA.game.state === 'title');

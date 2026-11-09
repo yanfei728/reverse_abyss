@@ -141,8 +141,9 @@
             this.state = 'defeated';
             this.defeated = true;
             this.clearHazards();
-            this.floor.exitOpen = true;
-            session.win('bossDefeated');
+            // 由 GameSession 按槽位决定:20 停攻/F 传送 21;40 才完整塔胜利
+            if (session.onBossDefeated) session.onBossDefeated(this);
+            else session.win('bossDefeated');
           }
         }
       }

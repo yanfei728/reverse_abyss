@@ -37,6 +37,8 @@
       this.player = player;
       this.mode = opts.mode || 'dev';
       this.manifest = opts.manifest || null;
+      this.trialPlan = opts.trialPlan || null;
+      this.trialCompleted = null;
       this.profile = profile;
       this.rules = {
         rulesVersion: rules.rulesVersion || 'b2-1',
@@ -64,10 +66,21 @@
         castId: 0,
         visited: new Set(),
         claimedRest: new Set(),
+        defeatedBosses: new Set(),
         elapsed: 0
       };
       this._damagedThisStep = false;
       this.boss = null;
+      /*
+       * 30:只有正式完整塔计分(现有正式身份 mode:'full40-formal',由 short.startFormal 传入)。
+       * 不能用“有 run-v1”判断 —— 试玩也用 run-v1。试玩/开发短塔的 score 保持 null,
+       * 不创建计分状态、不发 scoreChanged、不写最高分。
+       */
+      this.formal = this.mode === ((RA.C.SCORE && RA.C.SCORE.formalMode) || 'full40-formal');
+      this.score = this.formal ? 0 : null;
+      this._scoredFloors = new Set();
+      this._scoredEnemies = new Set();
+      this._scoredCoins = new Set();
     }
 
     /** B1 兼容入口:floors 数组。B2 页面用 manifest/templates 适配后也走这里。 */
@@ -87,19 +100,18 @@
         }
       }
       for (var i = 0; i < floors.length; i++) {
-        var issues = LD.validate(floors[i], { purpose: 'play' });
-        var errors = LD.errorsOf(issues);
-        if (errors.length) {
-          return fail(errors[0].code,
-            '第 ' + (i + 1) + ' 层不能运行:' + errors[0].path + ' ' + errors[0].message,
-            errors);
+        // 正式加载只保留"能不能读/能不能装配"的检查;几何/净空/可达性不再否决人工通过
+        var issues = LD.readableIssues ? LD.readableIssues(floors[i]) : LD.errorsOf(LD.validate(floors[i], { purpose: 'load' }));
+        if (issues.length) {
+          return fail(issues[0].code,
+            '第 ' + (i + 1) + ' 层不能运行:' + issues[0].path + ' ' + issues[0].message,
+            issues);
         }
       }
       var world = new RA.World(floors, { startFloor: 0 });
       var player = new RA.Player(world.currentFloor.view);
       world.attachPlayer(player);
       var s = new GameSession(world, player, opts);
-      world.instances.forEach(function (inst) { inst.instanceId = inst.index + ':' + inst.data.id; });
       return ok(s);
     }
 
@@ -113,20 +125,29 @@
       if (next.interactPressed) this.actions.interactPressed = true;
     }
 
-    /** 大厅固定入口提示:靠近作者出生锚点才显示;F 一次进入第1层 */
+    /** 大厅 F 提示 + 20 层 Boss 击败后的 F 传送提示;其他层没有可交互物 */
     interactionPrompt() {
-      if (!this.world || this.world.current !== 0 || this.run.status !== 'running') return null;
+      if (!this.world || this.run.status !== 'running') return null;
       var f = this.world.currentFloor;
-      if (!f || !f.fixedLobby) return null;
-      var fs = f.data.extensions && f.data.extensions.fixedScene;
-      var p = fs && fs.playerSpawn;
-      if (!p) return null;
-      var cx = f.origin.x + p.centerCol * RA.C.TS;
-      var cy = f.origin.y + (p.feetRow - 0.5) * RA.C.TS;
-      var dx = (this.player.x + this.player.w / 2) - cx;
-      var dy = (this.player.feet - cy);
-      if (Math.abs(dx) > RA.C.TS * 1.5 || Math.abs(dy) > RA.C.TS * 1.5) return null;
-      return { kind: 'start-tower', text: '按 F 开始挑战', action: 'interact' };
+      if (!f) return null;
+      if (this.world.current === 0) {
+        if (!f.fixedLobby) return null;
+        var fs = f.data.extensions && f.data.extensions.fixedScene;
+        var p = fs && fs.playerSpawn;
+        if (!p) return null;
+        var cx = f.origin.x + p.centerCol * RA.C.TS;
+        var cy = f.origin.y + (p.feetRow - 0.5) * RA.C.TS;
+        var dx = (this.player.x + this.player.w / 2) - cx;
+        var dy = (this.player.feet - cy);
+        if (Math.abs(dx) > RA.C.TS * 1.5 || Math.abs(dy) > RA.C.TS * 1.5) return null;
+        return { kind: 'start-tower', text: '按 F 开始挑战', action: 'transfer' };
+      }
+      if (f.data.kind === 'boss' && this.world.exitActionAt(this.world.current) === 'boss-transfer') {
+        if (this.boss && this.boss.floor === f && this.boss.defeated) {
+          return { kind: 'boss-transfer', text: '按 F 进入21层', action: 'transfer' };
+        }
+      }
+      return null;
     }
 
     pressSkill() { this.actions.skillPressed = true; }
@@ -171,12 +192,17 @@
 
     stepOnce() {
       if (this.paused || this.disposed || this.run.status !== 'running') return;
-      if (this.actions.interactPressed && this.interactionPrompt()) {
-        this.actions.interactPressed = false;
-        var tr = this.world.enterFirstFloor(this.player);
-        if (tr.ok) {
-          this.events.push(tr.value);
-          this._event('towerStarted', { floor: 1 });
+      // F:按当前槽位的提示分派传送(0→1 大厅出发 / 20 Boss 击败后→21),不写死 enterFirstFloor
+      if (this.actions.interactPressed) {
+        var prompt = this.interactionPrompt();
+        if (prompt && prompt.action === 'transfer') {
+          this.actions.interactPressed = false;
+          var tr = this.world.transferNext(this.player);
+          if (tr.ok) {
+            this._onFloorEntered(tr.value);
+            this._event(prompt.kind === 'start-tower' ? 'towerStarted' : 'bossTransfer', { floor: this.world.current });
+            this.transferredThisStep = true;
+          }
         }
       }
       this.time += STEP;
@@ -209,7 +235,9 @@
 
       var active = this.world.currentFloor;
       if (active) active.updateActiveObjects(STEP, this);
-      if (this.boss && this.run.status === 'running') this.boss.update(STEP, this);
+      if (this.boss && this.run.status === 'running' && active && active.data.kind === 'boss') {
+        this.boss.update(STEP, this);
+      }
 
       this._applyHalo();
 
@@ -230,6 +258,9 @@
       if (!floor) return;
       this.run.visited.add(floor.instanceId);
       this._event('floorEntered', { from: ev.from, to: ev.to });
+      // 30:首次进入真实层号 1…40 各 +20(含 10/30 休息、20/40 Boss、F 传送;0 出生不加)。
+      // 去重按本局槽号,重复的 floorEntered/调试跳层不会重复加分。
+      this._awardFloorOnce();
       if (floor.data.kind === 'rest' && this.profile.allowRest !== false &&
         !this.run.claimedRest.has(floor.instanceId)) {
         this.run.claimedRest.add(floor.instanceId);
@@ -237,11 +268,84 @@
         this.run.hp = Math.min(this.run.maxHp, this.run.hp + ((RA.RULES && RA.RULES.tuning.restHeal) || 40));
         this._event('restHealed', { floor: this.world.current, amount: this.run.hp - before });
       }
-      if (floor.data.kind === 'boss' && !this.boss) {
+      if (floor.data.kind === 'boss') {
         floor.exitOpen = false;
-        this.boss = new RA.Boss(floor);
-        this._event('bossEntered', { floor: this.world.current });
+        // 20 与 40 都用同一 Boss 模板,但必须是独立实例;离开后不再复用旧状态
+        if (!this.boss || this.boss.floor !== floor) {
+          this.boss = new RA.Boss(floor);
+          this.run.defeatedBosses = this.run.defeatedBosses || new Set();
+          this._event('bossEntered', { floor: this.world.current, instanceId: floor.instanceId });
+        }
+      } else if (this.boss) {
+        // 离开 Boss 层:旧 Boss 不再 update/被光环命中;进 40 会创建全新实例
+        this.boss = null;
       }
+    }
+
+    // ---------------- 30:正式塔计分(唯一真值) ----------------
+    /** 一个最小的集中入口:只在正式局、running 状态加分,并发 scoreChanged 给 UI 读 */
+    _award(delta, reason, extra) {
+      if (!this.formal || this.run.status !== 'running') return false;
+      var n = Math.max(0, Math.round(Number(delta) || 0));
+      if (!n) return false;
+      this.score = (this.score || 0) + n;
+      this._event('scoreChanged', Object.assign({
+        score: this.score, delta: n, reason: reason
+      }, extra || {}));
+      return true;
+    }
+
+    /** 首次进入真实层号 1…40:按本局槽号去重;0 层出生不加,40 胜利不重复 */
+    _awardFloorOnce() {
+      if (!this.formal || this.run.status !== 'running') return false;
+      var n = this.world.current;
+      if (!(n >= 1 && n <= 40)) return false;
+      var key = String(n);
+      if (this._scoredFloors.has(key)) return false;
+      this._scoredFloors.add(key);
+      return this._award((RA.C.SCORE && RA.C.SCORE.floorEnter) || 20, 'floor', { floor: n });
+    }
+
+    /** 敌对单位真的被击败:按本局 instanceId + objectId 去重;机械/池/箭/弹幕不在此列 */
+    _awardEnemyKill(floor, objectId, type) {
+      if (!this.formal || this.run.status !== 'running') return false;
+      if (!floor || !objectId) return false;
+      var key = floor.instanceId + '|' + objectId;
+      if (this._scoredEnemies.has(key)) return false;
+      this._scoredEnemies.add(key);
+      return this._award((RA.C.SCORE && RA.C.SCORE.enemyDefeat) || 5, 'enemy',
+        { instanceId: floor.instanceId, sourceId: objectId, enemyType: type || '' });
+    }
+
+    /** 金币被玩家身体拾取(由 FloorInstance 的成功状态变化调用;试玩没有这个方法) */
+    onCoinCollected(o) {
+      if (!this.formal || this.run.status !== 'running') return false;
+      var floor = this.world.currentFloor;
+      if (!floor || !o) return false;
+      var key = floor.instanceId + '|' + o.id;
+      if (this._scoredCoins.has(key)) return false;
+      this._scoredCoins.add(key);
+      return this._award((RA.C.SCORE && RA.C.SCORE.coin) || 10, 'coin',
+        { instanceId: floor.instanceId, sourceId: o.id });
+    }
+
+    /** Boss 击败回报:按槽位决定 20 只停攻给 F、40 才胜利 */
+    onBossDefeated(boss) {
+      var floor = this.world.currentFloor;
+      if (!floor || !boss || boss.floor !== floor) return false;
+      this.run.defeatedBosses = this.run.defeatedBosses || new Set();
+      if (this.run.defeatedBosses.has(floor.instanceId)) return false;
+      this.run.defeatedBosses.add(floor.instanceId);
+      floor.exitOpen = true;
+      // 30:Boss 整只最终击败一次 +5;先入账,再决定 F 传送或胜利(阶段切换不加分)
+      this._awardEnemyKill(floor, 'boss', 'boss');
+      this._event('bossDefeated', { floor: this.world.current, instanceId: floor.instanceId });
+      if (this.world.exitActionAt(this.world.current) === 'victory') {
+        this.win('bossDefeated');
+        return true;
+      }
+      this._event('bossCleared', { floor: this.world.current, next: 'boss-transfer' });
+      return true;
     }
 
     castSkill() {
@@ -270,18 +374,20 @@
       var cy = this.player.y + this.player.h / 2;
       var floor = this.world.currentFloor;
       if (!floor) return;
-      // 只杀活动层的火球;preview 层不可能在 currentFloor
+      // 只杀活动层的可消灭怪物(静止/移动火球);机械类不消灭
       floor.objects.forEach(function (o) {
-        if (!o.alive || o.type !== 'fireball_static') return;
+        if (!o.alive || !RA.MonsterRules || !RA.MonsterRules.haloDestroyable(o.type)) return;
         var dx = o.rx - (cx - floor.origin.x);
         var dy = o.ry - (cy - floor.origin.y);
         if (dx * dx + dy * dy <= radius * radius) {
           o.alive = false;
-          this._event('fireballDestroyed', { objectId: o.id, castId: run.castId });
+          // 30:真正的活体→死亡状态变化处加击杀分;持续光环/重复帧不会重复加
+          this._awardEnemyKill(floor, o.id, o.type);
+          this._event('fireballDestroyed', { objectId: o.id, castId: run.castId, enemyType: o.type });
         }
       }, this);
       // Boss:命中消耗本次光环,不重置冷却;一次 castId 只掉一阶段
-      if (this.boss && !this.boss.defeated) {
+      if (this.boss && this.boss.floor === floor && !this.boss.defeated) {
         var b = this.boss.box();
         var near = cx < b.x + b.w + radius && cx + 0 > b.x - radius &&
           cy < b.y + b.h + radius && cy + 0 > b.y - radius;
@@ -317,6 +423,7 @@
       this.run.hp = Math.max(0, this.run.hp);
       this.run.status = 'dead';
       this.accumulator = 0;
+      if (this.world && this.world.clearArrows) this.world.clearArrows();
       this._event('dead', { reason: reason || 'hp', floor: this.world.current });
       return true;
     }
@@ -325,6 +432,7 @@
       if (this.run.status !== 'running') return false;
       this.run.status = 'won';
       this.accumulator = 0;
+      if (this.world && this.world.clearArrows) this.world.clearArrows();
       this._event('won', { reason: reason || 'bossDefeated' });
       return true;
     }
@@ -366,8 +474,12 @@
         haloActiveRemaining: this.run.haloActiveRemaining,
         haloCooldownRemaining: this.run.haloCooldownRemaining,
         castId: this.run.castId,
+        score: this.formal ? this.score : null,
         floorIndex: this.world.current,
         floorCount: this.world.floorCount,
+        floorNumber: this.world.current,
+        exitAction: this.world.exitActionAt(this.world.current),
+        bossDefeated: !!(this.boss && this.boss.defeated),
         time: this.time,
         paused: this.paused,
         player: {
@@ -391,6 +503,7 @@
     dispose() {
       this.disposed = true;
       this.events.length = 0;
+      if (this.world && this.world.clearArrows) this.world.clearArrows();
     }
   }
 

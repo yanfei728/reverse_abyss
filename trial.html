@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>reverse_abyss · 试玩验证</title>
+<title>reverse_abyss · 单图试玩</title>
 <style>
   html, body { margin: 0; height: 100%; background: #05060c; color: #cfd8ea;
     font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; overflow: hidden; }
@@ -43,14 +43,14 @@
 <div id="app">
   <div id="wrap">
     <canvas id="dev-canvas" width="960" height="540"></canvas>
-    <div id="hud"><div id="hpbar" style="width:220px;height:14px;background:#241820;border:1px solid #5b3340;border-radius:7px;overflow:hidden;margin-bottom:4px"><div id="hp-fill" style="height:100%;width:100%;background:#e05252"></div></div><div id="hp-text">生命 100/100</div><div id="trial-info">正在启动试玩验证…</div></div>
+    <div id="hud"><div id="hpbar" style="width:220px;height:14px;background:#241820;border:1px solid #5b3340;border-radius:7px;overflow:hidden;margin-bottom:4px"><div id="hp-fill" style="height:100%;width:100%;background:#e05252"></div></div><div id="hp-text">生命 100/100</div><div id="trial-info">正在启动当前图…</div></div>
     <div id="dev-status"></div>
     <div id="help">A/D 或 ←/→ 移动 · Space/W/↑ 跳跃(可二段) · K 光环 · P/Esc 暂停 · R 重开</div>
     <div id="controls">
       <button id="btn-pause" title="P / Esc">暂停</button>
       <button id="btn-restart" title="R">重开</button>
-      <a href="editor.html" title="回到编辑器(草稿已保存)">← 编辑器</a>
-      <a href="index.html" title="回旧原型主菜单">回游戏</a>
+      <a id="btn-top-editor" href="editor.html" title="回到编辑器(草稿已保存)">← 编辑器</a>
+      <a href="index.html" title="回主界面">回主界面</a>
     </div>
     <div id="pause-overlay">
       <div class="box">
@@ -58,17 +58,19 @@
         <p id="pause-reason">手动暂停</p>
         <button id="btn-resume">继续</button>
         <button id="btn-restart-pause">重开本局</button>
+        <a id="btn-pause-editor" href="editor.html" style="display:inline-block;margin-left:6px;color:#cfd8ea">返回编辑器</a>
       </div>
     </div>
-    <div id="done-overlay" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:rgba(4,6,12,.82);z-index:8"><div class="box" style="background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:20px 26px;text-align:center"><h2>试玩验证通过</h2><p style="color:#9fb0cc;font-size:12.5px">认证绑定本次快照;发布仍需回编辑器点击</p><button id="btn-done-restart">重新试玩</button> <a id="btn-done-editor" href="editor.html" style="color:#cfd8ea">返回编辑器</a></div></div>
+    <div id="done-overlay" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:rgba(4,6,12,.82);z-index:8"><div class="box" style="background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:20px 26px;text-align:center"><h2>本图试玩通过</h2><p style="color:#9fb0cc;font-size:12.5px" id="done-note">通过记录绑定本次内容 hash;发布仍需回编辑器点击</p><button id="btn-done-restart">重新试玩</button> <button id="btn-done-retry-save" style="display:none">重试保存记录</button> <a id="btn-done-editor" href="editor.html" style="color:#cfd8ea">返回编辑器</a></div></div>
     <div id="dev-error"></div>
   </div>
 </div>
 
-<!-- 引擎 + 新运行时(顺序和 tools/loader.mjs 的 ENGINE 一致) -->
+<!-- 引擎 + 单图试玩运行时(顺序和 tools/loader.mjs 的 ENGINE 一致) -->
 <script src="js/config.js"></script>
 <script src="js/util.js"></script>
 <script src="js/text.js"></script>
+<script src="js/high-score-store.js"></script>
 <script src="js/level.js"></script>
 <script src="js/entity-registry.js"></script>
 <script src="js/level-data.js"></script>
@@ -83,6 +85,7 @@
 <script src="js/entities/ghost.js"></script>
 <script src="js/entities/blink.js"></script>
 <script src="js/monsters.js"></script>
+<script src="js/soul-motion.js"></script>
 <script src="js/camera.js"></script>
 <script src="js/assets.js"></script>
 <script src="js/audio.js"></script>
@@ -104,7 +107,7 @@
 <script src="js/b2-samples.js"></script>
 <script src="js/b4-samples.js"></script>
 <script src="js/trial-session.js"></script>
+<script src="js/platform/action-input.js"></script>
 <script src="js/trial.js"></script>
 </body>
 </html>
-

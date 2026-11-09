@@ -18,9 +18,10 @@
 
   var LD = RA.LevelData;
   var DB_NAME = 'ra_drafts';
-  var DB_VERSION = 2;
+  var DB_VERSION = 3;
   var STORE = 'drafts';
   var PUBLISHED = 'published';
+  var META = 'meta';
 
   function ok(value) { return { ok: true, value: value }; }
   function fail(code, message, issues) {
@@ -28,6 +29,14 @@
   }
   function clone(v) { return JSON.parse(JSON.stringify(v)); }
   function isoNow() { return new Date().toISOString(); }
+  function currentEpoch() {
+    return (RA.FULL40 && RA.FULL40.poolEpoch) ? String(RA.FULL40.poolEpoch) : '';
+  }
+  function validDifficulty(d) { return Number.isInteger(d) && d >= 1 && d <= 4; }
+  function validPublishedIdentity(levelId, hash) {
+    return typeof levelId === 'string' && /^[A-Za-z0-9_-]+$/.test(levelId) &&
+      typeof hash === 'string' && /^sha256:[0-9a-f]{64}$/.test(hash);
+  }
   function metaOf(rec) {
     return {
       draftId: rec.draftId,
@@ -43,7 +52,17 @@
     constructor() {
       this.records = new Map();
       this.published = new Map();
+      this.meta = new Map();
       this.failPutMessage = '';
+    }
+    /** 一次性清池:只在标记与当前 epoch 不同时清 published,然后写入标记。 */
+    async ensurePoolEpoch(epoch) {
+      var key = 'poolEpoch';
+      var applied = this.meta.get(key);
+      if (applied === epoch) return ok({ epoch: epoch, resetApplied: false });
+      this.published.clear();
+      this.meta.set(key, epoch);
+      return ok({ epoch: epoch, resetApplied: true });
     }
     /** 让下一次写入失败一次(自检用;不改变正常行为) */
     failNextPut(message, code) {
@@ -88,14 +107,23 @@
     async listPublished() {
       return ok(Array.from(this.published.values()).map(function (r) {
         return { levelId: r.levelId, contentHash: r.contentHash, rulesVersion: r.rulesVersion,
-          rulesFingerprint: r.rulesFingerprint, profile: r.profile,
+          rulesFingerprint: r.rulesFingerprint, profile: r.profile, poolEpoch: r.poolEpoch || '',
           source: r.source || 'local-playtest', publishedAt: r.publishedAt,
-          data: clone(r.data) };
+          data: r.data === undefined ? null : clone(r.data) };
       }));
     }
     async getPublished(levelId, hash) {
       var r = this.published.get(levelId + ':' + hash);
       return ok(r ? clone(r) : null);
+    }
+    async unpublish(levelId, hash) {
+      if (!validPublishedIdentity(levelId, hash)) return fail('INVALID_FIELD', '缺少合法的关卡 id / 内容 hash');
+      if (this.failPutMessage) {
+        var msg = this.failPutMessage, code = this.failPutCode;
+        this.failPutMessage = ''; this.failPutCode = '';
+        return fail(code, msg);
+      }
+      return ok({ levelId: levelId, contentHash: hash, removed: this.published.delete(levelId + ':' + hash) });
     }
     async remove(id, expectedRevision) {
       var cur = this.records.get(id);
@@ -131,6 +159,9 @@
           if (!db.objectStoreNames.contains(PUBLISHED)) {
             db.createObjectStore(PUBLISHED, { keyPath: 'key' });
           }
+          if (!db.objectStoreNames.contains(META)) {
+            db.createObjectStore(META, { keyPath: 'key' });
+          }
         };
         req.onsuccess = function () { resolve(req.result); };
         req.onerror = function () {
@@ -142,13 +173,14 @@
       });
       return this.dbPromise;
     }
-    async _withStore(mode, fn) {
+    async _withStore(mode, fn, storeName) {
       var db;
+      var name = storeName || STORE;
       try { db = await this.open(); }
       catch (e) { return e && e.ok === false ? e : fail('STORAGE_FAILED', String(e)); }
       return new Promise(function (resolve) {
-        var tx = db.transaction(STORE, mode);
-        var store = tx.objectStore(STORE);
+        var tx = db.transaction(name, mode);
+        var store = tx.objectStore(name);
         var settled = false;
         function done(res) { if (!settled) { settled = true; resolve(res); } }
         tx.oncomplete = function () { done(ok(null)); };
@@ -161,6 +193,48 @@
             (tx.error && tx.error.message || '未知原因')));
         };
         fn(store, done, tx);
+      });
+    }
+
+    /**
+     * 一次性清空旧 published 池:
+     *  同一 readwrite 事务里检查 meta.poolEpoch →
+     *  未应用时 clear published + 写标记;已应用则什么都不清。
+     * 失败返回失败,不报“已清空”;可重试。不 deleteDatabase、不碰 drafts。
+     */
+    async ensurePoolEpoch(epoch) {
+      var db;
+      try { db = await this.open(); }
+      catch (e) { return e && e.ok === false ? e : fail('STORAGE_FAILED', String(e)); }
+      return new Promise(function (resolve) {
+        var tx = db.transaction([PUBLISHED, META], 'readwrite');
+        var pub = tx.objectStore(PUBLISHED);
+        var meta = tx.objectStore(META);
+        var settled = false, resetApplied = false, err = null;
+        function done(res) { if (!settled) { settled = true; resolve(res); } }
+        var get = meta.get('poolEpoch');
+        get.onsuccess = function () {
+          var applied = get.result ? get.result.value : null;
+          if (applied === epoch) return;      // 已应用:不清,等事务提交
+          try {
+            pub.clear();
+            meta.put({ key: 'poolEpoch', value: epoch });
+            resetApplied = true;
+          } catch (e) { err = e; try { tx.abort(); } catch (e2) { /* 已结束 */ } }
+        };
+        get.onerror = function () {
+          err = get.error || new Error('读取 poolEpoch 失败');
+          try { tx.abort(); } catch (e) { /* 已结束 */ }
+        };
+        tx.oncomplete = function () { done(ok({ epoch: epoch, resetApplied: resetApplied })); };
+        tx.onabort = function () {
+          done(fail('STORAGE_FAILED', '清空旧发布池事务被取消:' +
+            (err && err.message || tx.error && tx.error.message || '未知原因')));
+        };
+        tx.onerror = function () {
+          done(fail('STORAGE_FAILED', '清空旧发布池失败:' +
+            (err && err.message || tx.error && tx.error.message || '未知原因')));
+        };
       });
     }
     async list() {
@@ -243,7 +317,28 @@
         tx.onabort = function () { resolve(fail('STORAGE_FAILED', '发布事务被取消')); };
       });
     }
+    async unpublish(levelId, hash) {
+      if (!validPublishedIdentity(levelId, hash)) return fail('INVALID_FIELD', '缺少合法的关卡 id / 内容 hash');
+      try {
+        var db = await this.open();
+        return await new Promise(function (resolve) {
+          var tx = db.transaction(PUBLISHED, 'readwrite');
+          var store = tx.objectStore(PUBLISHED), removed = false, error = null;
+          tx.oncomplete = function () { resolve(ok({ levelId: levelId, contentHash: hash, removed: removed })); };
+          tx.onabort = function () { resolve(fail('STORAGE_FAILED', '移出发布池事务被取消:' +
+            (error && error.message || tx.error && tx.error.message || '未提交'))); };
+          tx.onerror = function () { error = tx.error; }; // 等 abort/complete，不能在 request 成功时报告成功
+          var req = store.get(levelId + ':' + hash);
+          req.onsuccess = function () {
+            if (req.result === undefined) return;
+            try { store.delete(levelId + ':' + hash); removed = true; }
+            catch (e) { error = e; tx.abort(); }
+          };
+        });
+      } catch (e) { return e && e.ok === false ? e : fail('STORAGE_FAILED', String(e)); }
+    }
     async listPublished() {
+      // 必须读 published 这个 store(以前误用了草稿 store,正式池在真实 IndexedDB 里会读出草稿记录)
       var res = await this._withStore('readonly', function (store, done) {
         var out = [];
         var req = store.openCursor();
@@ -253,7 +348,7 @@
           out.push(cur.value); cur.continue();
         };
         req.onerror = function () { done(fail('STORAGE_FAILED', '读取发布池失败')); };
-      });
+      }, PUBLISHED);
       return res;
     }
     async getPublished(levelId, hash) {
@@ -261,7 +356,7 @@
         var req = store.get(levelId + ':' + hash);
         req.onsuccess = function () { done(ok(req.result ? clone(req.result) : null)); };
         req.onerror = function () { done(fail('STORAGE_FAILED', '读取发布内容失败')); };
-      });
+      }, PUBLISHED);
       return res;
     }
     async remove(id, expectedRevision) {
@@ -286,21 +381,25 @@
   }
 
   // ---------------- 仓库 ----------------
+  function acceptedProfile(id) {
+    var rules = RA.RULES || {};
+    if (rules.acceptsProfile) return rules.acceptsProfile(id);
+    return id === 'run-v1' || id === 'standard-v1';
+  }
   function certState(data, hash, rules) {
     var cert = data && data.certification;
     if (!cert) return { ok: false, reason: '未认证' };
-    if (cert.profileId !== 'standard-v1' || cert.status !== 'passed') {
+    if (!acceptedProfile(cert.profileId) || cert.status !== 'passed') {
       return { ok: false, reason: '认证来源/状态不支持' };
     }
     if (cert.contentHash !== hash) return { ok: false, reason: '认证 hash 与内容不一致' };
-    if (cert.rulesVersion !== rules.rulesVersion || cert.rulesFingerprint !== rules.rulesFingerprint) {
-      return { ok: false, reason: '认证规则版本已过期' };
-    }
-    var errors = LD.errorsOf(LD.validate(data, {
-      purpose: 'publish',
-      rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
-    }));
-    if (errors.length) return { ok: false, reason: '发布校验未通过:' + errors[0].code + ' ' + errors[0].path };
+    // 24号卡:技术规则版本/指纹只记录当次条件,不再要求等于当前版本。
+    // 同内容 + 完整人工通过声明即可用;来源仍按原样保留(imported-declaration 不冒充本机)。
+    void rules;
+    // 只读门槛:内容能读、运行必需的起终点/对象引用可用;几何/净空/可达性不再裁决
+    var errors = LD.readableIssues ? LD.readableIssues(data)
+      : LD.errorsOf(LD.validate(data, { purpose: 'load' }));
+    if (errors.length) return { ok: false, reason: '内容读取未通过:' + errors[0].code + ' ' + errors[0].path };
     return { ok: true, reason: '' };
   }
 
@@ -330,6 +429,22 @@
 
     listDrafts() { return this.adapter.list(); }
     loadDraft(draftId) { return this.adapter.get(draftId); }
+
+    /**
+     * 一次性清空旧普通发布池(用户 25 号卡已授权):
+     * 同一事务检查 metadata 标记;只有未应用时才 clear published + 写标记。
+     * 之后新发布记录带当前 poolEpoch,listEligible 只取当前 epoch,旧无 epoch 记录不再混入。
+     */
+    ensurePoolEpoch(epoch) {
+      var target = epoch === undefined || epoch === null ? currentEpoch() : String(epoch);
+      if (!this.adapter || typeof this.adapter.ensurePoolEpoch !== 'function') {
+        return Promise.resolve(ok({ epoch: target, resetApplied: false }));
+      }
+      return this.adapter.ensurePoolEpoch(target).then(function (res) {
+        if (!res || !res.ok) return res;
+        return ok({ epoch: res.value.epoch, resetApplied: !!res.value.resetApplied });
+      });
+    }
 
     /**
      * 保存"发起时快照"。
@@ -369,8 +484,8 @@
       var draftId = opts.draftId;
       var expected = opts.expectedRevision;
       var receipt = opts.receipt;
-      if (!receipt || receipt.status !== 'passed' || receipt.profileId !== 'standard-v1') {
-        return fail('CERT_REQUIRED', '发布需要 standard-v1 通关认证回执');
+      if (!receipt || receipt.status !== 'passed' || !acceptedProfile(receipt.profileId)) {
+        return fail('CERT_REQUIRED', '发布需要一份绑定当前内容的通过记录(profile run-v1)');
       }
       var loaded = await this.adapter.get(draftId);
       if (!loaded.ok) return loaded;
@@ -380,37 +495,44 @@
       }
       var data = loaded.value.data;
       var hash = LD.hashSync(data);
-      if (!data.certification || data.certification.profileId !== 'standard-v1' ||
+      if (!data.certification || !acceptedProfile(data.certification.profileId) ||
         data.certification.status !== 'passed') {
-        return fail('CERT_REQUIRED', '草稿没有 standard-v1 passed 认证');
+        return fail('CERT_REQUIRED', '草稿没有与当前内容匹配的通过记录;先「试玩」实际通关一次');
       }
       if (data.certification.contentHash !== receipt.contentHash) {
-        return fail('HASH_MISMATCH', '认证回执和草稿里的内容 hash 不一致');
+        return fail('HASH_MISMATCH', '通过记录回执和草稿里的内容 hash 不一致');
       }
       if (data.certification.rulesVersion !== receipt.rulesVersion ||
         data.certification.rulesFingerprint !== receipt.rulesFingerprint) {
-        return fail('RULES_MISMATCH', '认证回执和草稿里的规则版本不一致');
+        return fail('RULES_MISMATCH', '通过记录回执和草稿里记录的规则版本不一致(回执来路不明)');
       }
       if (receipt.contentHash !== hash) {
-        return fail('HASH_MISMATCH', '认证回执和当前草稿内容不一致,不能发布');
+        return fail('HASH_MISMATCH', '通过记录绑定的是别的内容(改图后要重新试玩),不能发布');
       }
-      var rules = RA.RULES || {};
-      var issues = LD.validate(data, {
-        purpose: 'publish',
-        rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
-      });
-      var errors = LD.errorsOf(issues);
-      if (errors.length) {
-        return fail(errors[0].code, '发布校验失败:' + errors[0].path + ' ' + errors[0].message, errors);
+      if (data.kind !== 'normal') {
+        return fail('INVALID_FIELD', '固定场景不进入普通发布池');
       }
+      if (!validDifficulty(data.difficulty)) {
+        return fail('INVALID_DIFFICULTY', '发布需要 1–4 档难度(当前为 ' +
+          JSON.stringify(data.difficulty) + ');请在编辑器「难度」里选择后重新试玩');
+      }
+      // 内容可读即可发布;几何/净空/可达性等旧自动门槛不再否决人工通过
+      var readable = LD.readableIssues ? LD.readableIssues(data) : LD.errorsOf(LD.validate(data, { purpose: 'load' }));
+      if (readable.length) {
+        return fail(readable[0].code, '内容读取失败:' + readable[0].path + ' ' + readable[0].message, readable);
+      }
+      var prep = await this.ensurePoolEpoch();
+      if (!prep.ok) return prep;
       var record = {
         key: data.id + ':' + hash,
         levelId: data.id,
         contentHash: hash,
         data: clone(data),
-        rulesVersion: rules.rulesVersion,
-        rulesFingerprint: rules.rulesFingerprint,
-        profile: 'standard-v1',
+        poolEpoch: currentEpoch(),
+        // 保留人工通过当时的条件记录,不参与"地图是否合格"的判断,也不冒充按当前版本重测
+        rulesVersion: receipt.rulesVersion || (RA.RULES && RA.RULES.rulesVersion) || '',
+        rulesFingerprint: receipt.rulesFingerprint || (RA.RULES && RA.RULES.rulesFingerprint) || '',
+        profile: receipt.profileId,
         source: 'local-playtest',
         publishedAt: isoNow(),
         revision: loaded.value.revision
@@ -432,7 +554,9 @@
       if (draftErrors.length) {
         return fail(draftErrors[0].code, '草稿结构不能保存:' + draftErrors[0].path + ' ' + draftErrors[0].message, draftErrors);
       }
-      var playErrors = LD.errorsOf(LD.validate(data, { purpose: 'play' }));
+      // runnable 只看"能不能读/运行必需字段";几何/净空/可达性不在这里裁决
+      var playErrors = LD.readableIssues ? LD.readableIssues(data)
+        : LD.errorsOf(LD.validate(data, { purpose: 'load' }));
       var runnable = playErrors.length === 0;
       var enc = LD.encode(data);
       if (!enc.ok) return fail(enc.error.code, '导入内容编码失败:' + enc.error.message, enc.error.issues || []);
@@ -440,8 +564,11 @@
       var hash = LD.hashSync(data);
       var rules = RA.RULES || {};
       var certInfo = certState(data, hash, rules);
-      var certOk = certInfo.ok && runnable;
+      var certOk = certInfo.ok && runnable && validDifficulty(data.difficulty);
       var certReason = certInfo.reason || '';
+      if (certInfo.ok && runnable && !validDifficulty(data.difficulty)) {
+        certReason = '普通层需要 1–4 档难度(当前 ' + JSON.stringify(data.difficulty) + ')';
+      }
       var runIssues = playErrors.map(function (e) { return e.code + ' ' + e.path + ' ' + e.message; });
       var issues = [].concat(certReason ? [certReason] : [], runIssues);
       var existingList = await this.adapter.list();
@@ -507,23 +634,33 @@
       var hash = LD.hashSync(data);
       var cert = data.certification;
       var rules = RA.RULES || {};
-      if (!cert || cert.profileId !== 'standard-v1' || cert.status !== 'passed' ||
-        cert.contentHash !== hash ||
-        cert.rulesVersion !== rules.rulesVersion ||
-        cert.rulesFingerprint !== rules.rulesFingerprint) {
-        return fail('CERT_REQUIRED', '导入内容没有匹配当前内容/规则的声明认证');
+      // 24号卡:与本地 publish/listEligible 采用同一解释——内容可读、普通图、passed/profile 受支持、
+      // 声明 hash = 当前内容。技术规则版本/指纹只记录,不与当前版本强制相等。
+      if (!cert || !acceptedProfile(cert.profileId) || cert.status !== 'passed' ||
+        cert.contentHash !== hash) {
+        return fail('CERT_REQUIRED', '导入内容没有绑定当前内容的通过记录(不自动入池;无记录/改图不能假通过)');
       }
-      var errors = LD.errorsOf(LD.validate(data, {
-        purpose: 'publish',
-        rules: { rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint }
-      }));
+      if (data.kind !== 'normal') {
+        return fail('INVALID_FIELD', '固定场景不进入普通发布池');
+      }
+      if (!validDifficulty(data.difficulty)) {
+        return fail('INVALID_DIFFICULTY', '导入内容需要 1–4 档难度(当前为 ' +
+          JSON.stringify(data.difficulty) + ');请在编辑器选择后重新试玩');
+      }
+      // 只读门槛:几何/净空/可达性由作者人工试玩决定,不在这里再次否决
+      var errors = LD.readableIssues ? LD.readableIssues(data) : LD.errorsOf(LD.validate(data, { purpose: 'load' }));
       if (errors.length) {
-        return fail(errors[0].code, '导入内容发布校验失败:' + errors[0].path + ' ' + errors[0].message, errors);
+        return fail(errors[0].code, '导入内容读取失败:' + errors[0].path + ' ' + errors[0].message, errors);
       }
+      var prep = await this.ensurePoolEpoch();
+      if (!prep.ok) return prep;
       var record = {
         key: data.id + ':' + hash, levelId: data.id, contentHash: hash, data: clone(data),
-        rulesVersion: rules.rulesVersion, rulesFingerprint: rules.rulesFingerprint,
-        profile: 'standard-v1', source: 'imported-declaration', publishedAt: isoNow(),
+        poolEpoch: currentEpoch(),
+        // 保留声明当时的通过条件,不改写成本版本字段冒充重新测试
+        rulesVersion: cert.rulesVersion || rules.rulesVersion,
+        rulesFingerprint: cert.rulesFingerprint || rules.rulesFingerprint,
+        profile: cert.profileId, source: 'imported-declaration', publishedAt: isoNow(),
         revision: loaded.value.revision
       };
       var put = await this.adapter.publish(record);
@@ -533,21 +670,55 @@
 
     getPublished(levelId, hash) { return this.adapter.getPublished(levelId, hash); }
 
+    async listPublishedVersions() {
+      try {
+        var prep = await this.ensurePoolEpoch();
+        if (!prep.ok) return prep;
+        var res = await this.adapter.listPublished();
+        if (!res.ok) return res;
+        var epoch = currentEpoch();
+        return ok(res.value.filter(function (r) { return !epoch || r.poolEpoch === epoch; })
+          .map(function (r) {
+            var d = r.data || {};
+            return { levelId: r.levelId, contentHash: r.contentHash, title: d.title || r.title || r.levelId,
+              difficulty: d.difficulty, source: r.source || 'local-playtest' };
+          }).sort(function (a, b) {
+            return (a.levelId + a.contentHash).localeCompare(b.levelId + b.contentHash);
+          }));
+      } catch (e) { return fail('STORAGE_FAILED', String(e)); }
+    }
+
+    async unpublish(opts) {
+      opts = opts || {};
+      if (!validPublishedIdentity(opts.levelId, opts.contentHash)) return fail('INVALID_FIELD', '缺少合法的关卡 id / 内容 hash');
+      // 列表/正式入口沿用既有 epoch 准备；精确删除本身绝不触发清池或改 metadata。
+      try { return await this.adapter.unpublish(opts.levelId, opts.contentHash); }
+      catch (e) { return fail('STORAGE_FAILED', String(e)); }
+    }
+
     async listEligible(opts) {
       opts = opts || {};
+      var prep = await this.ensurePoolEpoch();
+      if (!prep.ok) return prep;
       var res = await this.adapter.listPublished();
       if (!res.ok) return res;
-      var rules = RA.RULES || {};
+      var epoch = currentEpoch();
       var out = res.value.filter(function (r) {
         var d = r.data;
         if (!d || d.kind !== 'normal') return false;
+        // 只取当前一次性 epoch 的新发布;旧无 epoch/旧 epoch 记录不能混回池
+        if (epoch && r.poolEpoch !== epoch) return false;
+        if (!validDifficulty(d.difficulty)) return false;
         if (opts.difficulty !== undefined && d.difficulty !== opts.difficulty) return false;
-        if (r.rulesVersion !== rules.rulesVersion || r.rulesFingerprint !== rules.rulesFingerprint) return false;
+        // 通过记录绑定内容 hash 才可用于正式候选;规则版本/指纹变化只作记录,
+        // 不在此自动批量作废作者已经人工通过并发布的内容
         if (!d.certification || d.certification.status !== 'passed') return false;
+        if (!acceptedProfile(d.certification.profileId)) return false;
         if (d.certification.contentHash !== LD.hashSync(d)) return false;
         return true;
       }).map(function (r) {
-        return { levelId: r.levelId, contentHash: r.contentHash, source: r.source || 'local-playtest', data: clone(r.data) };
+        return { levelId: r.levelId, contentHash: r.contentHash, source: r.source || 'local-playtest',
+          data: clone(r.data), requiredDifficulty: r.data.difficulty };
       });
       out.sort(function (a, b) { return (a.levelId + a.contentHash).localeCompare(b.levelId + b.contentHash); });
       return ok(out);
@@ -560,5 +731,6 @@
 
   ContentRepository.MemoryAdapter = MemoryAdapter;
   ContentRepository.IndexedDbAdapter = IndexedDbAdapter;
+  ContentRepository.certState = certState;
   RA.ContentRepository = ContentRepository;
 })(globalThis.RA = globalThis.RA || {});

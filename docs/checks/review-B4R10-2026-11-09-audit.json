@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-09",
+  "kind": "targeted-engine-audit",
+  "limits": "Node fixture, not human play or browser evidence. No map qualification, persistent user storage or certification changes.",
+  "pending": {
+    "input": "finish-center fixture; jump frames 0..12 and 24..59; right14..39, left40..51",
+    "trace": [
+      {
+        "frame": 30,
+        "pending": true,
+        "current": 1,
+        "feet": -2123.8750000000005,
+        "commitY": -2115,
+        "abovePlane": true
+      },
+      {
+        "frame": 31,
+        "pending": false,
+        "current": 1,
+        "feet": -2132.5972222222226,
+        "commitY": -2115,
+        "abovePlane": true
+      }
+    ],
+    "finalCurrent": 2,
+    "clearedWhileAbove": true,
+    "recoveredInThisCase": true
+  },
+  "zeroDamage": {
+    "type": "fireball_static",
+    "registryMin": 0,
+    "configuredDamage": 0,
+    "beforeHp": 100,
+    "afterHp": 80,
+    "effectiveDamage": 20
+  },
+  "www": [
+    {
+      "path": "js/level.js",
+      "identical": true
+    },
+    {
+      "path": "js/world.js",
+      "identical": true
+    },
+    {
+      "path": "js/session.js",
+      "identical": true
+    },
+    {
+      "path": "js/short.js",
+      "identical": true
+    },
+    {
+      "path": "js/boss.js",
+      "identical": true
+    },
+    {
+      "path": "js/full40-samples.js",
+      "identical": true
+    },
+    {
+      "path": "js/rules.js",
+      "identical": true
+    },
+    {
+      "path": "levels/levels.js",
+      "identical": true
+    }
+  ]
+}

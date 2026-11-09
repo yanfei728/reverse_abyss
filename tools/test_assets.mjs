@@ -19,8 +19,8 @@
  *   ⑦ 地块绘制:贴图和格子尺寸不一样时(16×16 像素画 / 128×128 大图 / 45×45 兜底)
  *      都铺满一格,云板只画上面一截,编辑器走的是同一套 RA.drawTile。
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join, basename } from 'node:path';
 import { loadEngine, buildPack, makeCanvas, ROOT } from './loader.mjs';
 import { generateBuffers, pngSize, SKIES } from './build_assets.mjs';
 
@@ -36,7 +36,15 @@ const RA = loadEngine();
 const C = RA.C;
 const board = makeCanvas(960, 540);
 const ctx = board.getContext('2d');
-const pack = buildPack(RA);
+// 25号卡:活动内置普通池已清空;绘制/背景冒烟用只读归档的旧图(与旧原型行为一致)
+const ARCHIVE = {};
+const ARCHIVE_DIR = join(ROOT, 'levels', 'archive', 'legacy-pool-2026-11-09');
+if (existsSync(ARCHIVE_DIR)) {
+  readdirSync(ARCHIVE_DIR).filter((f) => f.endsWith('.json')).sort().forEach((f) => {
+    ARCHIVE[basename(f, '.json')] = JSON.parse(readFileSync(join(ARCHIVE_DIR, f), 'utf8'));
+  });
+}
+const pack = buildPack(RA, ARCHIVE);
 
 // ================= ① 贴图文件 =================
 head('贴图文件:在不在、是不是真 PNG、和生成代码一不一致');

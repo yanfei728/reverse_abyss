@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>reverse_abyss · 安卓短塔</title>
+<title>reverse_abyss · 安卓完整塔</title>
 <style>
   html,body{margin:0;width:100%;height:100%;min-height:100%;background:#05060c;color:#cfd8ea;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;overflow:hidden}body{position:relative}
   #app{position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -20,6 +20,10 @@
   #hpbar{width:180px;height:14px;border:1px solid #2c3752;border-radius:8px;background:#170c0c;overflow:hidden}
   #hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#e05c4a,#ff9c8a);transition:width .12s}
   .hudbox{background:rgba(8,11,20,.72);border:1px solid #26324a;border-radius:8px;padding:5px 9px;color:#dfe7f5}
+  /* 30:正式塔得分固定在右上角;不与左侧血条/技能/Boss 条、右下暂停/布局按钮重叠 */
+  #score-text{position:absolute;right:12px;top:8px;display:none;background:rgba(8,11,20,.82);border:1px solid #4a5f8a;border-radius:8px;padding:5px 11px;color:#ffe7a6;font:600 13px/1.2 "Microsoft YaHei",system-ui,sans-serif;z-index:5;pointer-events:none}
+  #result-score{margin:6px 0 0;color:#ffe7a6;font-size:14px;font-weight:600}
+  #high-score-value{font-weight:600;color:#ffe7a6}
   #controls{position:absolute;right:12px;bottom:10px;display:flex;gap:6px;z-index:5}
   #controls button,#controls a{font:inherit;font-size:12px;color:#cfd8ea;background:#121a2b;border:1px solid #2c3752;border-radius:8px;padding:5px 9px;text-decoration:none;cursor:pointer}
   #pause-overlay,#result-overlay{position:absolute;top:0;right:0;bottom:0;left:0;display:none;align-items:center;justify-content:center;overflow:auto;padding:8px;box-sizing:border-box;background:rgba(4,6,12,.74);z-index:7}
@@ -55,7 +59,7 @@
   #import-status{color:#9fb0cc;font-size:12px}
   @media (max-height:420px){#menu .box{padding:10px 14px}#menu h1{font-size:18px;margin-bottom:2px}#menu p{font-size:11.5px;line-height:1.4;margin:3px 0}#menu button{font-size:12px;padding:6px 9px;margin-top:3px}#menu .box>p:first-of-type{display:none}#menu-status{min-height:1em}#settings-overlay .box{padding:10px 12px}#settings-overlay h2{font-size:16px;margin-bottom:4px}#settings-overlay p{font-size:11px;line-height:1.35;margin:3px 0}#settings-overlay .row{margin:4px 0;gap:5px}}
   #fatal-overlay{position:fixed;top:0;right:0;bottom:0;left:0;display:none;align-items:center;justify-content:center;background:#12090a;color:#ffd8d0;z-index:40;padding:16px;box-sizing:border-box;font-size:13px;line-height:1.6;text-align:center}
-</style>
+  .logo{font:900 42px/1.05 "Arial Black",Impact,system-ui,sans-serif;letter-spacing:3px;color:#e8f0ff;text-align:center;margin:4px 0 6px;text-shadow:0 0 18px rgba(100,170,255,.35)} .tagline{text-align:center;letter-spacing:2px;color:#89a6d6;margin:0 0 18px} #main-menu-box{text-align:center} #main-menu-box .primary{display:block;width:100%;max-width:280px;margin:10px auto;font-size:16px;padding:12px 16px} #main-menu-box .dim{text-align:center;margin-top:18px} .settings-fab{position:absolute;right:18px;bottom:16px;background:#121a2b;border:1px solid #40557f;color:#cfd8ea;border-radius:10px;padding:8px 12px;font:inherit;font-size:12px;cursor:pointer} #main-settings,#exit-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,6,12,.78);z-index:9;padding:10px;box-sizing:border-box} #main-settings .box,#exit-overlay .box{width:92%;max-width:560px;max-height:calc(100% - 20px);overflow:auto;background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:18px 22px} #main-settings h2,#exit-overlay h2{margin:0 0 10px;text-align:center} #main-settings .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0} #main-settings input,#main-settings select{font:inherit;font-size:12px;padding:6px 8px;border-radius:7px;border:1px solid #40557f;background:#0b111d;color:#e8eefb;min-width:160px;flex:1} #main-settings button,#exit-overlay button{font:inherit;font-size:12px;padding:7px 10px;border-radius:8px;border:1px solid #40557f;background:#1d283d;color:#e8eefb;cursor:pointer} .dim{color:#8fa0c0;font-size:12px;line-height:1.55}</style>
 </head>
 <body>
 <div id="fatal-overlay"><div><b>页面初始化失败</b><p id="fatal-text" style="margin:8px 0 0;font-size:12px;color:#ffb3a6"></p></div></div>
@@ -65,50 +69,59 @@
     <div class="hudbox">生命 <span id="hp-text">100/100</span></div>
     <div id="hpbar"><div id="hp-fill"></div></div>
     <div class="hudbox" id="halo-text">光环就绪 (K)</div>
-    <div class="hudbox" id="floor-text">第 1/6 层</div>
+    <div class="hudbox" id="floor-text">第 0/40 层</div>
     <div class="hudbox" id="boss-text"></div>
   </div>
-  <div id="help">A/D 移动 · Space 跳(二段) · K 光环 · P/Esc 暂停 · E 交互(预留)</div>
+  <div id="score-text">得分 0</div>
+  <div id="help">A/D 移动 · Space 跳(二段) · K 光环 · F 交互 · P/Esc 暂停</div>
   <div id="controls">
     <button id="btn-pause">暂停</button>
     <button id="btn-restart">重开本塔</button>
-    </div>
+    <button id="btn-main-menu">返回主界面</button>
+  </div>
   <div id="menu">
-    <div class="box">
-      <h1>短塔 · PC / 安卓</h1>
-      <p>目标:大厅 → 三个普通层 → 休整 → 两阶段 Boss。死亡/异常越界回大厅,重试同一座塔;
-        只有编辑器里的<b>标准试玩</b>通关并发布的内容才会进入正式池。</p>
+    <div class="box" id="main-menu-box">
+      <div class="logo">REVERSE ABYSS</div>
+      <p class="tagline">向上攀塔 · 0–40 层</p>
       <p id="menu-status"></p>
-      <button id="btn-dev">开发短塔(未认证模板)</button>
-      <button id="btn-formal">正式短塔(已认证发布)</button>
-      <button id="btn-import">导入关卡 JSON</button>
-      <button id="btn-export">导出当前关卡 JSON</button>
-      <button id="btn-add-import" style="display:none">把导入内容加入正式池</button>
-      <p id="import-status"></p>
-      <p style="margin-top:14px">开发短塔使用 <code>levels/b2/</code> 的未认证模板,不会写入正式池,也不会生成认证回执。</p>
+      <button id="btn-formal" class="primary">开始游戏</button>
+      <button id="btn-quit" class="primary">退出游戏</button>
+      <p id="pool-status" class="dim"></p>
     </div>
+    <button id="btn-main-settings" class="settings-fab" title="设置">⚙ 设置</button>
   </div>
 
   <div id="interact-prompt">按 F 开始挑战</div>
   <div id="touch-controls" aria-label="触控操作"></div>
-  <button id="btn-settings" title="调整触控按钮">布局</button>
   <div id="rotate-hint">请横屏游玩<br><span style="font-size:12px;color:#7f90b0">旋转设备后按钮会重新夹到安全区域</span></div>
-  <div id="settings-overlay"><div class="box">
-    <h2>触控布局</h2>
-    <p>拖动按钮改变位置,选中按钮后用滑杆调整大小。保存会写入本机;失败时保留旧布局。</p>
-    <div class="row"><span>大小</span><input id="layout-size" type="range" min="8" max="24" step="1" value="14"><span id="layout-size-label">14%</span></div>
-    <div class="row">当前:<span id="layout-selected">left</span></div>
-    <p id="layout-status"></p>
-    <div class="row"><button id="btn-layout-save">保存布局</button><button id="btn-layout-reset">恢复默认</button><button id="btn-layout-close">关闭</button></div>
-  </div></div>
   <div id="pause-overlay"><div class="box">
     <h2>已暂停</h2><p id="pause-reason">手动暂停</p>
-    <button id="btn-resume">继续</button><button id="btn-menu-pause">回大厅</button>
+    <button id="btn-resume">继续</button><button id="btn-menu-pause">返回主界面</button>
   </div></div>
   <div id="result-overlay"><div class="box">
-    <h2 id="result-title">结果</h2><p id="result-text"></p>
-    <button id="btn-retry">重试同一座塔</button><button id="btn-menu">回大厅</button>
+    <h2 id="result-title">结果</h2><p id="result-text"></p><p id="result-score"></p>
+    <button id="btn-retry">重试本塔</button><button id="btn-menu">返回主界面</button>
   </div></div>
+  <div id="main-settings"><div class="box">
+    <h2>设置</h2>
+    <p class="dim">固定 0–40 层 · 41 槽 · 无镜像；种子只保存文本，重建使用当前关卡池。</p>
+    <div class="row"><label for="seed-input">种子</label><input id="seed-input" type="text" spellcheck="false" placeholder="RA-000001"></div>
+    <div class="row"><button id="btn-seed-apply">按种子重构</button><button id="btn-seed-random">随机重构</button><button id="btn-seed-save">保存种子文本</button></div>
+    <p id="seed-status" class="dim"></p>
+    <div class="row"><label for="seed-saved">已保存</label><select id="seed-saved"></select><button id="btn-seed-use">使用所选</button></div>
+    <p id="pool-detail" class="dim"></p>
+    <div class="row"><label>历史最高分</label><span id="high-score-value">0</span></div>
+    <p id="high-score-status" class="dim"></p>
+    <div class="row"><button id="btn-import">导入关卡 JSON</button><button id="btn-add-import" style="display:none">加入正式池</button></div>
+    <p id="import-status" class="dim"></p>
+    <div class="row"><label for="published-version">浏览器发布版本</label><select id="published-version" disabled></select></div>
+    <div class="row"><button id="btn-unpublish" disabled>移出浏览器发布池</button><button id="btn-published-refresh">刷新版本列表</button></div>
+    <p id="published-source" class="dim"></p>
+    <p id="unpublish-status" class="dim" role="status" aria-live="polite"></p>
+    <p class="dim">只移出所选 id/hash；保留草稿、通过历史、磁盘 JSON、种子、最高分和当前塔清单。内置图需另删或移出 normal/difficulty-N 中的源 JSON，运行 node tools/sync_levels.mjs 后刷新并新开塔；重试仍用原塔。</p>
+    <div class="row"><button id="btn-open-editor">打开编辑器</button><button id="btn-main-settings-close">关闭设置</button></div>
+  </div></div>
+  <div id="exit-overlay"><div class="box"><h2>本局已结束</h2><p id="exit-text">请手动关闭此标签页/窗口。</p><button id="btn-exit-back">返回主界面</button></div></div>
 </div></div>
 
 <script src="js/config.js"></script>
@@ -119,6 +132,8 @@
 <script src="js/level-data.js"></script>
 <script src="js/cloud-pipe.js"></script>
 <script src="js/path-geometry.js"></script>
+<script src="js/trial-plan.js"></script>
+<script src="js/trial-session.js"></script>
 <script src="js/legacy-import.js"></script>
 <script src="js/entities/base.js"></script>
 <script src="js/entities/player.js"></script>
@@ -127,31 +142,26 @@
 <script src="js/entities/ghost.js"></script>
 <script src="js/entities/blink.js"></script>
 <script src="js/monsters.js"></script>
+<script src="js/soul-motion.js"></script>
 <script src="js/camera.js"></script>
 <script src="js/assets.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/input.js"></script>
-<script src="js/tower.js"></script>
-<script src="js/levelpack.js"></script>
 <script src="js/content-repository.js"></script>
 <script src="js/rules.js"></script>
 <script src="js/world.js"></script>
 <script src="js/session.js"></script>
 <script src="js/boss.js"></script>
 <script src="js/tower-planner.js"></script>
-<script src="js/reach.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/game.js"></script>
-<script src="js/smoke.js"></script>
 <script src="levels/levels.js"></script>
-<script src="js/dev-samples.js"></script>
-<script src="js/b2-samples.js"></script>
-<script src="js/b4-samples.js"></script>
+<script src="js/full40-samples.js"></script>
 <script src="js/vendor/capacitor-plugins.js"></script>
 <script src="js/platform/action-input.js"></script>
 <script src="js/platform/control-layout.js"></script>
 <script src="js/platform/files.js"></script>
 <script src="js/platform/lifecycle.js"></script>
+<script src="js/seed-text.js"></script>
+<script src="js/high-score-store.js"></script>
 <script src="js/short.js"></script>
 </body>
 </html>

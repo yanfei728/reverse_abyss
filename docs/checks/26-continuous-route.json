@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-09",
+  "kind": "engine-continuous-physics",
+  "entry": "plan seed=1 fallback test3; F 0→1 then real setActions stepping",
+  "limits": "Node loader; scripted input, not visible browser and not a human clear. No finish-position fixture, no debugJumpTo/activateSlot.",
+  "transitions": [
+    {
+      "from": 1,
+      "to": 2,
+      "frame": 532,
+      "hudFloor": 2,
+      "live": [
+        1,
+        2,
+        3
+      ],
+      "playerView": 2
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "frame": 1068,
+      "hudFloor": 3,
+      "live": [
+        2,
+        3,
+        4
+      ],
+      "playerView": 3
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "frame": 1604,
+      "hudFloor": 4,
+      "live": [
+        3,
+        4,
+        5
+      ],
+      "playerView": 4
+    },
+    {
+      "from": 4,
+      "to": 5,
+      "frame": 2140,
+      "hudFloor": 5,
+      "live": [
+        4,
+        5,
+        6
+      ],
+      "playerView": 5
+    }
+  ],
+  "finalFloor": 6,
+  "finalLive": [
+    5,
+    6,
+    7
+  ],
+  "playerView": 6,
+  "frames": 2676,
+  "status": "running"
+}

@@ -64,8 +64,21 @@
       name: '静止火球',
       letter: null,                    // 只能用 objects 摆放,不占地图字符
       scene: 'normal',
-      implemented: 'none',             // T05 才实现
+      implemented: 'legacy',
       interact: '不阻挡;接触伤害;可被光环一击消灭',
+      params: [
+        { name: 'radiusTiles', label: '判定半径', type: 'number', unit: '格' },
+        { name: 'damage', label: '伤害', type: 'number', unit: '生命' }
+      ]
+    },
+    {
+      type: 'fireball_moving',
+      name: '移动火球',
+      letter: null,
+      scene: 'normal',
+      implemented: 'legacy',
+      requiresPath: true,
+      interact: '沿路径固定 V/2 移动,不阻挡;接触伤害;可被光环消灭',
       params: [
         { name: 'radiusTiles', label: '判定半径', type: 'number', unit: '格' },
         { name: 'damage', label: '伤害', type: 'number', unit: '生命' }
@@ -76,8 +89,8 @@
       name: '地刺',
       letter: null,
       scene: 'normal',
-      implemented: 'none',
-      interact: '本格底座实心,伸出的刺只判伤害;不能被击败',
+      implemented: 'legacy',
+      interact: '底座不阻挡,只有伸出尖刺的区域造成伤害;不能被击败',
       params: [
         { name: 'warningSeconds', label: '伸出预警', type: 'number', unit: 's' },
         { name: 'activeSeconds', label: '伸出时长', type: 'number', unit: 's' },
@@ -86,11 +99,72 @@
       ]
     },
     {
+      type: 'flail',
+      name: '流星锤',
+      letter: null,
+      scene: 'normal',
+      implemented: 'legacy',
+      requiresPath: false,
+      interact: '端点固定,半径4格顺时针旋转;只有锤头伤害,不可消灭',
+      params: [
+        { name: 'radiusTiles', label: '锤头半径', type: 'number', unit: '格' },
+        { name: 'damage', label: '伤害', type: 'number', unit: '生命' }
+      ]
+    },
+    {
+      type: 'soul',
+      name: '灵魂',
+      letter: null,
+      scene: 'normal',
+      implemented: 'legacy',
+      requiresPath: false,
+      interact: '沿真实方块外轮廓170px/s贴边;失去依附直飞再贴边;可被光环消灭',
+      params: [
+        { name: 'radiusTiles', label: '判定半径', type: 'number', unit: '格' },
+        { name: 'damage', label: '伤害', type: 'number', unit: '生命' },
+        { name: 'initialDirection', label: '初始方向(0上1右2下3左)', type: 'integer', unit: '',
+          min: 0, max: 3, optional: true, values: [0, 1, 2, 3] }
+      ]
+    },
+    {
+      type: 'sewage_pool',
+      name: '污水池',
+      letter: null,
+      scene: 'normal',
+      implemented: 'legacy',
+      category: 'hazard',              // 伤害物:不可击败,不算敌对单位
+      requiresPath: false,
+      interact: '单格;接触伤害20、不可消灭、无实体阻挡',
+      params: []
+    },
+    {
+      type: 'coin',
+      name: '金币',
+      letter: null,
+      scene: 'normal',
+      implemented: 'legacy',
+      category: 'collectible',         // 30:拾取物,不是怪物/敌对单位
+      requiresPath: false,
+      interact: '无实体阻挡;玩家身体接触一次即消失;光环不代捡;试玩只捡不计分',
+      params: []
+    },
+    {
+      type: 'archer',
+      name: '弓箭手',
+      letter: null,
+      scene: 'normal',
+      implemented: 'legacy',
+      category: 'hostile',             // 30:固定敌人,可被光环一击消灭
+      requiresPath: false,
+      interact: '静止不移动、无实体阻挡;入层2秒后每2秒朝玩家直线射170px/s箭;本体接触与箭各20',
+      params: []
+    },
+    {
       type: 'gear',
       name: '路径齿轮',
       letter: null,
       scene: 'normal',
-      implemented: 'none',
+      implemented: 'legacy',
       requiresPath: true,              // pathId 必填
       interact: '沿路径格中心移动,不阻挡,不能被击败',
       params: [
@@ -129,6 +203,22 @@
   var BY_LETTER = Object.create(null);
   var ORDER = [];
 
+  /*
+   * 30:对象类别只用于编辑器/运行时的最小分流(不能把金币当怪物):
+   *   hostile      = 敌对单位,可被击败(静止/移动火球、灵魂、弓箭手)
+   *   hazard       = 伤害机关/轨迹物,不可击败,不算击杀、不能拾取
+   *   collectible  = 拾取物(金币)
+   *   mechanism    = 可交互机关(弹簧/门/浮石)
+   */
+  var HOSTILE = { fireball_static: 1, fireball_moving: 1, soul: 1, archer: 1 };
+  var HAZARD = { spike: 1, gear: 1, flail: 1, sewage_pool: 1 };
+  function categoryOf(def) {
+    if (def.category) return def.category;
+    if (HOSTILE[def.type]) return 'hostile';
+    if (HAZARD[def.type]) return 'hazard';
+    return 'mechanism';
+  }
+
   DEFS.forEach(function (def) {
     var entry = {
       type: def.type,
@@ -136,6 +226,7 @@
       letter: def.letter || null,
       scene: def.scene || 'normal',
       implemented: def.implemented || 'none',
+      category: categoryOf(def),
       interact: def.interact || '',
       requiresPath: !!def.requiresPath,
       params: buildParams(def)

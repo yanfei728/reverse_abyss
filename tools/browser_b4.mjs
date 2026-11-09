@@ -137,8 +137,9 @@ async function main() {
       const p = await evaluate('(function(){var q=RA.editor.cellToScreen(' + c + ',' + r + ');var b=document.getElementById("board").getBoundingClientRect();return {x:b.left+q.x+RA.editor.view.zoom*RA.C.TS/2,y:b.top+q.y+RA.editor.view.zoom*RA.C.TS/2};})()');
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
       await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', clickCount: 1 });
+      await sleep(90);
       await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', clickCount: 1 });
-      await sleep(180);
+      await sleep(140);
       return p;
     }
 
@@ -214,14 +215,19 @@ async function main() {
     await cellClick(3, 3);
     const ro2 = await evaluate('({ro:RA.editor.model.readOnly,hash:RA.LevelData.hashSync(RA.editor.model.toData()),banner:!document.getElementById("readonly-banner").hidden})');
     check('Boss 只读:横幅、画布点击不改数据', ro.ro && ro.banner && ro.hash === ro2.hash, JSON.stringify({ ro, ro2 }));
-    // 主题截图
+    // 主题:24号卡只保留一处接线,一次点击只切一次;再点恢复,偏好落盘
+    const themeBefore = await evaluate('RA.editor.theme');
     const themeHit = await click('#btn-theme');
     const themeRect = await rect('#btn-theme');
-    const themeMeta = await evaluate('(function(){var b=document.getElementById("btn-theme");return {disabled:b.disabled,html:b.outerHTML,editor:!!RA.editor,theme:RA.editor&&RA.editor.theme};})()');
-    const directTheme = await evaluate('(function(){var b=document.getElementById("btn-theme");b.click();return document.body.dataset.theme;})()');
-    const theme = await evaluate('({t:document.body.dataset.theme,stored:localStorage.getItem("ra_editor_preferences_v1")})');
+    const theme1 = await evaluate('({theme:RA.editor.theme,dom:document.body.dataset.theme,stored:localStorage.getItem("ra_editor_preferences_v1")})');
+    check('一次点击只切换一次主题', themeHit && theme1.theme !== themeBefore && theme1.dom === theme1.theme &&
+      theme1.stored && theme1.stored.indexOf('"theme":"' + theme1.theme + '"') >= 0,
+      JSON.stringify({ themeBefore, theme1, themeRect }));
+    await click('#btn-theme');
+    await sleep(120);
+    const theme2 = await evaluate('({theme:RA.editor.theme,dom:document.body.dataset.theme})');
+    check('再点一次恢复原主题', theme2.theme === themeBefore && theme2.dom === themeBefore, JSON.stringify(theme2));
     await shot('b4-editor-light-1440x900.png');
-    check('切换浅色并保存偏好', theme.t === 'light' && theme.stored && theme.stored.indexOf('light') >= 0, JSON.stringify({theme,themeHit,themeRect,themeMeta}));
     await send('Emulation.setDeviceMetricsOverride', { width: 1024, height: 768, deviceScaleFactor: 1, mobile: false });
     await sleep(400);
     await evaluate('RA.editor.syncUI()');
@@ -229,23 +235,17 @@ async function main() {
     await evaluate('RA.editor.toggleTheme()');
     await sleep(200);
     await shot('b4-editor-dark-1024x768.png');
-    check('切回深色', await evaluate('document.body.dataset.theme === "dark"'));
+    check('直接调用 toggleTheme 也只切一次', await evaluate('RA.editor.theme !== ' + JSON.stringify(themeBefore)) &&
+      await evaluate('document.body.dataset.theme === RA.editor.theme'));
 
-    // ---------- 标准试玩夹具 ----------
-    await evaluate(`(function(){
-      sessionStorage.setItem('RA_STANDARD_V1', JSON.stringify({
-        template: RA.B4_SAMPLES.normal1,
-        rulesVersion: RA.RULES.rulesVersion,
-        rulesFingerprint: RA.RULES.rulesFingerprint
-      }));
-    })()`);
+    // ---------- 旧标准试玩页在24号卡后已停用 ----------
     await send('Page.navigate', { url: 'file:///' + join(ROOT, 'standard.html').replace(/\\/g, '/') });
-    await sleep(1000);
-    const std = await waitFor('!!RA.standard && !!RA.standard.session', 12000);
-    check('标准试玩云板夹具启动', std);
-    const stdInfo = await evaluate('(function(){var s=RA.standard.session;return {n:s.world.floorCount,links:s.world.links.map(function(l){return l&&l.kind;}),first:s.world.floorsData[0].ports.profile,last:s.world.floorsData[1].ports.profile};})()');
-    check('标准夹具:3层,cloud-pipe-v2', stdInfo.n === 3 && stdInfo.first === 'cloud-pipe-v2' && stdInfo.last === 'cloud-pipe-v2' && stdInfo.links.join(',') === 'lobby-direct,stone-pipe', JSON.stringify(stdInfo));
-    await shot('b4-standard.png');
+    await sleep(600);
+    check('旧标准试玩页只留说明,不再启动三层控制器',
+      await evaluate('(typeof RA === "undefined" ? "undefined" : typeof RA.standard) === "undefined"') &&
+      await evaluate('document.body.textContent.indexOf("停用") >= 0') &&
+      await evaluate('!!document.querySelector(\'a[href="editor.html"]\')'));
+    await shot('b4-old-standard-disabled.png');
 
     // ---------- PC 离线 www ----------
     await send('Emulation.setDeviceMetricsOverride', { width: 960, height: 540, deviceScaleFactor: 1, mobile: false });

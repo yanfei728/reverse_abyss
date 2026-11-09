@@ -62,4 +62,46 @@
 
   RA.MONSTERS = MONSTERS;
   RA.Monsters = { get: get, ids: ids, defaults: defaults, paramsOf: paramsOf };
+
+  /**
+   * 27号卡:正式/独立试玩共用的怪物运动与类型规则。
+   * 速度是固定像素/秒,不随玩家当前速度、空中上限或帧率变化。
+   */
+  var C = RA.C || {};
+  var RULES = {
+    V: C.MAX_VX || 340,
+    gearSpeedPx: C.MAX_VX || 340,
+    movingFireballSpeedPx: (C.MAX_VX || 340) / 2,
+    flailOrbitTiles: 4,
+    flailHeadSpeedPx: (C.MAX_VX || 340) * 2 / 3,
+    flailInitialAngle: Math.PI / 2        // 屏幕坐标:正下方
+  };
+  RA.MonsterRules = {
+    RULES: RULES,
+    speedPx: function (type) {
+      if (type === 'gear') return RULES.gearSpeedPx;
+      if (type === 'fireball_moving' || type === 'soul') return RULES.movingFireballSpeedPx;
+      if (type === 'flail') return RULES.flailHeadSpeedPx;
+      return 0;
+    },
+    flailOrbitPx: function () { return RULES.flailOrbitTiles * (C.TS || 45); },
+    flailOmega: function () { return RULES.flailHeadSpeedPx / RULES.flailOrbitTiles / (C.TS || 45); },
+    flailPeriod: function () { return 2 * Math.PI / RA.MonsterRules.flailOmega(); },
+    haloDestroyable: function (type) {
+      return type === 'fireball_static' || type === 'fireball_moving' ||
+        type === 'soul' || type === 'archer';
+    },
+    /**
+     * 30:可被"击败"的敌对单位(计分/击杀口径)。金币、箭、机关、池、Boss 弹幕都不在此列;
+     * Boss 是独立实例,由 GameSession.onBossDefeated 单独结算。
+     */
+    isHostile: function (type) {
+      return type === 'fireball_static' || type === 'fireball_moving' ||
+        type === 'soul' || type === 'archer';
+    },
+    /** 30:拾取物(目前只有金币),不是可击败单位 */
+    isCollectible: function (type) {
+      return type === 'coin';
+    }
+  };
 })(globalThis.RA = globalThis.RA || {});

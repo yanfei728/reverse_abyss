@@ -790,7 +790,11 @@
 
   // ===================== 校验 =====================
   /**
-   * 分层校验。opts.purpose = 'draft' | 'play' | 'publish';
+   * 分层校验。opts.purpose = 'draft' | 'load' | 'play' | 'publish';
+   *   draft   草稿:只报结构错误,缺接口/出生点等是 warning;
+   *   load    只读可运行:结构 + 运行必需字段(出生/终点数值、对象参数、对象→路径引用),
+   *           不做几何/净空/最高行/侧支撑/可达性等关卡合规判断(人工试玩说了算);
+   *   play/publish 旧完整门槛,保留给历史诊断/夹具,不再是试玩/发布/正式加载的放行条件。
    * opts.rules = {rulesVersion, rulesFingerprint}(publish 时必填);
    * opts.registry 可替换对象注册表(默认 RA.EntityRegistry)。
    * 返回 Issue[]:结构性错误 severity=error,草稿可暂缺的东西在 draft 下是 warning。
@@ -798,6 +802,7 @@
   function validate(data, opts) {
     opts = opts || {};
     var purpose = opts.purpose || 'draft';
+    var loading = purpose === 'load';
     var strict = purpose === 'play' || purpose === 'publish';
     var issues = [];
     var registry = opts.registry || RA.EntityRegistry || null;
@@ -811,6 +816,11 @@
     function need(ok, code, path, message) {
       if (ok) return;
       if (strict) bad(code, path, message); else warn(code, path, message);
+    }
+    /** 运行必需项:load/play/publish 都是错误(draft 仍可先存) */
+    function needRun(ok, code, path, message) {
+      if (ok) return;
+      if (strict || loading) bad(code, path, message); else warn(code, path, message);
     }
 
     if (!isPlainObject(data)) {
@@ -925,7 +935,7 @@
       }
       var seenObjId = dict();
       data.objects.forEach(function (o, i) {
-        validateObject(o, i, cols, rows, purpose, pathById, registry, seenObjId, add, bad, need);
+        validateObject(o, i, cols, rows, purpose, pathById, registry, seenObjId, add, bad, need, needRun);
       });
     }
 
@@ -972,6 +982,21 @@
   function validatePorts(data, ports, kind, cols, rows, purpose, bad, need) {
     if (RA.CloudPipe && RA.CloudPipe.isCloud(ports)) {
       if (purpose === 'draft') return; // 草稿可先保留不完整端点
+      if (purpose === 'load') {
+        // 只读:运行时出生/终点必须能取到整数格,不做云板/净空/最高行等几何判断
+        var roles = kind === 'boss' ? ['start'] : ['start', 'finish'];
+        roles.forEach(function (role) {
+          var p = ports[role];
+          if (!isPlainObject(p) || !isInt(p.col) || !isInt(p.row)) {
+            bad('INVALID_PORT', '/ports/' + role,
+              role + ' 需要整数 col/row(运行时出生/终点要用;不做几何合规判断)');
+          } else if (p.col < 0 || p.row < 0 || p.col >= cols || p.row >= rows) {
+            bad('INVALID_PORT', '/ports/' + role,
+              role + ' (' + p.col + ',' + p.row + ') 在 ' + cols + '×' + rows + ' 的地图外,运行时取不到');
+          }
+        });
+        return;
+      }
       var ci = RA.CloudPipe.validate(data, purpose);
       ci.forEach(function (e) { bad(e.code, e.path, e.message); });
       return;
@@ -1075,7 +1100,8 @@
           '路径相邻两点重复(零长度段)');
       }
     }
-    if (purpose !== 'draft' && RA.PathGeometry && pts.length >= 1 && isInt(pts[0].col) && isInt(pts[0].row)) {
+    if (purpose !== 'draft' && purpose !== 'load' &&
+      RA.PathGeometry && pts.length >= 1 && isInt(pts[0].col) && isInt(pts[0].row)) {
       var pg = RA.PathGeometry.validate({ mode: p.mode, points: pts });
       pg.forEach(function (e) { bad(e.code, at + e.path.replace('/paths',''), e.message); });
     }
@@ -1089,7 +1115,8 @@
     void add;
   }
 
-  function validateObject(o, i, cols, rows, purpose, pathById, registry, seenIds, add, bad, need) {
+  function validateObject(o, i, cols, rows, purpose, pathById, registry, seenIds, add, bad, need, needRun) {
+    needRun = needRun || need;
     var at = '/objects/' + i;
     if (!isPlainObject(o)) {
       bad('INVALID_FIELD', at, '对象必须是 JSON 对象');
@@ -1109,8 +1136,8 @@
     if (!type) {
       bad('INVALID_FIELD', at + '/type', '对象必须有 type');
     } else if (!registry || !registry.has(type)) {
-      need(false, 'UNKNOWN_ENTITY', at + '/type',
-        '未注册的对象类型 "' + type + '"(草稿可以保留,试玩/发布必须换成已支持的类型)');
+      needRun(false, 'UNKNOWN_ENTITY', at + '/type',
+        '未注册的对象类型 "' + type + '"(运行时读不懂;草稿可以保存,试玩/发布前必须换成已支持的类型)');
     } else {
       var info = registry.get(type);
       var params = isPlainObject(o.params) ? o.params : {};
@@ -1122,29 +1149,44 @@
         known[p.name] = p;
         if (params[p.name] === undefined) {
           if (!p.optional) {
-            need(false, 'INVALID_FIELD', at + '/params/' + p.name,
+            needRun(false, 'INVALID_FIELD', at + '/params/' + p.name,
               '缺少必填参数 "' + p.label + '"(默认 ' + p.def + (p.unit ? ' ' + p.unit : '') + ')');
           }
           return;
         }
         var v = params[p.name];
         if (typeof v !== 'number' || !isFinite(v)) {
-          need(false, 'INVALID_FIELD', at + '/params/' + p.name,
+          needRun(false, 'INVALID_FIELD', at + '/params/' + p.name,
             '参数 "' + p.label + '" 必须是数字');
         } else if (v < p.min || v > p.max) {
-          need(false, 'INVALID_FIELD', at + '/params/' + p.name,
+          needRun(false, 'INVALID_FIELD', at + '/params/' + p.name,
             '参数 "' + p.label + '" 必须在 ' + p.min + '~' + p.max +
             (p.unit ? ' ' + p.unit : '') + ' 之间(现在是 ' + v + ')');
         }
       });
       Object.keys(params).forEach(function (k) {
         if (known[k]) return;
-        need(false, 'UNKNOWN_PARAM', at + '/params/' + k,
+        needRun(false, 'UNKNOWN_PARAM', at + '/params/' + k,
           '对象类型 "' + type + '" 没有注册参数 "' + k + '"(不能静默忽略)');
       });
       if (info.requiresPath) {
-        need(!!o.pathId, 'INVALID_FIELD', at + '/pathId',
+        needRun(!!o.pathId, 'INVALID_FIELD', at + '/pathId',
           '"' + info.name + '" 必须引用一条路径(pathId)');
+      }
+      if (type === 'soul') {
+        var dirV = params.initialDirection;
+        if (dirV === undefined) {
+          needRun(false, 'INVALID_FIELD', at + '/params/initialDirection',
+            '灵魂必须显式保存初始方向 initialDirection(0上1右2下3左),不能静默补默认');
+        } else if (typeof dirV !== 'number' || !isFinite(dirV) || Math.floor(dirV) !== dirV ||
+          dirV < 0 || dirV > 3) {
+          needRun(false, 'INVALID_FIELD', at + '/params/initialDirection',
+            '灵魂初始方向必须是 0~3 的整数(0上1右2下3左)');
+        }
+      }
+      if ((type === 'soul' || type === 'sewage_pool' || type === 'coin' || type === 'archer') && o.pathId) {
+        needRun(false, 'INVALID_FIELD', at + '/pathId',
+          '"' + info.name + '" 不使用路径,pathId 必须为 null');
       }
     }
 
@@ -1160,9 +1202,9 @@
       if (typeof o.pathId !== 'string' || !o.pathId.trim()) {
         bad('INVALID_FIELD', at + '/pathId', 'pathId 必须是路径 id 或 null');
       } else if (!pathById[o.pathId]) {
-        // 旧数据或手写草稿可能引用还没画好的路径:草稿保留为"待修复",试玩/发布拒绝。
-        // 不能像以前那样直接删掉引用 —— 那会丢掉作者信息(R4)。
-        need(false, 'BROKEN_REFERENCE', at + '/pathId',
+        // 旧数据或手写草稿可能引用还没画好的路径:草稿保留为"待修复";
+        // 运行时拿不到路径会算不出运动,load/试玩/发布拒绝。不能像以前那样直接删掉引用(R4)。
+        needRun(false, 'BROKEN_REFERENCE', at + '/pathId',
           '引用了不存在的路径 "' + o.pathId + '"(草稿可暂存,试玩/发布前要补上或删除)');
       } else {
         var path = pathById[o.pathId].path;
@@ -1263,8 +1305,11 @@
     if (cert.status !== 'passed') {
       certBad('CERT_REQUIRED', '/certification/status', '认证状态必须是 passed');
     }
-    if (cert.profileId !== 'standard-v1') {
-      certBad('CERT_REQUIRED', '/certification/profileId', '认证必须使用 standard-v1 标准试玩');
+    var profiles = (RA.RULES && RA.RULES.profileIds) || ['run-v1', 'standard-v1'];
+    if (profiles.indexOf(cert.profileId) < 0) {
+      certBad('CERT_REQUIRED', '/certification/profileId',
+        '认证必须绑定普通游玩/标准试玩的 profile(' + profiles.join(' / ') + '),现在是 ' +
+        JSON.stringify(cert.profileId));
     }
     var sources = ['local-playtest', 'imported-declaration'];
     if (sources.indexOf(cert.source) < 0) {
@@ -1473,7 +1518,13 @@
     fail: fail,
     issue: issue,
     errorsOf: errorsOf,
-    warningsOf: warningsOf
+    warningsOf: warningsOf,
+    /**
+     * 只读可运行检查(load):文件结构能读、网格能读、运行必需的出生/终点格与对象参数/引用可用。
+     * 不含几何/净空/最高行/侧支撑/可达性 —— 关卡能不能过由作者人工试玩决定,
+     * 试玩、发布、正式候选与正式加载都不再用旧几何规则否决人工通过。
+     */
+    readableIssues: function (data) { return errorsOf(validate(data, { purpose: 'load' })); }
   };
   // docs/design/data-and-interfaces.md 里的名字
   RA.LevelCodec = RA.LevelData;

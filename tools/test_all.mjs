@@ -27,10 +27,18 @@ const b4r1 = (await import('./test_b4r1.mjs')).result;
 const b4r2 = (await import('./test_b4r2.mjs')).result;
 const gest = (await import('./test_editor_gestures.mjs')).result;
 const trial = (await import('./test_single_level_trial.mjs')).result;
+const full40 = (await import('./test_full40.mjs')).result;
+const cont26 = (await import('./test_26_continuous.mjs')).result;
+const mon27 = (await import('./test_27_monsters.mjs')).result;
+const mon28 = (await import('./test_28_soul_sewage.mjs')).result;
+const menu29 = (await import('./test_29_menu_levels.mjs')).result;
+const card30 = (await import('./test_30_coins_archer_score.mjs')).result;
+// 放在最后:试玩页自检会按 trial.html 的真实脚本顺序重放页面脚本(会换掉 globalThis.RA)
+const trialPage = (await import('./test_trial_page.mjs')).result;
 
-const pass = engine.pass + editor.pass + assets.pass + leveldata.pass + t01r.pass + world.pass + b1r.pass + b2.pass + b3.pass + b4.pass + b4r1.pass + b4r2.pass + gest.pass + trial.pass;
-const fail = engine.fail + editor.fail + assets.fail + leveldata.fail + t01r.fail + world.fail + b1r.fail + b2.fail + b3.fail + b4.fail + b4r1.fail + b4r2.fail + gest.fail + trial.fail;
-const fails = engine.fails.concat(editor.fails, assets.fails, leveldata.fails, t01r.fails, world.fails, b1r.fails, b2.fails, b3.fails, b4.fails, b4r1.fails, b4r2.fails, gest.fails);
+const pass = engine.pass + editor.pass + assets.pass + leveldata.pass + t01r.pass + world.pass + b1r.pass + b2.pass + b3.pass + b4.pass + b4r1.pass + b4r2.pass + gest.pass + trial.pass + full40.pass + cont26.pass + mon27.pass + mon28.pass + menu29.pass + card30.pass + trialPage.pass;
+const fail = engine.fail + editor.fail + assets.fail + leveldata.fail + t01r.fail + world.fail + b1r.fail + b2.fail + b3.fail + b4.fail + b4r1.fail + b4r2.fail + gest.fail + trial.fail + full40.fail + cont26.fail + mon27.fail + mon28.fail + menu29.fail + card30.fail + trialPage.fail;
+const fails = engine.fails.concat(editor.fails, assets.fails, leveldata.fails, t01r.fails, world.fails, b1r.fails, b2.fails, b3.fails, b4.fails, b4r1.fails, b4r2.fails, gest.fails, full40.fails, cont26.fails, mon27.fails, mon28.fails, menu29.fails, card30.fails);
 
 console.log('\n' + '='.repeat(70));
 console.log(`引擎自检    PASS ${engine.pass}  FAIL ${engine.fail}`);
@@ -47,6 +55,13 @@ console.log(`B4-R1 短塔 PASS ${b4r1.pass}  FAIL ${b4r1.fail}`);
 console.log(`B4-R2 侧碰撞 PASS ${b4r2.pass}  FAIL ${b4r2.fail}`);
 console.log(`19 编辑器手势 PASS ${gest.pass}  FAIL ${gest.fail}`);
 console.log(`21 独立单图试玩 PASS ${trial.pass}  FAIL ${trial.fail}`);
+console.log(`25 完整塔   PASS ${full40.pass}  FAIL ${full40.fail}`);
+console.log(`26 连续接口 PASS ${cont26.pass}  FAIL ${cont26.fail}`);
+console.log(`27 怪物     PASS ${mon27.pass}  FAIL ${mon27.fail}`);
+console.log(`28 魂/污水  PASS ${mon28.pass}  FAIL ${mon28.fail}`);
+console.log(`29 主菜单/目录 PASS ${menu29.pass}  FAIL ${menu29.fail}`);
+console.log(`30 金币/弓箭/计分 PASS ${card30.pass}  FAIL ${card30.fail}`);
+console.log(`23 试玩页接线 PASS ${trialPage.pass}  FAIL ${trialPage.fail}`);
 console.log('-'.repeat(70));
 console.log(`合计        PASS ${pass}  FAIL ${fail}   用时 ${((Date.now() - t0) / 1000).toFixed(1)}s` +
   (fast ? '  (--fast:跳过了逐跳物理模拟)' : ''));

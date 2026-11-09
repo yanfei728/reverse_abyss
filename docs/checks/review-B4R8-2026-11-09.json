@@ -1,0 +1,194 @@
+{
+  "date": "2026-11-09",
+  "head": "d41e07d",
+  "delivery": "uncommitted B4-R7/B4-R8 working tree",
+  "scope": "User manually accepted editor. Targeted controller/lifecycle/source audit only; no real browser/pool/data mutation.",
+  "records": [
+    {
+      "name": "24 theme/old panel acceptance",
+      "afterSingleClick": "dark",
+      "bodyTheme": "dark",
+      "hasInlineThemeHandler": false,
+      "hashUnchanged": true,
+      "dirty": false,
+      "oldParameterFormPresent": false,
+      "hasGearMode": true
+    },
+    {
+      "name": "24 gear cancellation",
+      "before": {
+        "hash": "sha256:7e0432fc7642a8b08691df249a463586dc278cd4fa5799baaebcfd4f8f4380f6",
+        "undo": 0,
+        "redo": 0,
+        "dirty": false
+      },
+      "after": {
+        "hash": "sha256:7e0432fc7642a8b08691df249a463586dc278cd4fa5799baaebcfd4f8f4380f6",
+        "undo": 0,
+        "redo": 0,
+        "dirty": false
+      },
+      "objects": 0,
+      "paths": 0
+    },
+    {
+      "name": "24 historical JSON declaration policy",
+      "eligible": true,
+      "runnable": true,
+      "issues": [],
+      "note": "Synthetic memory history fixture only; no real author record or browser pool changed."
+    },
+    {
+      "name": "24 old entry scripts disabled",
+      "pages": [
+        {
+          "file": "standard.html",
+          "scripts": 0
+        },
+        {
+          "file": "devplay.html",
+          "scripts": 0
+        }
+      ],
+      "returnUsesDraftIdentity": true
+    },
+    {
+      "name": "Moved author sources, read/identity facts only",
+      "files": [
+        {
+          "file": "开发示例关卡/level0.json",
+          "bytes": 2182,
+          "sha256": "fcaf59ad30d603042dd4770a62baa303c1cb2841311aac480b2bbeda5d337953",
+          "parseError": "Unexpected token 'x', ...\" 0, 0, 0, x, x, 0, 0\"... is not valid JSON",
+          "rawLobbyMarkers": [
+            {
+              "col": 9,
+              "row": 19
+            },
+            {
+              "col": 10,
+              "row": 19
+            }
+          ],
+          "id": "level_mw6fz3dq_7p",
+          "kind": "normal",
+          "size": {
+            "cols": 21,
+            "rows": 24
+          },
+          "ports": null,
+          "objectCount": 0,
+          "matchesCurrentRuntimeTerrain": true
+        },
+        {
+          "file": "开发示例关卡/test1.json",
+          "bytes": 2110,
+          "sha256": "4332b9cbe7045955f74087d6ad7382ac1351944fe6325a1ec97b4621aca74989",
+          "parseError": null,
+          "rawLobbyMarkers": [],
+          "id": "level_mw6arbjv_1l",
+          "kind": "normal",
+          "size": {
+            "cols": 20,
+            "rows": 24
+          },
+          "ports": null,
+          "objectCount": 0,
+          "matchesCurrentRuntimeTerrain": true
+        },
+        {
+          "file": "开发示例关卡/test2.json",
+          "bytes": 2110,
+          "sha256": "3c9fadb7439e179d21d73c9b5e703b0a3c29ba02586db06842d741d41d28f66f",
+          "parseError": null,
+          "rawLobbyMarkers": [],
+          "id": "level_mw6arbjv_1l",
+          "kind": "normal",
+          "size": {
+            "cols": 20,
+            "rows": 24
+          },
+          "ports": null,
+          "objectCount": 0,
+          "matchesCurrentRuntimeTerrain": true
+        },
+        {
+          "file": "开发示例关卡/test3.json",
+          "bytes": 2182,
+          "sha256": "d3db1a0b4526b2ef7a0ef868f26cbd8045f7cf8682da8d528e3232647dbb7aaf",
+          "parseError": null,
+          "rawLobbyMarkers": [],
+          "id": "level_mw6arbjv_1l",
+          "kind": "normal",
+          "size": {
+            "cols": 21,
+            "rows": 24
+          },
+          "ports": null,
+          "objectCount": 0,
+          "matchesCurrentRuntimeTerrain": true
+        },
+        {
+          "file": "开发示例关卡/rest_level.json",
+          "bytes": 2038,
+          "sha256": "3e35e2570379bb0fae2895b02bde39f6490c39caa45ad90ef9d704316bbbf136",
+          "parseError": null,
+          "rawLobbyMarkers": [],
+          "id": "level_mw6h1p51_7n",
+          "kind": "normal",
+          "size": {
+            "cols": 19,
+            "rows": 24
+          },
+          "ports": null,
+          "objectCount": 0,
+          "matchesCurrentRuntimeTerrain": true
+        },
+        {
+          "file": "开发示例关卡/boss.json",
+          "bytes": 2182,
+          "sha256": "f3b0e3fb0c0e43ac51ecbd4d168de38ffe3898ea0c342c4424757dd2225acaea",
+          "parseError": null,
+          "rawLobbyMarkers": [],
+          "id": "level_mw6fz3dq_7p",
+          "kind": "normal",
+          "size": {
+            "cols": 21,
+            "rows": 24
+          },
+          "ports": null,
+          "objectCount": 0,
+          "matchesCurrentRuntimeTerrain": true
+        }
+      ]
+    },
+    {
+      "name": "Repeated rest lifecycle needed for floors10/30",
+      "rests": [
+        {
+          "index": 2,
+          "instanceId": null,
+          "hpAfterEntry": 80,
+          "liveInstances": 3
+        },
+        {
+          "index": 4,
+          "instanceId": null,
+          "hpAfterEntry": 40,
+          "liveInstances": 2
+        }
+      ],
+      "note": "Explicit lifecycle transitions isolate identity bug; not physical traversal or an automatic clear."
+    }
+  ],
+  "fileHashes": {
+    "editor.html": "9812b57f34ec4f91bb3b548a5c5e3df700005bd6174b25266018d3e8397393bc",
+    "js/editor.js": "bbd3976db9b0caee44a47373ec765078273155246bc1f0e51058c4bea649bf64",
+    "js/content-repository.js": "79ffac7613a423a693cdd1697591f5a7516e2352e6baab675429fc1c838c4784",
+    "js/tower-planner.js": "559e9b119f94f905399aa0210d192930ac44378665027a8353da3cce65f7856a",
+    "js/session.js": "7841504b31b03d1119963b14e4d95ffbf72335e7caea84e4b7f0f0dea613e27f",
+    "js/world.js": "9c7b177983d2fe242dc8d508ec35a40233bec75feeaf57ccd032a15d9ae66196",
+    "js/short.js": "848ff6dc0a1c277d07d3d6ee490101f1b2b3a32915a42231d3a8420a733f6f12",
+    "js/boss.js": "80a9d54e264a309b9980070c262c716c8a343c26172d228c8310d7fe9b2b2716"
+  }
+}

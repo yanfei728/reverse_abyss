@@ -33,7 +33,7 @@ function check(name, cond, extra) {
 }
 function head(t) { console.log('\n▌ ' + t); }
 const clone = (v) => JSON.parse(JSON.stringify(v));
-const demoPath = join(ROOT, 'levels/demo/t02a-demo.json');
+const demoPath = join(ROOT, 'levels/archive/demo/t02a-demo.json');
 const demoText = readFileSync(demoPath, 'utf8');
 const demoData = JSON.parse(demoText);
 
@@ -481,14 +481,24 @@ if (ed) {
     ['// name: 导入测试', '+++G++', '+P++++'].join('\n'),
     { id: 'import_test' }) === true && ed.model.importWarnings.length > 0);
 
-  // 从内置关卡打开:只读副本
-  ed.$('pool-select').value = Object.keys(RA.LEVEL_TEXT)[0];
-  const poolId = ed.$('pool-select').value;
-  check('打开内置关卡副本成功', ed.openFromPool() !== false && ed.model.id === poolId);
-  check('内置副本 ports=null、带迁移警告', ed.model.data.ports === null &&
-    ed.model.importWarnings.length > 0);
+  // 25号卡:活动内置普通池已清空,编辑器不能再枚举旧 floor01–12;
+  // 只保留固定场景只读副本。这里不再强制打开内置副本,避免改变后续尺寸测试的模型。
+  const poolSel = ed.$('pool-select');
+  const poolOpts = Array.from(poolSel.options || []).map((o) => o.value);
+  const poolHtml = String(poolSel.innerHTML || '');
+  check('活动内置普通池为空,旧内置图不再出现在下拉里',
+    Object.keys(RA.LEVEL_TEXT || {}).length === 0 &&
+    !poolHtml.includes('floor01') &&
+    (poolOpts.length === 0 || poolOpts.every((v) => /^b4-fixed:/.test(v))),
+    'opts=' + poolOpts.join(',') + ' html=' + poolHtml.slice(0, 80));
+  check('固定场景只读副本仍可打开', (() => {
+    poolSel.value = 'b4-fixed:lobby';
+    const opened = ed.openFromPool();
+    return opened !== false && ed.model.id === 'b4_lobby' && ed.model.readOnly === true;
+  })());
 
-  // 尺寸:取消零变更,确认后可撤销
+  // 尺寸:取消零变更,确认后可撤销(先回到 16×12 演示图)
+  ed.openJSONText(demoText, 'demo.json');
   const origCols = ed.model.cols;
   const origRows = ed.model.rows;
   const bigBefore = LD.canonical(ed.model.toData());
@@ -552,7 +562,7 @@ head('认证失效与演示 JSON');
   ed2.undo();
   check('undo 不恢复旧认证(首版保守策略)', ed2.model.data.certification === null);
 
-  check('演示 JSON 文件存在且在 levels/demo/', existsSync(demoPath));
+  check('演示 JSON 文件存在且在 levels/archive/demo/', existsSync(demoPath));
   const dec = LD.decode(demoText);
   check('演示 JSON 是合法 v2 且自报 hash 匹配', dec.ok);
   check('演示 JSON 有难度 3 / 两个参数对象 / pingpong 路线 / 未知对象',
@@ -599,7 +609,7 @@ head('页面接线:editor.html 的 id / 脚本与 editor.js 对得上');
     html.indexOf('id="btn-play" disabled') < 0);
   check('演示 JSON 在文档目录里被引用', (() => {
     const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
-    return readme.indexOf('levels/demo/t02a-demo.json') >= 0;
+    return readme.indexOf('levels/archive/demo/t02a-demo.json') >= 0;
   })());
 }
 
@@ -1012,7 +1022,7 @@ head('T02B:草稿仓库保存 / 恢复 / revision 冲突 / 失败 / 保存期间
   check('新建后清空 draftId / revision', edC.draftId === '' && edC.draftRevision === null);
 }
 
-head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
+head('试玩:合法草稿进入单图试玩,缺 start/finish 明确拒绝,几何不再自动裁决');
 {
   const data = clone(RA.B4_SAMPLES.normal1);
   check('试玩样例按 play 用途校验通过',
@@ -1029,17 +1039,36 @@ head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
     const oldHref = globalThis.location.href;
     const ok = await edP.openPlaytest();
     const handoff = globalThis.sessionStorage.getItem('RA_TRIAL_V3');
-    check('合法草稿能启动开发试玩', ok === true && !!handoff);
+    check('合法草稿能启动单图试玩', ok === true && !!handoff);
     check('试玩前自动保存草稿,避免离开页面丢工作',
       edP.draftRevision === 1 && edP.dirty === false);
-    check('交给试玩页的是当前模板的 V3 单图计划',
+    check('交给试玩页的是当前模板的 V3 单图计划(run-v1 普通初态)',
       (() => {
         const h = JSON.parse(handoff || '{}');
-        return h.version === 3 && h.kind === 'editor-validation' && h.profileId === 'standard-v1' && h.template && h.template.id === data.id && !h.next;
+        return h.version === 3 && h.kind === 'editor-validation' && h.profileId === 'run-v1' &&
+          h.template && h.template.id === data.id && !h.next;
       })());
-    check('跳转目标是新试玩验证页',
+    check('跳转目标是单图试玩页',
       globalThis.location.href.indexOf('trial.html?from=editor') >= 0, globalThis.location.href);
     globalThis.location.href = oldHref;
+
+    // 旧 play 门槛会因"finish 不在最高非空行"拒绝;新规则只要求能读+能跑,所以应当放行
+    const offTop = clone(data);
+    offTop.id = data.id + '_offtop';
+    offTop.terrain.tiles[0][0] = 1;
+    offTop.contentHash = null;
+    offTop.certification = null;
+    check('这张图旧 play 门槛本来会拒绝',
+      LD.errorsOf(LD.validate(offTop, { purpose: 'play' })).length > 0);
+    const edOff = new RA.Editor(makeCanvas(900, 600), { repo });
+    edOff.replaceModel(RA.EditorModel.fromData(offTop).value);
+    edOff.dirty = true;
+    globalThis.sessionStorage.removeItem('RA_TRIAL_V3');
+    const offOk = await edOff.openPlaytest();
+    check('几何不符合旧规则、但能读的图仍能进入试玩(人工通过优先)',
+      offOk === true && !!globalThis.sessionStorage.getItem('RA_TRIAL_V3'), edOff.msg);
+    globalThis.location.href = oldHref;
+    globalThis.sessionStorage.removeItem('RA_TRIAL_V3');
 
     const bad = RA.EditorModel.create({ cols: 10, rows: 8, withGround: true });
     const edBad = new RA.Editor(makeCanvas(900, 600), { repo });
@@ -1047,7 +1076,7 @@ head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
     edBad.dirty = true;
     globalThis.sessionStorage.removeItem('RA_TRIAL_V3');
     const refused = await edBad.openPlaytest();
-    check('多个接口错误时拒绝试玩并提示 INVALID_PORT',
+    check('没有 start/finish 时拒绝试玩并提示 INVALID_PORT',
       refused === false && edBad.msg.indexOf('INVALID_PORT') >= 0 &&
       edBad.msg.indexOf('/ports') >= 0, edBad.msg);
     check('被拒绝时不写试玩数据、不跳转', !globalThis.sessionStorage.getItem('RA_TRIAL_V3') &&
@@ -1066,6 +1095,124 @@ head('开发试玩:合法草稿进入新运行时,不合法接口明确拒绝');
   } finally {
     RA.DEV_SAMPLES = savedSamples;
   }
+}
+
+// ================= 24号卡:主题单接线 / 齿轮事务 / 试玩返回原草稿 / 旧面板移除 =================
+head('24号卡:主题单接线、偏好合并与不碰地图');
+{
+  const html = readFileSync(join(ROOT, 'editor.html'), 'utf8');
+  check('主题按钮只剩一处接线(HTML 不再 onclick)',
+    html.indexOf('id="btn-theme"') >= 0 &&
+    !/id="btn-theme"[^>]*onclick=/.test(html) &&
+    readFileSync(join(ROOT, 'js/editor.js'), 'utf8').indexOf("click('btn-theme'") >= 0);
+  const repo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  const ed = new RA.Editor(makeCanvas(900, 600), { repo });
+  ed.openJSONText(JSON.stringify(RA.B4_SAMPLES.normal1), 'theme.json');
+  const before = { theme: ed.theme, hash: LD.hashSync(ed.model.toData()), dirty: ed.dirty };
+  localStorage.setItem('ra_editor_preferences_v1', JSON.stringify({ schemaVersion: 1, theme: before.theme, autoGrow: true, customFlag: 'keep-me' }));
+  ed.autoGrow = true;
+  const ok = ed.toggleTheme();
+  const after = { theme: ed.theme, hash: LD.hashSync(ed.model.toData()), dirty: ed.dirty };
+  const prefs = JSON.parse(localStorage.getItem('ra_editor_preferences_v1'));
+  check('一次调用只切一次主题', ok === true && after.theme !== before.theme);
+  check('主题不改地图/hash/dirty', after.hash === before.hash && after.dirty === before.dirty);
+  check('偏好合并保存保留 autoGrow 与其他字段',
+    prefs.theme === after.theme && prefs.autoGrow === true && prefs.customFlag === 'keep-me');
+  const again = ed.toggleTheme();
+  check('再切一次恢复并仍然保留其他偏好', again === true && ed.theme === before.theme &&
+    JSON.parse(localStorage.getItem('ra_editor_preferences_v1')).customFlag === 'keep-me');
+  const realSet = localStorage.setItem;
+  localStorage.setItem = () => { throw new Error('quota'); };
+  const savedFail = ed.toggleTheme();
+  localStorage.setItem = realSet;
+  check('偏好保存失败如实提示且仍临时切换',
+    savedFail === false && ed.msg.indexOf('偏好保存失败') >= 0 && ed.theme !== before.theme);
+}
+
+head('24号卡:旧对象/参数/路径面板已移除,数据与齿轮工具保留');
+{
+  const html = readFileSync(join(ROOT, 'editor.html'), 'utf8');
+  const src = readFileSync(join(ROOT, 'js/editor.js'), 'utf8');
+  ['obj-list', 'obj-type', 'obj-col', 'obj-row', 'obj-params', 'obj-path',
+    'path-list', 'path-mode', 'path-points', 'btn-obj-apply', 'btn-obj-del',
+    'btn-path-new', 'btn-path-apply', 'btn-path-del'].forEach((id) => {
+    check('页面没有旧控件 ' + id, html.indexOf('id="' + id + '"') < 0);
+  });
+  check('代码里没有旧表单接线/提交方法',
+    !/btn-obj-apply|btn-path-new|applyObjectForm|applyPathForm|fillObjectForm/.test(src));
+  check('齿轮专属画布控件在页面上', html.indexOf('id="gear-mode"') >= 0 && html.indexOf('id="gear-mode-row"') >= 0);
+  const repo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  const ed = new RA.Editor(makeCanvas(900, 600), { repo });
+  ed.openJSONText(JSON.stringify(RA.B2_SAMPLES.normal1), 'keep.json');
+  const objects = ed.model.data.objects.length, paths = ed.model.data.paths.length;
+  check('导入后对象/路径数据仍在', objects > 0 && paths > 0);
+  ed.selectChar('~gear');
+  check('选齿轮时显示往返/闭合选项', ed.$('gear-mode-row').style.display === 'flex');
+  ed.selectChar('^');
+  check('选其他地块时收起齿轮选项', ed.$('gear-mode-row').style.display === 'none');
+  ed.selectChar('~gear');
+  ed.$('gear-mode').value = 'loop';
+  check('齿轮可选闭合而不是只剩往返', ed.gearRouteMode() === 'loop');
+  ed.$('gear-mode').value = 'pingpong';
+  check('齿轮默认/往返仍可用', ed.gearRouteMode() === 'pingpong');
+  // 画布放一个齿轮后一组撤销/重做仍正常
+  const undo0 = ed.undoStack.length;
+  check('准备：画布放齿轮并追加节点', ed.beginGearGesture({ c: 1, r: 1 }) === true &&
+    ed.appendGearNode({ c: 5, r: 1 }) === true);
+  check('右键完成只产生一条撤销', ed.finishGearGesture() === true && ed.undoStack.length === undo0 + 1);
+  const objsAfter = ed.model.data.objects.length;
+  ed.undo();
+  check('撤销把这次齿轮整组收回', ed.model.data.objects.length === objsAfter - 1);
+  ed.redo();
+  check('重做把齿轮整组放回', ed.model.data.objects.length === objsAfter);
+}
+
+head('24号卡:试玩返回打开原草稿最新修订,普通直开不自动载入');
+{
+  const repo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
+  const edA = new RA.Editor(makeCanvas(900, 600), { repo });
+  edA.openJSONText(JSON.stringify(RA.B4_SAMPLES.normal1), 'return.json');
+  check('准备：保存第一版草稿', await edA.saveDraft() === true && edA.draftRevision === 1);
+  const cert = {
+    contentHash: LD.hashSync(edA.model.toData()),
+    rulesVersion: RA.RULES.rulesVersion, rulesFingerprint: RA.RULES.rulesFingerprint,
+    profileId: 'run-v1', status: 'passed', completedAt: new Date().toISOString(), source: 'local-playtest'
+  };
+  edA.model.data.certification = cert;
+  const draftId = edA.draftId;
+  check('准备：保存带通过记录的第二版', await edA.saveDraft() === true && edA.draftRevision === 2);
+
+  const oldSearch = globalThis.location.search;
+  // 普通直开:没有 from=trial 时不能自动打开任何旧草稿
+  globalThis.location.search = '';
+  const plain = new RA.Editor(makeCanvas(900, 600), { repo });
+  await new Promise((r) => setTimeout(r, 30));
+  check('普通直开 editor 不自动打开旧草稿', plain.draftId === '' && plain.model.id !== draftId);
+
+  // 从试玩返回:带 draft 身份 → 打开最新 revision(含通过记录)
+  globalThis.location.search = '?from=trial&draft=' + encodeURIComponent(draftId);
+  const back = new RA.Editor(makeCanvas(900, 600), { repo });
+  let opened = false;
+  for (let i = 0; i < 40 && !opened; i++) {
+    await new Promise((r) => setTimeout(r, 10));
+    opened = back.draftId === draftId;
+  }
+  globalThis.location.search = oldSearch;
+  check('从试玩返回打开原草稿', opened && back.model.id === edA.model.id);
+  check('载入的是最新 revision 与通过记录',
+    back.draftRevision === 2 && !!back.model.data.certification &&
+    back.model.data.certification.profileId === 'run-v1');
+  check('返回后可直接显式发布(发布不自动触发)', await back.publishCurrent() === true &&
+    (await repo.listEligible()).value.some((r) => r.levelId === back.model.id));
+
+  // 身份缺失/草稿删除:保留当前工作并明确提示
+  globalThis.location.search = '?from=trial&draft=not_exists_draft';
+  const missing = new RA.Editor(makeCanvas(900, 600), { repo });
+  await new Promise((r) => setTimeout(r, 40));
+  globalThis.location.search = oldSearch;
+  check('返回时草稿不存在会明确提示且不新建同名草稿',
+    missing.draftId === '' && missing.model.id !== 'not_exists_draft' &&
+    /失败|找不到/.test(missing.msg || (missing.$('draft-status') && missing.$('draft-status').textContent)));
 }
 
 // ================= 收尾 =================

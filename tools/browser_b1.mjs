@@ -165,7 +165,7 @@ async function main() {
       await evaluate('RA.editor.repo.storage'));
 
     // 1) 打开合法样例(开发样例 A),保存到草稿
-    const sample = readFileSync(join(ROOT, 'levels/dev/floor-a.json'), 'utf8');
+    const sample = readFileSync(join(ROOT, 'levels/archive/dev/floor-a.json'), 'utf8');
     check('真实页面打开开发样例 A',
       await evaluate('RA.editor.openJSONText(' + JSON.stringify(sample) + ', "floor-a.json")') === true);
     const draftId = await evaluate('RA.editor.model.id');

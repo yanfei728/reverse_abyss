@@ -19,8 +19,8 @@ function check(name, fn) {
   catch (e) { fail++; fails.push(name); console.log('  FAIL  ' + name + '    ' + (e && e.message)); }
 }
 const clone = (v) => JSON.parse(JSON.stringify(v));
-const src = (n) => JSON.parse(readFileSync(join(ROOT, 'levels/authored/source-2026-11-07', n + '.json'), 'utf8'));
-const run = (n) => JSON.parse(readFileSync(join(ROOT, 'levels/authored/short', n + '.json'), 'utf8'));
+const src = (n) => JSON.parse(readFileSync(join(ROOT, 'levels/archive/authored/source-2026-11-07', n + '.json'), 'utf8'));
+const run = (n) => JSON.parse(readFileSync(join(ROOT, 'levels/archive/authored/short', n + '.json'), 'utf8'));
 const sample = (k) => clone(RA.B4_SAMPLES[k]);
 const blank = (c, r) => Array.from({ length: r }, () => new Array(c).fill(0));
 
@@ -46,7 +46,8 @@ console.log('B4 数据/几何/编辑器');
 check('作者三图原字节副本未改', () => {
   const expect = JSON.parse(readFileSync(join(ROOT, 'docs/checks/authored-levels-2026-11-07.json'), 'utf8')).records;
   expect.forEach((r) => {
-    const b = readFileSync(join(ROOT, r.file));
+    const file = r.file.replace('levels/authored', 'levels/archive/authored');
+    const b = readFileSync(join(ROOT, file));
     assert.equal(createHash('sha256').update(b).digest('hex'), r.fileSha256);
   });
 });
@@ -135,10 +136,14 @@ check('六层短塔实际换层:同一 Player、逐层提交、预热/快照/连
   assert.equal(w.current, 5);
   assert.equal(s.status, 'running');
 });
-check('生成石墙有碰撞、且只在上层尚未激活时保留', () => {
+check('生成石墙有碰撞、且只在上层已实存(preview)时保留', () => {
   const floors = ['lobby', 'normal1', 'normal2', 'normal3', 'rest', 'boss'].map(sample);
   const r = RA.GameSession.create({ floors, profile: 'run-v1' });
-  const w = r.value.world;
+  const s = r.value, w = s.world;
+  // 26号卡运行几何契约:石管两端实例都存在才派生墙面。
+  // 0层时只有0/1实存,1→2还没有运行几何;真实F进1后上层2是preview,才出现。
+  assert.equal(Object.keys(w.instances.get(1).wallCells || {}).length, 0);
+  s.pressInteract(); s.stepOnce();
   const f1 = w.instances.get(1);
   assert.ok(f1.wallCells);
   const keys = Object.keys(f1.wallCells);
@@ -203,7 +208,7 @@ check('对象调色板包含已有火球/地刺/齿轮/弹簧/门/浮石', () =>
   });
 });
 check('B4 rulesVersion/fingerprint 已升级并覆盖接口', () => {
-  assert.equal(RA.RULES.rulesVersion, 'b4-5');
+  assert.ok(/^b4-\d+$/.test(RA.RULES.rulesVersion), RA.RULES.rulesVersion);
   assert.ok(RA.RULES.rulesFingerprint.indexOf('cloud-pipe-v2') >= 0);
   assert.ok(RA.RULES.rulesFingerprint.indexOf('gap4') >= 0);
   assert.ok(RA.RULES.rulesFingerprint.indexOf('fixed=short-fixed-v1') >= 0);

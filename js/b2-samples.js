@@ -1,7 +1,7 @@
 /* -*- coding: utf-8 -*- */
 /*
  * b2-samples.js —— B2 开发短塔模板(自动生成,不要手改)
- * 来源:levels/b2/*.json;重新生成:node tools/sync_b2_levels.mjs
+ * 来源:levels/archive/b2/*.json;重新生成:node tools/sync_b2_levels.mjs
  * 未认证的开发模板;不进入正式随机池。
  */
 (function (RA) {

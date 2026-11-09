@@ -1,0 +1,120 @@
+{
+  "title": "29号卡新主界面/种子/开始/退出可见证据",
+  "date": "2026-11-09",
+  "note": "真实Chrome;正式池为空时用test3补位;不写作者passed/APK。",
+  "browser": "Chrome/156.0.8078.81",
+  "pass": 22,
+  "fail": 0,
+  "results": [
+    {
+      "name": "Chrome 已启动",
+      "ok": true,
+      "extra": "Chrome/156.0.8078.81"
+    },
+    {
+      "name": "index 是新正式壳",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "英文logo/仅开始退出/右下设置",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "显示固定40层",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "设置打开",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "种子文本完整解析并规范化",
+      "ok": true,
+      "extra": "{\"text\":\"RA-1Z141Z3\",\"value\":4294967295,\"status\":\"已重构 41 槽(种子 RA-1Z141Z3;每档 {\\\"1\\\":{\\\"picked\\\":0,\\\"fallback\\\":9},\\\"2\\\":{\\\"picked\\\":0,\\\"fallback\\\":9},\\\"3\\\":{\\\"picked\\\":0,\\\"fallback\\\":9},\\\"4\\\":{\\\"picked\\\":0,\\\"fallback\\\":9}});开始游戏时用当前池生成。\"}"
+    },
+    {
+      "name": "保存只保存种子文本到专用 key",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "0 种子明确拒绝不静默变1",
+      "ok": true,
+      "extra": "{\"text\":\"RA-1Z141Z3\",\"msg\":\"种子未应用:种子必须在 RA-1 ~ RA-1Z141Z3 之间\"}"
+    },
+    {
+      "name": "设置关闭",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "开始游戏创建正式会话",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "开始使用已选种子,不是 Date.now",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "真实 F 进入1层",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "HUD 1/40",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "进入1层后渲染状态有效",
+      "ok": true,
+      "extra": "{\"cur\":1,\"cam\":{\"x\":507.23550633871673,\"y\":-1514.6632403724536},\"and\":[507,-1515],\"cw\":1326,\"ch\":746,\"canvas\":[1326,746],\"p\":[1160,-1161],\"acts\":[0,1,2]}"
+    },
+    {
+      "name": "暂停返回主界面",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "退出结束会话并显示手动关闭提示",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "退出不假报关闭,提示手动",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "退出后可回主界面",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "short.html 单向进入英文首页",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "legacy.html 单向进入英文首页",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "设置打开编辑器",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "编辑器回游戏到 index",
+      "ok": true,
+      "extra": ""
+    }
+  ]
+}

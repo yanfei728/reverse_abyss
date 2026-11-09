@@ -22,6 +22,8 @@ export const ENGINE = [
   'js/config.js',
   'js/util.js',
   'js/text.js',
+  'js/seed-text.js',
+  'js/high-score-store.js',
   'js/level.js',
   'js/entity-registry.js',
   'js/level-data.js',
@@ -37,6 +39,7 @@ export const ENGINE = [
   'js/entities/ghost.js',
   'js/entities/blink.js',
   'js/monsters.js',
+  'js/soul-motion.js',
   'js/camera.js',
   'js/assets.js',
   'js/audio.js',
@@ -56,7 +59,8 @@ export const ENGINE = [
   'levels/levels.js',
   'js/dev-samples.js',
   'js/b2-samples.js',
-  'js/b4-samples.js'
+  'js/b4-samples.js',
+  'js/full40-samples.js'
 ];
 
 // ---------------- canvas / DOM 替身 ----------------

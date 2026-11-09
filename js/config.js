@@ -147,10 +147,66 @@
         damage: { def: 20, min: 0, max: 100 }
       },
       gear: {
-        speedTilesPerSecond: { def: 2, min: 0.1, max: 20 },
+        // 兼容字段:旧作者数据里可能仍有 speedTilesPerSecond;运行时实际速度固定为 C.MAX_VX,
+        // 该字段只读/原样保存,不再覆盖速度。新对象默认写成 V/TS,与实际一致。
+        speedTilesPerSecond: { def: 340 / 45, min: 0.1, max: 20 },
         radiusTiles: { def: 0.5, min: 0.1, max: 4 },
         damage: { def: 20, min: 0, max: 100 }
-      }
+      },
+      fireball_moving: {
+        radiusTiles: { def: 0.5, min: 0.1, max: 4 },
+        damage: { def: 20, min: 0, max: 100 }
+      },
+      flail: {
+        // radiusTiles 是锤头本体判定半径,不是 4 格轨道半径;轨道由固定规则派生。
+        radiusTiles: { def: 0.5, min: 0.1, max: 4 },
+        damage: { def: 20, min: 0, max: 100 }
+      },
+      soul: {
+        radiusTiles: { def: 0.5, min: 0.1, max: 4 },
+        damage: { def: 20, min: 0, max: 100 },
+        // 必填但由方向箭头显式写入;def 只用于注册表结构,defaults() 因 optional 不补
+        initialDirection: { def: 0, min: 0, max: 3 }
+      },
+      sewage_pool: {},
+      // 30:金币是拾取物、弓箭手是固定敌人;都直接放置,无参数面板,params 保持 {}
+      coin: {},
+      archer: {}
+    },
+
+    /*
+     * 30: 金币 / 弓箭手 / 正式塔计分。数值只在这里声明一次,
+     * 编辑器、运行时、校验器共用;不引入货币钱包/商店/排行榜。
+     */
+    COLLECT: {
+      coinRadiusTiles: 0.25          // 金币判定半径(0.5 格直径);只被玩家身体拾取
+    },
+    ARCHER: {
+      fireIntervalSeconds: 2,        // 入层后完整 2 秒射第一箭,之后每 2 秒
+      arrowSpeedPx: 170,             // 固定 V/2,不取玩家当前速度
+      arrowDamage: 20,               // 箭命中伤害(沿用受伤无敌时间)
+      contactDamage: 20,             // 本体接触伤害
+      arrowHitRadiusPx: 3,           // 箭命中框半宽(细长占位图,与实际朝向一致)
+      arrowLengthPx: 18,             // 箭可见长度
+      arrowMaxAgeSeconds: 30         // 安全上限:正常情况下先被本层边界裁掉
+    },
+    SCORE: {
+      // 只有正式完整塔启用;试玩不创建/显示/保存分数
+      formalMode: 'full40-formal',
+      floorEnter: 20,                // 首次进入真实层号 1…40(共 800)
+      enemyDefeat: 5,                // 敌对单位真的被击败(含 Boss 最终一次)
+      coin: 10                       // 拾取金币
+    },
+
+    // 怪物运动/几何固定值(由正常地面移速 V=C.MAX_VX 派生,集中在此)
+    MONSTER: {
+      gearSpeedPx: 340,                 // = C.MAX_VX
+      movingFireballSpeedPx: 170,       // = C.MAX_VX / 2
+      flailOrbitTiles: 4,               // 端点→锤头中心 180px
+      flailHeadSpeedPx: 226.6666666667, // = C.MAX_VX * 2 / 3
+      sewageDamage: 20,                 // 单格池固定接触伤害
+      spikeBaseHeight: 12,              // 地刺底座显示高度
+      spikeHeight: 16                   // 伸出尖刺高度;只这段伤害
     },
 
     // ===================== 界面配色 =====================

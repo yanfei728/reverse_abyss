@@ -1,6 +1,30 @@
 # 数据结构与模块接口 v1
 
+**当前31（已实施，待作者人工确认）**：编辑器流星锤一次局部→屏幕转换与可见包络；删对象只清本次最后引用路线、共享/未知信息保真且同一撤销事务。设置按id/hash下架browser published，事务完成才成功，不删草稿/通过/磁盘/seed/最高分；builtin同版本需源文件移出normal+sync，当前manifest不改。b4-10/schema2/DBv3保持，详见[31设计](editor-visual-path-and-unpublish.md)。
+
+**30基线（已实施、主体工程通过）**：新增schema2 coin/archer，params={}、pathId=null；金币collectible，弓静止/入层2秒一箭/170/本体及箭20，箭穿墙不跨层/不可被光环清。运行状态留实例。正式Session计分：层20/敌5/币10，实例去重、1..40总层分800，Boss最终一次；设置只持久最高值。**独立TrialSession不加入分数系统**，同对象行为保留。目标b4-10，不批量作废旧通过，接口详见[30设计](coins-archer-and-score.md)。
+
+**29基线（2026-11-09，已实施并验收通过）**：index唯一正式壳，seed仅文本用当前池重建、重试原manifest；四档normal显式同步合格JSON，fixed/fallback/archive隔离；旧页跳index，旧源仅历史测试不在生产加载。见[29验收](../checks/review-B4R13-2026-11-09.md)。实际b4-9/schema2/DBv3，下文旧待实施状态为历史。
+
+**28（2026-11-09，历史需求记录，已由B4-R12实施）**：先修所有状态按draftRef回原稿最新revision（不得以旧handoff覆盖、未通过不写认证），再接 [灵魂/污水池设计](trial-return-soul-and-sewage.md)。schema2新增soul显式初始方向/无path、sewage_pool单格/固定20/无path；魂按真实动态块外轮廓、失边按当时方向直飞再遇块贴边。所有怪物/池不参与轮廓，怪物放置不擦方块/删异类，运行轨迹不写模板。规则b4-9；27怪物主体及N04/N05已验，返回R1由28修复，见 [B4-R12](../checks/B4R12-2026-11-09-trial-return-soul-sewage.md)。
+
+**当前29（2026-11-09，已实施B4-R13）**：`levels/normal/difficulty-1..4` 只存已通过普通图，`fixed/fallback/archive` 隔离；`tools/sync_levels.mjs` 生成 `RA.NORMAL_LEVELS`（`levelId/contentHash/source/path/data`），与浏览器 published 按 id/hash 合并。`index.html` 唯一正式壳，seed 只保存文本；规则仍 b4-9/schema2。见 [B4-R13](../checks/B4R13-2026-11-09-main-menu-level-library.md)。
+
+**当前新28（2026-11-09，已实施B4-R12）**：新增 soul/sewage_pool；返回原稿统一 draftRef/最新 revision。soul 不写 paths，initialDirection 显式0–3；轮廓来源为真实 terrain/门浮石弹簧/实存管壁，怪物/轨道/池排除。sewage 单格固定20、无阻挡不可消灭。规则 b4-9、schema2 不变；作者全流程/发布待验。
+
+**当前新27（2026-11-09，已实施B4-R11）**：用户已确认 [移动火球/流星锤与齿轮轨道](moving-fireball-and-flail.md)。schema2新增fireball_moving引用直角路径，flail只保存端点/无path，轨道4格由规则派生；gear全部固定V、moving=V/2、flail头速2V/3。怪物无实体阻挡但保留伤害，**覆盖下文旧spike底座实心约定**；齿轮可见轨道/火球游玩隐藏/流星锤端点和链仅显示头伤害，机械不可消灭、火球可消灭。旧gear speed字段保真但不覆盖新固定规则，不改模板hash/批量废认证；规则已升b4-8。旧参数卡提案不实施。25/26及23/24通过保持。
+
+**当前26号卡（2026-11-09，待实施）**：25完整塔未通过人工三次缺图；已复现真实上穿漏入层，当前只按 [连续入层契约](continuous-floor-entry.md) 修复碰撞与提交的一致性、防漏/去重和preview生命周期。完整塔清单/四档抽选/test3补位/固定场景保持，不改schema/原图/认证，不再次清池；23/24人工通过保持。下文25交付计数是原记录，不等于完整塔通过。见 [独立验收](../checks/review-B4R9-2026-11-09.md)。 第4层截图后追加：规划links不等于实存石管；两端实例均实存才派生运行连接几何，绘制/碰撞共用。完整静态查询含邻层tile5单向云板与派生tile4墙，保留solid/oneWay类型与World真实坐标，具体见该契约及[二次检查](../checks/review-B4R9-2026-11-09-missing-map.md)。不增加持久化字段，不复制物理循环。
+
 这是目标技术契约，不是所有 API 均已实现；当前状态见 [STATUS](../../STATUS.md)。设计提案依据见 [decisions.md](decisions.md)。新代码仍使用原生 JS 与 `RA`；下列类型写法仅用于说明，不要求迁移 TypeScript。
+
+**当前25号卡（2026-11-09，已实施 B4-R9）**：24编辑器已人工通过。正式塔新 manifest 按 full40-v1 布局 0–40/36 普通，槽位带 floorNumber/source/requiredDifficulty/exitAction 和精确模板版本；正式图按 difficulty 1–4 对应四段各 9 层，只有 fallback 补位忽略自身难度，gameplayProfile 仍 run-v1；0/20 后是 F 链接，20 Boss 与 40 终局按槽位分派。所有实例统一赋唯一身份；补位 test3 不写认证。用户授权一次性普通池重置已实现为 DB v3：`meta` store 存 poolEpoch，published 与标记同事务清；`publish`/`publishImported`/`listEligible` 共享准备，drafts/通过历史/原件/偏好保留，新发布带当前 poolEpoch、不再重复删，旧无 epoch 记录不混入候选。LevelData 仍 schema2。见 [完整塔契约](full-tower-formal-game.md)、[交付记录](../checks/B4R9-2026-11-09-full-tower.md)；真人从 0 走通 40 层仍待作者。
+
+**当前24号卡（已实施，B4-R8）**：23号试玩已获用户人工确认。移除旧对象/参数/路径表单仅改变操作界面，不改变schema2/objects/paths/参数或通过内容hash；齿轮往返/闭合控件迁移保留。主题只影响偏好；齿轮取消恢复事务前数据。导入声明与本地通过采用相同内容绑定/技术版本仅记录的解释，来源仍区分；返回原草稿加载最新revision，旧三层页停用。见 [24号设计](editor-simplification-and-theme.md)、[交付记录](../checks/B4R8-2026-11-08-editor-simplification.md)。真人屏幕操作仍待作者执行。
+
+**通过记录/发布判定（24号卡后）**：本机通过记录与外部声明采用同一资格判断——内容可读（`readableIssues`）、`kind=normal`、`certification.status='passed'`、`profileId` 受支持（`run-v1`/旧 `standard-v1`）、`certification.contentHash` 等于当前内容 hash。`rulesVersion/rulesFingerprint` 只记录当次条件，**不再要求等于当前版本**；发布记录保存声明当时的 rules，不改写成本版本。来源仍区分 `local-playtest`/`imported-declaration`；导入只存草稿，需用户显式入池；无声明或改图（hash 不同）不能假通过。
+
+**当前23号卡用户决定优先**：试玩只去掉上下关卡，其余按普通游玩，改用普通profile（当前run-v1）开局技能可用；旧standard-v1初始CD20特例取消。人工真实通过绑定内容是发布依据，试玩/发布/候选/正式加载不以关卡几何净空或可达性自检裁决。schema2/原图/草稿安全保留，技术规则字段描述当次条件，不批量推翻人工记录；下文旧profile固定检查、自动合规或完整自检门槛由 [最新契约](manual-single-level-play.md)覆盖。**该决定已实施（B4-R7 / 规则b4-6）**：新增 `validate(...,{purpose:'load'})` 与 `RA.LevelData.readableIssues`，试玩/发布/正式候选/正式加载改用只读检查，通过记录 `profileId=run-v1`，`standard-v1` 只留旧页面/旧记录语义；见 [交付记录](../checks/B4R7-2026-11-08.md)。真人键盘试玩仍待作者执行，下文“待实施/启动失败”为历史描述。
 
 **当前22号卡补充**：21号独立流程已实现且用户反馈正常，但控制/基础交互未通过；下一步只修 [一致性](trial-gameplay-parity.md)。TrialSession独立生命周期不变，时钟累计/输入来源/基础对象伤害和技能共用，不能Player按帧/对象按秒或另写简化机关。现为b4-4，修复时更新指纹，schema2/现有认证结构与草稿安全保护不变；下文21号“待实施”仅记原设计，不代表当前代码尚无单图试玩。
 
@@ -96,8 +120,12 @@ DecorationData {
 | crumble_door | fadeSeconds | 接触消失，本局不恢复 |
 | blink_platform | warningSeconds, goneSeconds | 踩踏预警后失去碰撞，安全恢复 |
 | fireball_static | radiusTiles, damage | 不阻挡；接触伤害；可一击消灭 |
-| spike | warningSeconds, activeSeconds, cooldownSeconds, damage | 本格底座实心；刺无阻挡体积；不能击败 |
-| gear | speedTilesPerSecond, radiusTiles, damage，pathId 必填 | 路径移动、不阻挡、不能击败 |
+| fireball_moving | radiusTiles, damage，pathId 必填 | 沿直角路径固定V/2；不阻挡；接触伤害；可一击消灭；游玩不画路径 |
+| spike | warningSeconds, activeSeconds, cooldownSeconds, damage | 底座不阻挡；只有active伸出尖刺区域伤害；不能击败 |
+| gear | speedTilesPerSecond(兼容保真), radiusTiles, damage，pathId 必填 | 路径移动固定V=340；不阻挡；正式/试玩显示轨道；不能击败 |
+| flail | radiusTiles(锤头半径), damage，pathId=null | 端点为圆心、4格轨道、头速2V/3；只有锤头伤害；不可消灭 |
+| soul | radiusTiles, damage, initialDirection(0–3必填)，pathId=null | 170px/s沿真实方块外轮廓；失边直飞再回贴；可被光环消灭 |
+| sewage_pool | 无参数，pathId=null | 单格；接触20、无实体阻挡、不可消灭；持续接触按原无敌时间 |
 
 参数有类型、范围、单位、默认值和中文显示名。编辑器只暴露注册过的参数；不把复杂内部状态列为可编辑参数。已知类型的未知参数需保留并报不兼容，不能默认忽略后认证。
 
@@ -222,7 +250,7 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **缩图提交**：有损缩图先在完整候选副本上改尺寸/追加退役记录/清派生字段，再走共享 `encode`；候选不能序列化就整体失败（容量不足 `LIMIT_EXCEEDED`），原 LevelData、端口、extensions、历史、dirty、视角都不变。`changeSize` 先预演后 `pushUndo`。
 - **草稿仓库**：`ContentRepository` 使用 IndexedDB（`ra_drafts`）为主，无 IndexedDB 时内存兜底并明确 `persistent=false`。`saveDraft(draftId,data,expectedRevision)` 先按 draft 用途校验、encode 成规范 JSON，保存**发起时快照**；`revision` 由适配器原子递增，`expectedRevision` 不匹配返回 `CONFLICT`，存储失败返回 `STORAGE_FAILED`，两者都不清 dirty、不覆盖旧记录。`listDrafts/loadDraft/deleteDraft` 同样返回显式 Result。浏览器刷新后可从列表恢复；草稿不写入 `levels/`。
 - **GameSession/World（B1 子集）**：`GameSession.create({floors})` 对每层跑 `validate(play)`，拒绝结构错误；固定 `1/60` 步、最多 5 步/帧，暂停不推进、恢复不追算。`World` 按 `next.origin.x = cur.origin.x + (cur.exit.col - next.entry.col) * TS`、`next.origin.y = cur.origin.y - next.rows * TS` 对齐接口，并整体平移到 x≥0。同一 `Player` 跨层只切换 `FloorView`，不重建；脚底过线且身体完全在开口内才提交一次；底边是防回落的单向梯板；顶层无下一层时开口不放行。进入第 n+1 层时第 n 层变 snapshot、第 n+2 层变 preview，第 n−1 层释放；preview 只累计 `previewTime` 并跑非攻击环境运动，`activeTime` 保持 0。
-- **开发样例**：`levels/dev/floor-a.json`、`floor-b.json` 是开发模式数据，未认证、不进 `levels/levels.js`/正式池；`js/dev-samples.js` 由 `tools/sync_dev_levels.mjs` 生成。编辑器「开发试玩」按 play 校验当前草稿、保存草稿后把"当前层 + 样例 B"交给 `devplay.html`；直接打开 devplay 用 A+B。
+- **开发样例**：`levels/archive/dev/floor-a.json`、`floor-b.json` 是开发模式数据，未认证、不进 `levels/levels.js`/正式池；`js/dev-samples.js` 由 `tools/sync_dev_levels.mjs` 生成。编辑器「开发试玩」按 play 校验当前草稿、保存草稿后把"当前层 + 样例 B"交给 `devplay.html`；直接打开 devplay 用 A+B。
 - 异步草稿操作（B1-R1）：编辑器以 `workspaceToken` 标识当前工作区（newLevel/replaceModel 递增），保存发起时捕获令牌、draftId、expectedRevision 与快照 hash；旧回包可完成旧草稿写入，但令牌不匹配时不更新当前图的 draftId/revision/dirty。试玩保存后若令牌/dirty/hash 变化则取消导航，handoff 使用刚保存的规范快照并再次 play 校验。打开草稿用请求序号 + 起始 hash + 令牌核对，过期回包不替换当前工作；两个读取乱序时只有最新请求生效。
 - B2 已实现伤害/光环/六类对象/休整/两阶段 Boss/接口编辑/标准认证/本地发布与抽选；安卓、40 层、完整美术仍未实现。
 
@@ -232,7 +260,7 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **RunState**：会话唯一可变真值,含 hp/maxHp、invulnerableRemaining、haloActiveRemaining/haloCooldownRemaining/castId、visited/claimedRest、elapsed、status(running/dead/won);Player 不另存生命/冷却。事件带 runId + 单调 sequence。
 - **伤害/死亡**：同一模拟步最多一次受伤;1 秒无敌;hp≤0 死亡;异常越界(掉出当前层/横向越界)判死亡并记录 `outOfBounds`;死亡/中断不再无伤 respawn,页面回大厅/重试同一 manifest。死亡优先于胜利。
 - **光环**：K 施放,14 秒/从施放起 20 秒冷却;跨层保留、暂停冻结;命中 Boss 消耗本次光环但不重置冷却;一次 castId 最多打掉一个阶段;preview 不参与。
-- **六类对象**：spring/crumble_door/blink_platform/fireball_static/spike/gear 由注册参数驱动实际行为;门/浮石/地刺底座进入动态碰撞,火球/齿轮/地刺伸出按活动层伤害权限;preview 只跑非攻击运动;模板只读、每实例独立。
+- **十类对象**：spring/crumble_door/blink_platform/fireball_static/fireball_moving/spike/gear/flail/soul/sewage_pool 由注册参数驱动实际行为；门/浮石进入动态碰撞，火球/齿轮/移动火球/流星锤/灵魂/池/尖刺按活动层伤害权限；spike底座不阻挡，只有active尖刺区域伤害；preview只跑非攻击运动；模板只读、每实例独立。
 - **Boss**：shielded(12/8s) → exposed(停攻、清伤害物、保持到命中) → resolving → 下一阶段/defeated;三种轮换攻击有预警;出口击败前关闭。
 - **短塔**：`short-v1` 固定大厅/休整/Boss + 3 个已认证 normal;TowerPlanner 纯函数,按 levelId+contentHash 引用不可变内容,候选不足允许重复;开发短塔使用未认证模板。
 - **发布**：ContentRepository `publish({draftId,expectedRevision,receipt})` 在同一流程重读草稿,校验 revision/contentHash/rules/回执与 publish 校验;写入不可变 published 记录,同 id+hash 幂等,同 id 新 hash 保留旧版本,失败旧池不变。`listEligible({difficulty,rules})` 只返回已发布且认证匹配的 normal;本地浏览器存储,不是服务器发布。
@@ -257,7 +285,7 @@ FloorInstance：`instanceId, levelRef, originPx, phase, ambientTime, activeTime,
 - **PlatformLifecycle**：平台事件转 background/foreground/back，订阅可 dispose；后台先 clearAll 再暂停；前台仍暂停；back 由页面按面板→暂停→退出处理，不重建 Session、不补现实时间。
 - **PlatformFiles**：`pickJSON()` 返回 name/text 或 CANCELLED；`exportJSON` 返回 download-started / written / share-opened。Web 下载不声称写入磁盘；Android 写入 Documents 才报 written，Share 打开只附 shareOpened。
 - **导入边界**：`ContentRepository.importLevel(text,{rules})` 先 decode + draft 校验/编码/hash，保存不可自动发布的保真草稿；play/publish 校验单独决定 `runnable`/`eligible`，未知对象/参数/断引用/ports=null 原样保留但返回明确 issues，不能运行/入池；坏 JSON/结构错误/容量/schema 拒绝。认证需 profile/hash/rules/发布校验完整匹配；同 hash 当前有效声明可原子更新旧/坏声明，旧/无效声明不能覆盖有效认证，返回实际 revision/eligible。`publishImported` 需用户明确操作，记录 source=imported-declaration，不生成 local-playtest 回执。取消/失败不改池。
-- **离线包**：`tools/build_android_www.mjs` 仅复制 short 页面脚本、levels.js、levels/b2、assets；不包含 editor/tests/docs/legacy。Capacitor webDir=www，本地资源，不依赖远端 URL。
+- **离线包**：`tools/build_android_www.mjs` 仅复制 short 页面脚本、levels.js、levels/archive/b2、assets；不包含 editor/tests/docs/legacy。Capacitor webDir=www，本地资源，不依赖远端 URL。
 - **平台壳**：Capacitor 7.6.10、App/Filesystem/Share 锁版本；核心模块不 import Capacitor/DOM 文件选择；平台 bridge 是单独 esbuild bundle。
 - **未完成**：真机安装/文件选择/分享/性能、正式签名；PC 标准人工认证/发布/正式抽选。安卓交付是 debug 包，不是商店发布。
 

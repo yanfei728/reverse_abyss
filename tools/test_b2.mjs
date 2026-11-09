@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { loadEditor, makeCanvas, ROOT, SHORT_SCRIPTS, STANDARD_SCRIPTS } from './loader.mjs';
+import { loadEditor, makeCanvas, ROOT, SHORT_SCRIPTS } from './loader.mjs';
 
 const RA = loadEditor();
 const LD = RA.LevelData;
@@ -25,7 +25,7 @@ function check(name, cond, extra) {
 function head(t) { console.log('\n▌ ' + t); }
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const makeCanvasLike = () => makeCanvas(900, 600);
-const ld = (n) => JSON.parse(readFileSync(join(ROOT, 'levels/b2', n + '.json'), 'utf8'));
+const ld = (n) => JSON.parse(readFileSync(join(ROOT, 'levels/archive/b2', n + '.json'), 'utf8'));
 const lobby = ld('lobby'), n1 = ld('normal-1'), n2 = ld('normal-2'), n3 = ld('normal-3');
 const rest = ld('rest'), bossFloor = ld('boss');
 // B2 旧样例的 2 点 loop 在新直角规则下是退化环;测试夹具改成往返,不改磁盘旧文件
@@ -180,11 +180,13 @@ head('六类对象:弹簧/门/浮石/火球/地刺/齿轮');
   const s3 = newSession([n3]);
   const inst3 = s3.world.currentFloor;
   const spike = inst3.objects.filter((o) => o.type === 'spike')[0];
-  check('地刺底座实心', inst3.solidAt(spike.row, spike.col) === true);
-  s3.player.x = spike.rx - s3.player.w / 2;
-  s3.player.y = spike.ry - TS / 2 - s3.player.h;
+  check('地刺底座不阻挡(27号卡取消实心底座)', inst3.solidAt(spike.row, spike.col) === false);
+  // 尖刺伤害区在格内下部:把身体放到尖刺实际伸出的区域,不再依赖"站上底座"
+  s3.player.x = inst3.origin.x + spike.rx - s3.player.w / 2;
+  s3.player.y = inst3.origin.y + (spike.row + 1) * TS - s3.player.h;
   spike.cycle = (spike.params.warningSeconds || 0.5) + 0.05;
-  s3.stepOnce();
+  s3._damagedThisStep = false; s3.run.invulnerableRemaining = 0;
+  inst3.updateActiveObjects(1 / 60, s3);
   check('地刺伸出时伤害玩家', s3.run.hp < 100, String(s3.run.hp));
 
   const gear = inst3.objects.filter((o) => o.type === 'gear')[0];
@@ -278,11 +280,12 @@ head('上层非零原点:正常固定步跨层后的对象接触与权限');
   const inst = s.world.currentFloor;
   const spike = inst.objects.filter((o) => o.type === 'spike')[0];
   s.player.x = inst.origin.x + spike.rx - s.player.w / 2;
-  s.player.y = inst.origin.y + spike.row * TS - s.player.h;
+  s.player.y = inst.origin.y + (spike.row + 1) * TS - s.player.h;
   s.player.vy = 0; s.player.onGround = true;
   spike.cycle = (spike.params.warningSeconds || 0.5) + 0.05;
   const hp0 = s.run.hp;
-  s.stepOnce();
+  s._damagedThisStep = false; s.run.invulnerableRemaining = 0;
+  inst.updateActiveObjects(1 / 60, s);
   check('上层地刺伸出伤害', s.run.hp < hp0);
   const gear = inst.objects.filter((o) => o.type === 'gear')[0];
   s.run.invulnerableRemaining = 0;
@@ -408,33 +411,18 @@ head('发布:回执/规则/内容/revision 原子校验,失败旧池不变');
   check('正式池同时有新旧两个版本', (await repo.listEligible({ difficulty: 1 })).value.length === 2);
 }
 
-head('标准试玩/发布页面接线与入口');
+head('正式入口:index 唯一,short/旧页只跳转');
 {
-  const html1 = readFileSync(join(ROOT, 'short.html'), 'utf8');
-  const s1 = [...html1.matchAll(/<script\s+src="([^"]+)"/g)].map((m) => m[1]);
-  check('short.html 脚本顺序 = 引擎 + short.js', s1.join(',') === SHORT_SCRIPTS.join(','));
-  const html2 = readFileSync(join(ROOT, 'standard.html'), 'utf8');
-  const s2 = [...html2.matchAll(/<script\s+src="([^"]+)"/g)].map((m) => m[1]);
-  check('standard.html 脚本顺序 = 引擎 + standard.js', s2.join(',') === STANDARD_SCRIPTS.join(','));
+  const idx = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  check('index 是正式壳并加载 short 控制器', idx.indexOf('js/short.js') >= 0 &&
+    idx.indexOf('js/full40-samples.js') >= 0 && idx.indexOf('REVERSE ABYSS') >= 0);
+  for (const f of ['short.html', 'legacy.html', 'standard.html', 'devplay.html']) {
+    const h = readFileSync(join(ROOT, f), 'utf8');
+    check(f + ' 单向跳 index,不加载旧控制器', /url=index\.html/.test(h) &&
+      h.indexOf('js/short.js') < 0 && h.indexOf('js/standard.js') < 0 && h.indexOf('js/devplay.js') < 0);
+  }
   const sync = spawnSync(process.execPath, [join(ROOT, 'tools/sync_b2_levels.mjs'), '--check'], { encoding: 'utf8' });
-  check('b2-samples.js 与 levels/b2 同步', sync.status === 0, (sync.stderr || ''));
-
-  const repo = RA.ContentRepository.create({ adapter: new RA.ContentRepository.MemoryAdapter(), storage: 'memory' });
-  const ed = new RA.Editor(makeCanvasLike(), { repo });
-  ed.openJSONText(JSON.stringify(n1), 'n1.json');
-  globalThis.sessionStorage.removeItem('RA_STANDARD_V1');
-  const oldHref = globalThis.location.href;
-  globalThis.location.href = 'editor.html';
-  const ok = await ed.openStandardPlaytest();
-  const handoff = JSON.parse(globalThis.sessionStorage.getItem('RA_STANDARD_V1') || 'null');
-  check('未认证草稿也能开始标准试玩', ok === true && !!handoff);
-  check('标准 handoff 带 draftId/revision/hash/rules/profile',
-    handoff && handoff.draftId === n1.id && handoff.revision === 1 &&
-    handoff.contentHash === LD.hashSync(n1) && handoff.profile === 'standard-v1' &&
-    handoff.rulesVersion === RA.RULES.rulesVersion);
-  check('跳转 standard.html', globalThis.location.href.indexOf('standard.html') >= 0);
-  globalThis.location.href = oldHref;
-  globalThis.sessionStorage.removeItem('RA_STANDARD_V1');
+  check('b2-samples.js 与 levels/archive/b2 同步', sync.status === 0, (sync.stderr || ''));
 }
 
 head('编辑器发布按钮:草稿+回执匹配才入池');
