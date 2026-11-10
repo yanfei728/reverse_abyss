@@ -89,7 +89,8 @@
     flailPeriod: function () { return 2 * Math.PI / RA.MonsterRules.flailOmega(); },
     haloDestroyable: function (type) {
       return type === 'fireball_static' || type === 'fireball_moving' ||
-        type === 'soul' || type === 'archer';
+        type === 'soul' || type === 'archer' ||
+        type === 'ghost_dash' || type === 'fireball_spitter';
     },
     /**
      * 30:可被"击败"的敌对单位(计分/击杀口径)。金币、箭、机关、池、Boss 弹幕都不在此列;
@@ -97,11 +98,28 @@
      */
     isHostile: function (type) {
       return type === 'fireball_static' || type === 'fireball_moving' ||
-        type === 'soul' || type === 'archer';
+        type === 'soul' || type === 'archer' ||
+        type === 'ghost_dash' || type === 'fireball_spitter';
     },
     /** 30:拾取物(目前只有金币),不是可击败单位 */
     isCollectible: function (type) {
       return type === 'coin';
+    },
+    /**
+     * 32:三类主动索敌怪(中心直线距离 ≤ 10 格)共用这一份判定;与镜头缩放无关。
+     * 只限制"发起新攻击":路径类怪物、Boss、已发出的箭/火焰弹、已开始的冲刺都不受影响。
+     */
+    isSeeker: function (type) {
+      return type === 'archer' || type === 'ghost_dash' || type === 'fireball_spitter';
+    },
+    seekRangePx: function () {
+      var tiles = (C.SEEK && C.SEEK.rangeTiles) || 10;
+      return tiles * (C.TS || 45);
+    },
+    /** 中心欧氏距离是否在索敌范围内(边界含等号);参数是世界/局部同一坐标系下的平方距离 */
+    inSeekRangeSq: function (sqDist) {
+      var r = RA.MonsterRules.seekRangePx();
+      return sqDist <= r * r + 1e-9;
     }
   };
 })(globalThis.RA = globalThis.RA || {});

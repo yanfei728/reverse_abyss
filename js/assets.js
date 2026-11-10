@@ -182,57 +182,12 @@
     return cv;
   }
 
-  // ================= 3. 实体贴图(弹簧板 / 出口光柱 / 浮石) =================
+  // ================= 3. 实体贴图(已退役) =================
   /*
-   * 这三张原来是 js/entities/*.js 里现画的,现在挪到 assets/entities/*.png
-   * (由 tools/build_assets.mjs 生成),下面这套画法就是它们的兜底:
-   * 贴图没读到(或者还没加载完)的时候,画出来和 PNG 一模一样。
-   * 坐标都以贴图左上角为原点 —— 实体那边按"贴图底边 = 格子底边"贴上去。
+   * 35号卡:旧的一格实体贴图(弹簧板/出口/浮石)已由作者图(authored/objects/*)
+   * 取代,旧 assets/entities/*.png 与 sky/ui 标题图一并删除;这里不再保留它们的生成/兜底。
+   * 弹簧/地刺/门/浮石等绘制在 world.js 里缺图时会退回矢量占位,不依赖旧 PNG。
    */
-  function entitySpring() {                         // 弹簧板 S:底座 + 弹簧 + 黄板 + 箭头
-    var W = TS, H = TS;
-    var cv = RA.makeCanvas(W, H), ctx = cv.getContext('2d');
-    var sy = H;                                     // 贴图底边 = 格子底边
-    RA.rrect(ctx, 2, sy - 10, W - 4, 10, [70, 76, 104], 3, [26, 28, 40], 2);  // 底座
-    RA.line(ctx, W / 2 - 8, sy - 14, W / 2 + 8, sy - 17, 3, [150, 158, 186]); // 弹簧圈
-    RA.line(ctx, W / 2 - 8, sy - 20, W / 2 + 8, sy - 23, 3, [150, 158, 186]);
-    RA.rrect(ctx, 1, sy - 26, W - 2, 9, [246, 196, 96], 4, [26, 28, 40], 2);  // 板面
-    RA.rect(ctx, 4, sy - 25, W - 8, 3, [255, 232, 160], 2);                   // 板面高光
-    RA.polygon(ctx, [[W / 2, sy - 34], [W / 2 - 6, sy - 28], [W / 2 + 6, sy - 28]],
-      [255, 226, 140, 190]);                                               // 往上顶的箭头
-    return cv;
-  }
-
-  function entityGoal() {                           // 出口光柱 G(存的是"中间亮度"那一帧)
-    var W = C.GOAL_WIDTH, H = C.GOAL_HEIGHT;
-    var cv = RA.makeCanvas(W, H), ctx = cv.getContext('2d');
-    var pulse = 0.5;
-    var g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, 'rgba(255,235,170,' + (0.05 + 0.14 * pulse) + ')');
-    g.addColorStop(0.65, 'rgba(255,210,120,' + (0.20 + 0.16 * pulse) + ')');
-    g.addColorStop(1, 'rgba(255,190,90,0.55)');
-    RA.pathRoundRect(ctx, 0, 0, W, H, 10);
-    ctx.fillStyle = g;
-    ctx.fill();
-    RA.pathRoundRect(ctx, 0, 0, W, H, 10);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(255,232,168,' + (0.35 + 0.4 * pulse) + ')';
-    ctx.stroke();
-    var cx = W / 2;
-    var ay = H * 0.45 - (1 - pulse) * 6;
-    RA.polygon(ctx, [[cx, ay], [cx - 11, ay + 13], [cx + 11, ay + 13]], [255, 240, 190, 200]);
-    RA.polygon(ctx, [[cx, ay + 15], [cx - 11, ay + 28], [cx + 11, ay + 28]], [255, 240, 190, 120]);
-    return cv;
-  }
-
-  function entityBlink() {                          // 浮石 y:一块发蓝的石头
-    var W = TS, H = TS;
-    var cv = RA.makeCanvas(W, H), ctx = cv.getContext('2d');
-    RA.rrect(ctx, 1, 1, W - 2, H - 2, [96, 132, 156], 5, [26, 30, 44], 2);
-    RA.rect(ctx, 5, 4, W - 10, 3, [226, 240, 250], 2);
-    RA.line(ctx, 6, H * 0.55, W - 6, H * 0.55, 1, [206, 224, 236]);
-    return cv;
-  }
 
   // ================= 素材表:名字 → 文件 + 兜底画法 =================
   /*
@@ -243,34 +198,8 @@
    *
    * 加一种新地块:level.js 的 TILE_IMAGES 加一行 + 往 assets/tiles/ 放一张 PNG
    * (尺寸随意),再可选地像下面 tileXxx() 这样写个兜底画法。
-   * 天空贴图 sky/1 ~ sky/8 是爬塔时循环用的,数量见 config.SKY_COUNT。
+   * 35号卡起不再有天空贴图:旧 sky1..8 值只作为历史元数据保留(按"无小背景"显示)。
    */
-  function skyFallback(i) {
-    return function () {
-      var cv = RA.makeCanvas(960, 540), ctx = cv.getContext('2d');
-      var g = ctx.createLinearGradient(0, 0, 0, 540);
-      var t = (i - 1) / Math.max(1, (C.SKY_COUNT || 8) - 1);
-      g.addColorStop(0, RA.rgba(RA.mixColor(C.DEEP_TOP, C.SKY_TOP, t)));
-      g.addColorStop(1, RA.rgba(RA.mixColor(C.DEEP_BOTTOM, C.SKY_BOTTOM, t)));
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 960, 540);
-      return cv;
-    };
-  }
-
-  function titleFallback() {
-    return function () {
-      var cv = RA.makeCanvas(960, 540), ctx = cv.getContext('2d');
-      var g = ctx.createLinearGradient(0, 0, 0, 540);
-      g.addColorStop(0, 'rgba(6,8,24,1)');
-      g.addColorStop(0.5, 'rgba(22,22,58,1)');
-      g.addColorStop(1, 'rgba(74,46,92,1)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 960, 540);
-      RA.circle(ctx, 768, 92, 33, [250, 250, 236, 240]);
-      return cv;
-    };
-  }
 
   var BUILDERS = {
     'player/idle': function () { return drawPlayer(playerPoses().idle); },
@@ -282,10 +211,7 @@
     'tiles/dirt': tileDirt,
     'tiles/brick': tileBrick,
     'tiles/stone': tileStone,
-    'tiles/cloud': tileCloud,
-    'entities/spring': entitySpring,
-    'entities/goal': entityGoal,
-    'entities/blink': entityBlink
+    'tiles/cloud': tileCloud
   };
 
   // 文件版的素材(有 PNG 的):名字 → 相对 assets/ 的路径
@@ -309,19 +235,221 @@
     'tiles/brick': 'assets/tiles/brick.png',
     'tiles/stone': 'assets/tiles/stone.png',
     'tiles/cloud': 'assets/tiles/cloud.png',
-    'entities/spring': 'assets/entities/spring.png',
-    'entities/goal': 'assets/entities/goal.png',
-    'entities/blink': 'assets/entities/blink.png',
-    'ui/title': 'assets/ui/title.png'
+    // 37:休息小屋固定地物(只读作者图,显式资源键;不进作者 44 张盘点)
+    // 40:玩家图集(1536×1024,运行时按固定 sourceRect 分帧)
+    'player/atlas': 'assets/player/block-adventurer-v1/spritesheet.png',
+    'fixed/rest-house/milk': 'assets/fixed/rest-house/milk.png',
+    'fixed/rest-house/berries': 'assets/fixed/rest-house/berries.png',
+    'fixed/rest-house/carrot': 'assets/fixed/rest-house/carrot.png',
+    // 39:管道内底作者图(64×48,只给 liveStoneLinks 用)
+    'background/pipe-bricks': 'assets/background/pipe/pipe-bricks.png'
   };
+
+  // 35:关卡小背景(静态清单 assets/background/catalog.js;键=仓库相对路径)
   (function () {
-    var n = C.SKY_COUNT || 8;
-    for (var i = 1; i <= n; i++) {
-      FILES['sky/' + i] = 'assets/sky/sky' + i + '.png';
-      BUILDERS['sky/' + i] = skyFallback(i);
-    }
+    var cat = RA.LevelBackgroundCatalog;
+    if (!cat || !Array.isArray(cat.entries)) return;
+    cat.entries.forEach(function (e) {
+      if (e && typeof e.file === 'string') FILES[e.file] = e.file;
+    });
   })();
-  BUILDERS['ui/title'] = titleFallback();
+
+  // 38:三层大背景(独立清单;只登记真实存在的组图,不混入小背景列表)
+  (function () {
+    var cat = RA.LargeBackgroundCatalog;
+    if (!cat || !Array.isArray(cat.groups)) return;
+    cat.groups.forEach(function (g) {
+      if (!g || !Array.isArray(g.layers)) return;
+      g.layers.forEach(function (l) {
+        if (l && typeof l.file === 'string') FILES[l.file] = l.file;
+      });
+    });
+  })();
+
+  // 35:小背景的薄查询接口(纯数据,不读目录、不碰 DOM)
+  RA.LevelBackgrounds = {
+    list: function () {
+      var cat = RA.LevelBackgroundCatalog;
+      return cat && Array.isArray(cat.entries) ? cat.entries.map(function (e) { return Object.assign({}, e); }) : [];
+    },
+    get: function (id) {
+      var cat = RA.LevelBackgroundCatalog;
+      if (!cat || !Array.isArray(cat.entries)) return null;
+      for (var i = 0; i < cat.entries.length; i++) if (cat.entries[i].id === id) return Object.assign({}, cat.entries[i]);
+      return null;
+    },
+    has: function (id) { return !!this.get(id); }
+  };
+
+  // ================= 4. 作者贴图(33号卡) =================
+  /*
+   * 来源:C:/Users/beilu/Documents/blcreate/reverse_abyss贴图(只读)。
+   * 仓库副本在 assets/authored/**,逐字节等于源文件,不改尺寸/不重采样;
+   * 运行期只引用仓库内相对路径。每张的来源/尺寸/透明方式/SHA/可见最远像素半径
+   * 由 tools/art_import.mjs 盘点,写入 docs/checks/33-art-map.json。
+   *
+   * 绘制约定:
+   *   · 像素图一律最近邻放大(imageSmoothingEnabled=false),不模糊;
+   *   · 尺寸由游戏现有世界尺寸决定(TS45、本体框、金币22.5、弹18……),图片只做缩放;
+   *   · 锚点=图片中心,对应对象/格子的中心;不因为图片改变碰撞、判定或轨道;
+   *   · 缺图时对象绘制走原来的矢量兜底;地块外观缺图时退回旧石块图。
+   */
+  var AUTHORED = {
+    'authored/objects/cloud': {
+      label: '云板(薄板整图)', source: '怪物和地物/云板.png', sourceSize: [16, 3], fit: 'plate'
+    },
+    'authored/objects/door': {
+      label: '门方块', source: '怪物和地物/门.png', sourceSize: [16, 16], fit: 'tile'
+    },
+    'authored/objects/blink_idle': {
+      label: '浮石(正常)', source: '怪物和地物/浮石.png', sourceSize: [16, 16], fit: 'tile'
+    },
+    'authored/objects/blink_warning': {
+      label: '浮石(被踩/快消失)', source: '怪物和地物/被踩了快消失的浮石.png', sourceSize: [16, 16], fit: 'tile'
+    },
+    'authored/objects/gear': {
+      label: '路径齿轮', source: '怪物和地物/齿轮.png', sourceSize: [16, 16], fit: 'box'
+    },
+    // 34:弹簧板(整格底边锚点)与地刺两状态。bbox 是实测的可见外接框,供按包络裁绘:
+    //   地刺未探出=底座一条(16×5),探出=底座+尖刺(16×15);绘制时对齐 spikeGeom,不改判定。
+    'authored/objects/spring': {
+      label: '弹簧板', source: '怪物和地物/弹簧板.png', sourceSize: [16, 16], fit: 'spring',
+      bbox: { x: 0, y: 9, w: 16, h: 7 }
+    },
+    'authored/objects/spike_idle': {
+      label: '地刺(尖刺未探出)', source: '怪物和地物/地刺_尖刺未探出.png', sourceSize: [16, 16],
+      fit: 'spike', bbox: { x: 0, y: 11, w: 16, h: 5 }
+    },
+    'authored/objects/spike_active': {
+      label: '地刺(尖刺探出)', source: '怪物和地物/地刺_尖刺探出.png', sourceSize: [16, 16],
+      fit: 'spike', bbox: { x: 0, y: 1, w: 16, h: 15 }
+    },
+    'authored/objects/fireball': {
+      label: '火球(静止/移动/喷火共用身体)', source: '怪物和地物/火球.png', sourceSize: [16, 16], fit: 'box'
+    },
+    'authored/objects/soul': {
+      label: '灵魂', source: '怪物和地物/灵魂.png', sourceSize: [8, 8], fit: 'box'
+    },
+    'authored/objects/ghost': {
+      label: '幽灵', source: '怪物和地物/幽灵.png', sourceSize: [8, 8], fit: 'box'
+    },
+    'authored/objects/archer': {
+      label: '弓箭手', source: '怪物和地物/弓箭手.png', sourceSize: [8, 8], fit: 'box'
+    },
+    'authored/objects/sewage': {
+      label: '污水池', source: '怪物和地物/污水.png', sourceSize: [21, 21], fit: 'tile'
+    },
+    'authored/objects/coin': {
+      label: '金币', source: '怪物和地物/金币.png', sourceSize: [16, 16], fit: 'px', px: 22.5
+    },
+    'authored/objects/flail_head': {
+      label: '流星锤锤头', source: '怪物和地物/流星锤锤头.png', sourceSize: [16, 16], fit: 'box'
+    },
+    'authored/objects/flail_chain': {
+      label: '流星锤锁链', source: '怪物和地物/流星锤锁链.png', sourceSize: [16, 16], fit: 'chain'
+    },
+    'authored/objects/arrow': {
+      label: '箭', source: '其它/arrow.png', sourceSize: [16, 16], fit: 'px', px: 18,
+      // 源图朝右上(45°):绘制时按 atan2(vy,vx)+45° 旋转对齐速度向量
+      sourceAngle: -Math.PI / 4
+    },
+    'authored/objects/flame_bolt': {
+      label: '火焰弹', source: '其它/火焰弹.png', sourceSize: [16, 16], fit: 'px', px: 18
+    },
+    'authored/objects/halo': {
+      label: '玩家周围的光环', source: '其它/玩家周围的光环.png', sourceSize: [50, 50], fit: 'halo',
+      // tools/art_import.mjs 实测:可见像素到图心最远 34.65 源像素(50×50 图)
+      outerRadiusPx: 34.65
+    },
+    'authored/objects/track_straight': {
+      label: '齿轮路径直线', source: '其它/齿轮路径_直线.png', sourceSize: [16, 16], fit: 'track'
+    },
+    'authored/objects/track_corner': {
+      label: '齿轮路径折线', source: '其它/齿轮路径_折线.png', sourceSize: [16, 16], fit: 'track'
+    }
+  };
+  Object.keys(AUTHORED).forEach(function (k) {
+    FILES[k] = AUTHORED[k].path || ('assets/authored/' + k.replace(/^authored\//, '') + '.png');
+  });
+  // 有"旧画法"可退的:云板退回程序画的薄云板;地块外观缺图时退回旧石块
+  BUILDERS['authored/objects/cloud'] = tileCloud;
+
+  /*
+   * 新增"地块"分类:23 款普通实心方块(全部只有普通碰撞,没有任何交互)。
+   * skinId 是稳定身份,进 visuals.tileSkins;asset 只是显示用的仓库资源键。
+   * 前 15 款是 33 批,后 8 款是 34 批新增;旧 skinId/中文名一律不改。
+   */
+  var TILE_SKINS = [
+    { id: 'brick', name: '砖块' },
+    { id: 'deepslate', name: '深板岩' },
+    { id: 'deepslate_bricks', name: '深板岩砖' },
+    { id: 'dirt', name: '泥土' },
+    { id: 'grass_top', name: '草顶方块' },
+    { id: 'iron_block', name: '铁块' },
+    { id: 'leaves', name: '树叶纹方块' },
+    { id: 'log', name: '原木' },
+    { id: 'planks', name: '木板' },
+    { id: 'purpur_block', name: '紫珀块' },
+    { id: 'purpur_pillar', name: '紫珀柱' },
+    { id: 'sandstone', name: '砂岩' },
+    { id: 'stone', name: '石头' },
+    { id: 'stone_bricks', name: '石砖' },
+    { id: 'trapdoor', name: '活板纹方块' },
+    // 34 新增 8 款(全部普通实心;金色方块不是金币、没有奖励;石英柱不是旋转机关)
+    { id: 'chiseled_stone_bricks', name: '雕纹石砖' },
+    { id: 'diamond_block', name: '钻石纹方块' },
+    { id: 'gold_block', name: '金色方块' },
+    { id: 'mossy_stone_bricks', name: '苔纹石砖' },
+    { id: 'quartz_block', name: '石英纹方块' },
+    { id: 'quartz_bricks', name: '石英砖纹方块' },
+    { id: 'quartz_pillar', name: '石英柱纹方块' },
+    { id: 'red_sandstone', name: '红砂岩纹方块' }
+  ].map(function (s) {
+    var asset = 'authored/tiles/' + s.id;
+    FILES[asset] = 'assets/authored/tiles/' + s.id + '.png';
+    BUILDERS[asset] = tileStone;              // 缺图兜底:旧石块
+    return { id: s.id, name: s.name, asset: asset };
+  });
+
+  var SKIN_BY_ID = Object.create(null);
+  TILE_SKINS.forEach(function (s) { SKIN_BY_ID[s.id] = s; });
+
+  RA.TileSkins = {
+    list: function () { return TILE_SKINS.map(function (s) { return { id: s.id, name: s.name, asset: s.asset }; }); },
+    get: function (id) {
+      var s = SKIN_BY_ID[String(id)];
+      return s ? { id: s.id, name: s.name, asset: s.asset } : null;
+    },
+    has: function (id) { return !!SKIN_BY_ID[String(id)]; },
+    ids: function () { return TILE_SKINS.map(function (s) { return s.id; }); }
+  };
+
+  RA.ArtCatalog = {
+    /** 资源键 → 元数据(来源/源尺寸/适配方式) */
+    get: function (key) {
+      var a = AUTHORED[String(key)];
+      if (!a) return null;
+      var out = JSON.parse(JSON.stringify(a));
+      out.key = String(key);
+      out.file = FILES[key];
+      return out;
+    },
+    keys: function () { return Object.keys(AUTHORED); },
+    file: function (key) { return FILES[key] || null; },
+    /**
+     * 取已加载的作者图;没加载到返回 null(调用方走原矢量兜底,不画品红占位)。
+     * 测试可以直接放 assets.cache[key] 模拟已加载。
+     */
+    image: function (assets, key) {
+      if (!assets || typeof assets.image !== 'function') return null;
+      if (assets.hasFile && assets.hasFile(key)) return assets.image(key);
+      if (assets.cache && assets.cache[key] && assets.cache[key].width) return assets.cache[key];
+      return null;
+    },
+    haloOuterRadiusPx: 34.65,
+    /** 源朝向:箭朝右上 45° */
+    arrowSourceAngle: -Math.PI / 4
+  };
 
   // ================= 总管 =================
   class Assets {
@@ -336,6 +464,17 @@
 
     /** 按素材名取一张图(带缓存),没有的就现画一张兜底 */
     image(name) {
+      // 40:玩家五帧优先从作者图集静态分帧;图集未加载/失败时用 45×54 兜底
+      if (RA.PlayerArt && RA.PlayerArt.keys && RA.PlayerArt.keys[name]) {
+        var art = RA.PlayerArt.frame(name, this);
+        if (art) { this.cache[name] = art; return art; }
+        var legacyKey = ':legacy:' + name;
+        if (!(legacyKey in this.cache)) {
+          var oldFn = BUILDERS[name];
+          this.cache[legacyKey] = RA.PlayerArt.normalizeLegacy(oldFn ? oldFn() : this._placeholder(name));
+        }
+        return this.cache[legacyKey];
+      }
       if (!(name in this.cache)) {
         var fn = BUILDERS[name];
         this.cache[name] = fn ? fn() : this._placeholder(name);

@@ -38,6 +38,8 @@
   var MAX_ID = LD.LIMITS.ID;
   var HISTORY_STEPS = 100;
   var HISTORY_BYTES = 32 * 1024 * 1024;        // 32 MiB(可调技术提案)
+  var MAX_BG_DATA = 9 * 1024 * 1024;           // 自定义关卡背景 data URL 上限
+  var INLINE_BG_RE = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 
   var ID_RE = /^[A-Za-z0-9_-]+$/;
   /*
@@ -47,9 +49,103 @@
    */
   var KEEP_PLACEMENT_TYPES = {
     fireball_static: 1, fireball_moving: 1, gear: 1, flail: 1, spike: 1, soul: 1,
-    sewage_pool: 1, coin: 1, archer: 1
+    sewage_pool: 1, coin: 1, archer: 1, ghost_dash: 1, fireball_spitter: 1
   };
   function isKeepPlacementType(t) { return !!KEEP_PLACEMENT_TYPES[t]; }
+
+  /*
+   * 32:直接放置(一次左键放一个、无坐标/参数/路径表单)的类型 → 中文名。
+   * 与怪物放置共用"不擦真实地形/机关、可同格异类共存、同类幂等"。
+   */
+  var DIRECT_PLACE_TYPES = {
+    coin: '金币', archer: '弓箭手', ghost_dash: '幽灵', fireball_spitter: '喷火火球'
+  };
+  function isDirectPlaceType(t) {
+    return Object.prototype.hasOwnProperty.call(DIRECT_PLACE_TYPES, t);
+  }
+
+  // 33:地块外观的画笔字符 ~tile:<skinId>,只在编辑器内部使用,不写进 LevelData
+  var SKIN_CHAR_PREFIX = '~tile:';
+  function skinChar(id) { return SKIN_CHAR_PREFIX + id; }
+  function skinIdOfChar(ch) {
+    return (typeof ch === 'string' && ch.indexOf(SKIN_CHAR_PREFIX) === 0)
+      ? ch.slice(SKIN_CHAR_PREFIX.length) : null;
+  }
+
+  /** 33:调色板图标用的作者图键;没有登记图的类型返回 null,继续原矢量图标 */
+  function paletteArtKey(type) {
+    switch (type) {
+      case 'coin': return 'authored/objects/coin';
+      case 'archer': return 'authored/objects/archer';
+      case 'ghost_dash': return 'authored/objects/ghost';
+      case 'soul': return 'authored/objects/soul';
+      case 'fireball_static':
+      case 'fireball_moving':
+      case 'fireball_spitter': return 'authored/objects/fireball';
+      case 'gear': return 'authored/objects/gear';
+      case 'flail': return 'authored/objects/flail_head';
+      case 'sewage_pool': return 'authored/objects/sewage';
+      case 'crumble_door': return 'authored/objects/door';
+      case 'blink_platform': return 'authored/objects/blink_idle';
+      // 34:弹簧板只有一张;地刺是同一个工具,图标用"探出"帧更好认
+      case 'spring': return 'authored/objects/spring';
+      case 'spike': return 'authored/objects/spike_active';
+      default: return null;
+    }
+  }
+
+  /**
+   * 33:编辑器静态预览用的作者图。坐标是"格中心"的小数格坐标,px 是世界像素尺寸;
+   * 没有作者图/未加载完时返回 null,调用方继续用原来的矢量图标。
+   * 只做静态预览,不启动 World/AI,也不改对象位置/碰撞。
+   */
+  function editorArtPieces(obj) {
+    if (!obj || !RA.ArtCatalog) return null;
+    var T = TS;
+    var rad = Number(obj.params && obj.params.radiusTiles);
+    if (!isFinite(rad)) rad = 0.5;
+    var boxPx = Math.max(4, rad * T * 2);
+    var c = obj.col + 0.5, r = obj.row + 0.5;
+    function one(key, px) { return [{ key: key, c: c, r: r, px: px }]; }
+    switch (obj.type) {
+      case 'coin': return obj.collected ? null : one('authored/objects/coin', 22.5);
+      case 'archer': return one('authored/objects/archer', boxPx);
+      case 'ghost_dash': return one('authored/objects/ghost', boxPx);
+      case 'soul': return one('authored/objects/soul', boxPx);
+      case 'fireball_static':
+      case 'fireball_moving':
+      case 'fireball_spitter': return one('authored/objects/fireball', boxPx);
+      case 'gear': return one('authored/objects/gear', boxPx);
+      case 'sewage_pool': return one('authored/objects/sewage', T);
+      case 'crumble_door': return obj.broken ? null : one('authored/objects/door', T);
+      case 'blink_platform':
+        if (obj.state === 'gone') return null;
+        return one(obj.state === 'warning' ? 'authored/objects/blink_warning' : 'authored/objects/blink_idle', T);
+      case 'flail': {
+        if (!RA.flailHead) return null;
+        var fh = RA.flailHead(obj);
+        return [
+          { key: 'authored/objects/flail_chain', c: fh.anchor.x / T, r: fh.anchor.y / T, px: 0,
+            chain: { c: fh.x / T, r: fh.y / T } },
+          { key: 'authored/objects/flail_head', c: fh.x / T, r: fh.y / T, px: fh.radius * 2 }
+        ];
+      }
+      // 34:弹簧板整格底边锚点;地刺按 spikeGeom 的底座/尖刺包络画,两帧共用一个工具
+      case 'spring': return one('authored/objects/spring', T);
+      case 'spike': {
+        var active = obj.state === 'active';
+        var key = active ? 'authored/objects/spike_active' : 'authored/objects/spike_idle';
+        var meta = RA.ArtCatalog && RA.ArtCatalog.get ? RA.ArtCatalog.get(key) : null;
+        var M = RA.C.MONSTER || {};
+        var baseH = M.spikeBaseHeight || 12, spikeH = M.spikeHeight || 16;
+        var rect = active
+          ? { x: obj.col + 2 / T, y: obj.row + (T - baseH - spikeH) / T, w: (T - 4) / T, h: (baseH + spikeH) / T }
+          : { x: obj.col + 2 / T, y: obj.row + (T - baseH) / T, w: (T - 4) / T, h: baseH / T };
+        return [{ key: key, rect: rect, bbox: meta && meta.bbox }];
+      }
+      default: return null;
+    }
+  }
 
   // ===================== 小工具 =====================
   function isInt(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v; }
@@ -129,6 +225,9 @@
       out.push({ ch: AIR, name: '空气(橡皮)', kind: 'air' });
       LD.TILES.forEach(function (t) {
         if (t.id === 0) return;
+        // 33:普通实心 1–4 已并入下面「地块」分类的 15 款外观,不再重复摆一排旧笔刷;
+        // 云板(id5)没有新外观版本,继续作为唯一笔刷保留。旧图里的 ^ _ ~ = 仍可被吸管选中/原样绘制。
+        if (t.id >= 1 && t.id <= 4) return;
         out.push({
           ch: t.ch, name: t.name + '(地块 ' + t.id + ')', kind: 'tile',
           image: (RA.TILE_IMAGES[t.ch] || [])[0], tileId: t.id
@@ -140,6 +239,16 @@
           type: t.type, short: t.letter || t.name, implemented: t.implemented
         });
       });
+      // 33:新增「地块」分类 —— 15 款普通实心方块外观(只有普通碰撞,没有交互)
+      if (RA.TileSkins) {
+        out.push({ kind: 'head', name: '地块(普通实心块外观)', ch: '' });
+        RA.TileSkins.list().forEach(function (s) {
+          out.push({
+            ch: skinChar(s.id), name: s.name + '(地块外观)', kind: 'skin',
+            skinId: s.id, image: s.asset, short: s.name
+          });
+        });
+      }
       return out;
     },
 
@@ -147,6 +256,7 @@
     known: function (ch) {
       if (ch === AIR || ch === ' ') return true;
       if (LD.idOf(ch) !== null) return true;
+      if (skinIdOfChar(ch)) return !!(RA.TileSkins && RA.TileSkins.has(skinIdOfChar(ch)));
       if (ch && ch.charAt(0) === '~') return !!RA.EntityRegistry;
       return !!(RA.EntityRegistry && RA.EntityRegistry.typeOfLetter(ch));
     }
@@ -294,6 +404,8 @@
     get kind() { return this.data.kind; }
     get difficulty() { return this.data.difficulty; }
     get backgroundId() { return this.data.visuals.backgroundId; }
+    get backgroundImage() { return this.data.visuals.backgroundImage || null; }
+    get backgroundName() { return this.data.visuals.backgroundName || ''; }
     get spawn() { return this.data.spawn; }
     get objects() { return this.data.objects; }
     get paths() { return this.data.paths; }
@@ -318,12 +430,31 @@
       this.invalidate();
       return true;
     }
-    /** backgroundId = 'skyN' 或 null(按层循环) */
+    /** backgroundId = assets/background/catalog.js 里的小背景 id,或 null(无背景) */
     setBackground(id) {
       var v = id || null;
       if (v !== null && RA.EntityRegistry.backgroundIds().indexOf(v) < 0) return false;
-      if (this.data.visuals.backgroundId === v) return true;
+      var hadCustom = !!this.data.visuals.backgroundImage;
+      if (this.data.visuals.backgroundId === v && !hadCustom) return true;
       this.data.visuals.backgroundId = v;
+      delete this.data.visuals.backgroundImage;
+      delete this.data.visuals.backgroundName;
+      this.invalidate();
+      return true;
+    }
+
+    /**
+     * 40:每关从文件夹选的自定义背景(data URL);不同关卡各存一份,
+     * 写入 visuals.backgroundImage/backgroundName。选中后清空内置 backgroundId。
+     */
+    setBackgroundImage(dataUrl, name) {
+      if (typeof dataUrl !== 'string' || !INLINE_BG_RE.test(dataUrl)) return false;
+      if (dataUrl.length > MAX_BG_DATA) return false;
+      var n = String(name || '自定义背景').trim().slice(0, 160) || '自定义背景';
+      if (this.data.visuals.backgroundImage === dataUrl && this.backgroundName === n) return true;
+      this.data.visuals.backgroundId = null;
+      this.data.visuals.backgroundImage = dataUrl;
+      this.data.visuals.backgroundName = n;
       this.invalidate();
       return true;
     }
@@ -349,10 +480,78 @@
     }
     setTile(c, r, tileId) {
       if (!this.inBounds(c, r) || !isInt(tileId) || tileId < 0 || tileId > 5) return false;
-      if (this.data.terrain.tiles[r][c] === tileId) return true;
+      var before = this.data.terrain.tiles[r][c];
+      if (before === tileId) {
+        // 同值不算变更;但如果这一格残留了非实心格上的外观,顺手清掉(仍是真实修正)
+        if (!(tileId >= 1 && tileId <= 4) && this.tileSkinAt(c, r)) return this._setSkin(c, r, null);
+        return true;
+      }
       this.data.terrain.tiles[r][c] = tileId;
+      // 33:地块被换掉时旧外观不再成立(尤其换成空气/云板必须清)
+      if (this.tileSkinAt(c, r)) this._setSkin(c, r, null);
       this.invalidate();
       return true;
+    }
+
+    // ---------- 33:地块外观(visuals.tileSkins 稀疏表,只影响显示) ----------
+    /** 这一格的外观 id;没有返回 null */
+    tileSkinAt(c, r) {
+      var list = this.data.visuals && this.data.visuals.tileSkins;
+      if (!Array.isArray(list)) return null;
+      for (var i = 0; i < list.length; i++) {
+        if (list[i] && list[i].col === c && list[i].row === r) return list[i].skinId || null;
+      }
+      return null;
+    }
+    /** 写/清一格外观;无变化返回 false(不占撤销、不改 dirty/hash) */
+    _setSkin(c, r, skinId) {
+      if (!this.inBounds(c, r)) return false;
+      var cur = this.tileSkinAt(c, r);
+      var want = skinId || null;
+      if (cur === want) return false;
+      var vis = this.data.visuals;
+      if (!vis || typeof vis !== 'object') vis = this.data.visuals = { backgroundId: null, decorations: [] };
+      var list = Array.isArray(vis.tileSkins) ? vis.tileSkins : null;
+      if (!list) {
+        if (!want) return false;
+        list = vis.tileSkins = [];
+      }
+      var idx = -1;
+      for (var i = 0; i < list.length; i++) {
+        if (list[i] && list[i].col === c && list[i].row === r) { idx = i; break; }
+      }
+      if (want) {
+        if (idx >= 0) list[idx].skinId = want;
+        else list.push({ col: c, row: r, skinId: want });
+      } else if (idx >= 0) {
+        list.splice(idx, 1);
+        if (!list.length) delete vis.tileSkins;    // 删最后一项:移除可选字段(撤销可恢复原状)
+      }
+      this.invalidate();
+      return true;
+    }
+    /**
+     * 33:画笔写一格"地块外观":terrain=4 + skin,一次完成;外观不是第二份碰撞真值。
+     * 同格同款重涂为 no-op(不占撤销/hash/dirty)。
+     */
+    paintTileSkin(c, r, skinId) {
+      if (this.readOnly || !this.inBounds(c, r)) return false;
+      if (!RA.TileSkins || !RA.TileSkins.has(skinId)) return false;
+      var beforeTile = this.getTile(c, r);
+      if (beforeTile === 4 && this.tileSkinAt(c, r) === skinId &&
+        !this.objectAt(c, r) && !(this.data.spawn && this.data.spawn.col === c && this.data.spawn.row === r)) {
+        return false;
+      }
+      this.data.terrain.tiles[r][c] = 4;
+      this.removeObjectsAt(c, r);
+      this.clearSpawnAt(c, r);
+      this._setSkin(c, r, skinId);
+      this.invalidate();
+      return true;
+    }
+    /** 33:这一格所有要画的东西:基础地形字符 + 外观 id(给编辑器/运行查询共用) */
+    tileLook(c, r) {
+      return { tile: this.getTile(c, r), skinId: this.tileSkinAt(c, r) };
     }
 
     // ---------- 画笔适配(字符 ↔ 数据) ----------
@@ -360,7 +559,11 @@
     getChar(c, r) {
       if (!this.inBounds(c, r)) return AIR;
       var tile = this.getTile(c, r);
-      if (tile !== 0) return LD.charOf(tile);
+      if (tile !== 0) {
+        var skin = this.tileSkinAt(c, r);
+        if (skin) return skinChar(skin);
+        return LD.charOf(tile);
+      }
       var sp = this.data.spawn;
       if (sp && sp.col === c && sp.row === r) return 'P';
       var obj = this.objectAt(c, r);
@@ -374,16 +577,24 @@
     /**
      * 统一画一格(T02A 的画笔入口):
      *   空气 → 擦掉地形/对象/出生点;地块 → 铺地并移除这一格的对象/出生点;
-     *   P → 移动出生点;S/x/y → 放注册对象(默认参数、唯一 id)。
-     * 返回是否产生了变化。
+     *   ~tile:<skinId> → 普通实心块 + 地块外观(33);
+     *   P → 移动出生点;S/x/y → 放注册对象(默认参数、唯一 id);
+     *   返回是否产生了变化。
      */
     applyChar(c, r, ch) {
       if (this.readOnly || !this.inBounds(c, r)) return false;
       if (ch === AIR || ch === ' ') return this.eraseCell(c, r);
+      var skinId = skinIdOfChar(ch);
+      if (skinId) {
+        if (!RA.TileSkins || !RA.TileSkins.has(skinId)) return false;
+        return this.paintTileSkin(c, r, skinId);
+      }
       var tileId = LD.idOf(ch);
       if (tileId !== null) {
         var before = this.getTile(c, r);
         this.data.terrain.tiles[r][c] = tileId;
+        // 33:普通地形/云板覆盖清掉该格旧外观
+        this._setSkin(c, r, null);
         var removed = this.removeObjectsAt(c, r);
         var cleared = this.clearSpawnAt(c, r);
         this.invalidate();
@@ -423,6 +634,7 @@
         this.data.terrain.tiles[r][c] = 0;
         changed = true;
       }
+      if (this._setSkin(c, r, null)) changed = true;   // 33:同格外观一起清
       if (this.removeObjectsAt(c, r) > 0) changed = true;
       if (this.clearSpawnAt(c, r)) changed = true;
       if (changed) this.invalidate();
@@ -514,6 +726,7 @@
       // 27/28:怪物不替换真实地形/机关,也不删同格异类;同类画笔幂等由 brushObject 处理
       if (!isKeepPlacementType(type)) {
         this.data.terrain.tiles[r][c] = 0;
+        this._setSkin(c, r, null);        // 33:机关/地块工具清地形时,同格外观一起清
         this.clearSpawnAt(c, r);
       }
       this.invalidate();
@@ -553,6 +766,7 @@
       }
       if (!this.inBounds(o.col, o.row)) return LD.fail('INVALID_FIELD', '对象位置在地图外', []);
       this.data.terrain.tiles[o.row][o.col] = 0;
+      this._setSkin(o.col, o.row, null);   // 33:清出来变成空气,外观不再成立
       this.clearSpawnAt(o.col, o.row);
       this.invalidate();
       return LD.ok(o);
@@ -764,7 +978,7 @@
       rows = Math.max(1, Math.min(MAX_ROWS, Math.round(rows) || 1));
       var impact = {
         tiles: 0, objects: 0, paths: 0, pathPoints: 0,
-        spawn: 0, decorations: 0, ports: 0, total: 0
+        spawn: 0, decorations: 0, ports: 0, skins: 0, total: 0
       };
       for (var r = rows; r < this.rows; r++) {
         for (var c = 0; c < this.cols; c++) if (this.getTile(c, r) !== 0) impact.tiles++;
@@ -788,9 +1002,13 @@
       (this.data.visuals.decorations || []).forEach(function (d) {
         if (d.col >= cols || d.row >= rows) impact.decorations++;
       });
+      // 33:缩图会丢的地块外观也算进确认内容
+      (this.data.visuals && this.data.visuals.tileSkins || []).forEach(function (s) {
+        if (!s || s.col >= cols || s.row >= rows) impact.skins++;
+      });
       impact.ports = this.portsInvalidAt(cols);
       impact.total = impact.tiles + impact.objects + impact.paths + impact.spawn +
-        impact.decorations + impact.ports;
+        impact.decorations + impact.ports + impact.skins;
       return impact;
     }
 
@@ -886,8 +1104,8 @@
         return LD.fail('NEEDS_CONFIRM',
           '缩小会丢弃 ' + impact.total + ' 项内容(地形 ' + impact.tiles + ' 格、对象 ' +
           impact.objects + ' 个、路径 ' + impact.paths + ' 条、出生点 ' + impact.spawn +
-          '、装饰 ' + impact.decorations + '、接口 ' + impact.ports +
-          ' 个);需要确认', [], impact);
+          '、装饰 ' + impact.decorations + '、地块外观 ' + impact.skins +
+          '、接口 ' + impact.ports + ' 个);需要确认', [], impact);
       }
       // 写入前先确认退役接口有地方可放,失败就整次不改
       var originalPorts = null;
@@ -916,6 +1134,17 @@
       this.data.visuals.decorations = (this.data.visuals.decorations || []).filter(function (d) {
         return d.col < cols && d.row < rows;
       });
+      // 33:缩小后丢掉越界的地块外观;真的丢了才动这个可选字段(不无端改旧图)
+      var visOwn = this.data.visuals;
+      if (Array.isArray(visOwn.tileSkins)) {
+        var keptSkins = visOwn.tileSkins.filter(function (s) {
+          return s && isInt(s.col) && isInt(s.row) && s.col >= 0 && s.col < cols && s.row >= 0 && s.row < rows;
+        });
+        if (keptSkins.length !== visOwn.tileSkins.length) {
+          if (keptSkins.length) visOwn.tileSkins = keptSkins;
+          else delete visOwn.tileSkins;
+        }
+      }
       var retired = null;
       if (impact.ports > 0 && originalPorts) {
         var ret = this.retirePorts(originalPorts, beforeSize);
@@ -964,6 +1193,10 @@
       });
       (this.data.visuals.decorations || []).forEach(function (d) {
         d.col += dc; d.row += dr;
+      });
+      // 33:地块外观和地形一起平移,元数据不偏一格
+      (this.data.visuals && this.data.visuals.tileSkins || []).forEach(function (s) {
+        if (s && isInt(s.col) && isInt(s.row)) { s.col += dc; s.row += dr; }
       });
       if (this.data.ports) {
         var ports = this.data.ports;
@@ -1045,6 +1278,17 @@
       candidate.data.size.cols = b.cols; candidate.data.size.rows = b.rows;
       candidate.data.terrain.tiles = next;
       candidate._shiftCoords(-left, -top);
+      // 33:裁掉的地块外观不再保留(坐标已随 _shiftCoords 平移)
+      var cvis = candidate.data.visuals;
+      if (cvis && Array.isArray(cvis.tileSkins)) {
+        var keptSkins = cvis.tileSkins.filter(function (s) {
+          return s && isInt(s.col) && isInt(s.row) && s.col >= 0 && s.col < b.cols && s.row >= 0 && s.row < b.rows;
+        });
+        if (keptSkins.length !== cvis.tileSkins.length) {
+          if (keptSkins.length) cvis.tileSkins = keptSkins;
+          else delete cvis.tileSkins;
+        }
+      }
       if (candidate.data.ports && RA.CloudPipe && RA.CloudPipe.isCloud(candidate.data.ports)) {
         var ci = RA.CloudPipe.validate(candidate.data, 'play');
         if (ci.length) return LD.fail('CROP_INVALID', '裁剪会破坏云板端点/净空,已取消:' + ci[0].message, ci);
@@ -1130,7 +1374,10 @@
         (this.cols > 21 ? ',比屏幕宽,要横向滚屏' : ''));
       notes.push('id: ' + this.data.id + ' · 类型: ' + this.data.kind +
         ' · 难度: ' + (this.data.difficulty === null ? '(未设置)' : this.data.difficulty) +
-        ' · 背景: ' + (this.backgroundId || '自动(随层数循环)'));
+        ' · 背景: ' + (this.backgroundImage ? (this.backgroundName || '自定义图片')
+          : (this.backgroundId
+            ? ((RA.LevelBackgrounds && RA.LevelBackgrounds.get(this.backgroundId) || {}).label || this.backgroundId)
+            : '无')));
       if (this.data.certification) {
         notes.push('这道关卡的认证还在,但第一次编辑后就会失效(需要重新标准试玩)');
       }
@@ -1156,7 +1403,7 @@
       this.view = { x: 0, y: 0, zoom: 1 };
       this.tool = 'brush';
       this.brush = 1;
-      this.ch = '^';
+      this.ch = (RA.TileSkins && RA.TileSkins.has('grass_top')) ? '~tile:grass_top' : '^';
       this.paletteItems = [];
       this.grid = true;
       this.showEntities = true;
@@ -1200,7 +1447,7 @@
       this.wire();
       this.buildPalette();
       this.buildTools();
-      this.buildSkySelect();
+      this.buildBackgroundSelect();
       this.buildDifficultySelect();
       this.model = null;
       this.newLevel(15, 24, false);
@@ -1227,12 +1474,10 @@
 
       click('btn-new', () => self.newLevel(15, 24, false));
       click('btn-new-ground', () => self.newLevel(15, 24, true));
-      click('btn-open-pool', () => self.openFromPool());
       click('btn-open-json', () => { var f = self.$('file-json'); if (f) f.click(); });
       click('btn-import-legacy', () => { var f = self.$('file-legacy'); if (f) f.click(); });
       on('file-json', 'change', (e) => self.openFiles(e.target.files, 'json'));
       on('file-legacy', 'change', (e) => self.openFiles(e.target.files, 'legacy'));
-      on('pool-select', 'change', () => self.syncUI());
 
       click('btn-undo', () => self.undo());
       click('btn-redo', () => self.redo());
@@ -1271,18 +1516,36 @@
           self.popUndo();
         }
       });
-      on('sky-select', 'change', () => {
-        var v = self.$('sky-select').value || null;
-        if (v === self.model.backgroundId) return;
+      on('bg-select', 'change', () => {
+        var v = self.$('bg-select').value || null;
+        if (v === '__custom__') return;
+        if (v === null && self.model.backgroundImage) {
+          self.pushUndo();
+          if (self.model.setBackground(null)) { self.markDirty(); self.syncUI(); self.say('关卡背景:无(照常可玩)'); }
+          else self.popUndo();
+          return;
+        }
+        if (v === self.model.backgroundId && !self.model.backgroundImage) return;
         self.pushUndo();
         if (self.model.setBackground(v)) {
           self.markDirty();
           self.syncUI();
-          self.say(v ? ('这一层固定用 assets/sky/' + v + '.png') : '背景改回自动(随层数循环)');
+          var reg = v && RA.LevelBackgrounds ? RA.LevelBackgrounds.get(v) : null;
+          self.say(v ? ('关卡背景:' + (reg ? reg.label : v) + '(整图铺满地图框并压暗)')
+            : '关卡背景:无(照常可玩)');
         } else {
           self.popUndo();
         }
       });
+
+      click('bg-choose', () => { var f = self.$('bg-file'); if (f) f.click(); });
+      click('bg-clear', () => {
+        if (!self.model.backgroundId && !self.model.backgroundImage) return;
+        self.pushUndo();
+        if (self.model.setBackground(null)) { self.markDirty(); self.syncUI(); self.say('关卡背景:无(照常可玩)'); }
+        else self.popUndo();
+      });
+      on('bg-file', 'change', (e) => self.importBackgroundFile(e.target.files && e.target.files[0]));
 
       click('btn-apply-size', () => self.applySizeUI());
       click('btn-crop', () => self.cropUI());
@@ -1290,7 +1553,9 @@
       click('btn-copy', () => self.copyJSON());
       click('btn-view-json', () => self.showJSON());
       click('btn-play', () => { self.openPlaytest(); });
-      click('btn-publish', () => { self.publishCurrent(); });
+      click('btn-export-browser', () => { self.exportToBrowser(); });
+      click('btn-export-local', () => { self.exportLocalCurrent(); });
+      click('btn-export-batch', () => { self.exportLocalBatch(); });
       click('btn-start-mark', () => self.beginPortMark('start'));
       click('btn-finish-mark', () => self.beginPortMark('finish'));
       click('btn-start-clear', () => self.clearEndpointUI('start'));
@@ -1314,8 +1579,32 @@
       var host = this.$('palette');
       var self = this;
       this.paletteItems = EditorPalette.build();
+      this._skinWrap = null;
       if (host) host.innerHTML = '';
       this.paletteItems.forEach(function (item, i) {
+        if (item.kind === 'head') {
+          // 33:地块外观子面板标题(可折叠);不参与 1-9/0 快捷键
+          var head = globalThis.document.createElement('button');
+          head.type = 'button';
+          head.className = 'phead';
+          head.textContent = item.name + ' ▾';
+          head.title = '展开/收起 15 款普通实心块外观(只影响显示,碰撞仍是普通地块)';
+          head.addEventListener('click', function () {
+            var wrap = self._skinWrap;
+            if (!wrap) return;
+            var hidden = wrap.style.display === 'none';
+            wrap.style.display = hidden ? 'contents' : 'none';
+            head.textContent = item.name + (hidden ? ' ▾' : ' ▸');
+          });
+          if (host) host.appendChild(head);
+          var wrap = globalThis.document.createElement('div');
+          wrap.className = 'pskins';
+          wrap.style.display = 'contents';
+          if (host) host.appendChild(wrap);
+          self._skinWrap = wrap;
+          self._skinHead = head;
+          return;
+        }
         var b = globalThis.document.createElement('button');
         b.className = 'pitem';
         b.type = 'button';
@@ -1330,7 +1619,8 @@
         lab.textContent = item.ch === AIR ? '空' : (item.short || item.ch);
         b.appendChild(lab);
         b.addEventListener('click', function () { self.selectChar(item.ch); });
-        if (host) host.appendChild(b);
+        var target = (item.kind === 'skin' && self._skinWrap) ? self._skinWrap : host;
+        if (target) target.appendChild(b);
         item.btn = b;
         item.icon = icon;
         self.drawPaletteIcon(item);
@@ -1346,6 +1636,9 @@
       if (item.kind === 'tile') {
         // 和游戏里同一个画法:贴图缩放到这一格(云板只画上面一截)
         RA.drawTile(ctx, item.ch, this.assets.image(item.image), 0, 0, S);
+      } else if (item.kind === 'skin') {
+        // 33:新"地块"分类的缩略图(缺图时 assets 已回退旧石块)
+        RA.drawSkinTile(ctx, this.assets.image(item.image), 0, 0, S);
       } else if (item.kind === 'air') {
         for (var y = 0; y < 2; y++) {
           for (var x = 0; x < 2; x++) {
@@ -1363,8 +1656,25 @@
         RA.text(ctx, 'P', Math.round(S * 0.24), [255, 255, 255], S / 2, S * 0.68,
           { bold: true, shadow: false });
       } else if (item.kind === 'object') {
+        // 33:有作者图的类型直接用同一张图(与画布/试玩一致);没有图的继续矢量图标
+        var artKey = paletteArtKey(item.type);
+        var artImg = artKey && RA.ArtCatalog ? RA.ArtCatalog.image(this.assets, artKey) : null;
         var cls = RA.BY_LETTER[item.ch] || (RA.EntityRegistry && RA.EntityRegistry.classFor ? RA.EntityRegistry.classFor(item.type) : null);
-        if (cls) {
+        if (artImg && item.type === 'flail') {
+          // 流星锤:链在上、锤头在下,和画布上的结构一致(两段都用作者图)
+          var chImg = RA.ArtCatalog.image(this.assets, 'authored/objects/flail_chain');
+          ctx.imageSmoothingEnabled = false;
+          if (chImg) ctx.drawImage(chImg, S * 0.40, S * 0.06, S * 0.20, S * 0.42);
+          ctx.drawImage(artImg, S * 0.22, S * 0.46, S * 0.56, S * 0.56);
+        } else if (artImg) {
+          // 居中、等比、最近邻,留 2px 边
+          var pad = 2, box = S - pad * 2;
+          var iw = artImg.width || 1, ih = artImg.height || 1;
+          var ik = Math.min(box / iw, box / ih);
+          var dw = Math.max(1, iw * ik), dh = Math.max(1, ih * ik);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(artImg, pad + (box - dw) / 2, pad + (box - dh) / 2, dw, dh);
+        } else if (cls) {
           cls.prototype.drawIcon(ctx, 0, 0, S);
         } else if (item.type === 'fireball_static') {
           RA.rect(ctx, 0, 0, S, S, [44, 30, 26], 6);
@@ -1413,6 +1723,25 @@
           ctx.fillStyle = '#c9f7e4';
           ctx.beginPath(); ctx.moveTo(S * 0.92, S * 0.5); ctx.lineTo(S * 0.72, S * 0.4); ctx.lineTo(S * 0.72, S * 0.6);
           ctx.closePath(); ctx.fill();
+        } else if (item.type === 'ghost_dash') {
+          // 32:幽灵:漂浮的半透明圆 + 冲刺箭尾
+          RA.rect(ctx, 0, 0, S, S, [24, 20, 40], 6);
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = '#c9b6ff'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(S * 0.16, S * 0.5); ctx.lineTo(S * 0.5, S * 0.5); ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#d9ccff'; ctx.beginPath(); ctx.arc(S * 0.6, S * 0.5, S * 0.24, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#f3edff'; ctx.lineWidth = 2; ctx.stroke();
+          ctx.fillStyle = '#4b3f78';
+          ctx.beginPath(); ctx.arc(S * 0.52, S * 0.46, S * 0.05, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(S * 0.68, S * 0.46, S * 0.05, 0, Math.PI * 2); ctx.fill();
+        } else if (item.type === 'fireball_spitter') {
+          // 32:喷火火球:火球本体 + 水平炮口
+          RA.rect(ctx, 0, 0, S, S, [44, 30, 26], 6);
+          ctx.fillStyle = '#ff8f3a'; ctx.beginPath(); ctx.arc(S * 0.42, S * 0.5, S * 0.2, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2; ctx.stroke();
+          ctx.fillStyle = '#ff7a1a';
+          ctx.fillRect(S * 0.58, S * 0.44, S * 0.24, S * 0.12);
         } else {
           RA.rect(ctx, 0, 0, S, S, [30, 36, 54], 6);
           RA.text(ctx, (item.short || '?').slice(0, 1), Math.round(S * 0.5), [255, 255, 255], S / 2, S / 2,
@@ -1455,9 +1784,58 @@
       });
     }
 
-    /** 天空下拉框:自动(按层循环)+ sky1 ~ skyN */
-    buildSkySelect() {
-      var sel = this.$('sky-select');
+    /**
+     * 40:从文件夹选择一张图片作为本关背景。先读成 data URL 并确认图片可解码,
+     * 再一次性写入 visuals.backgroundImage;失败不写模型/不占撤销。
+     * 上限:文件 6 MiB(data URL 8 MiB),支持 PNG/JPEG/WebP。
+     */
+    importBackgroundFile(file) {
+      var self = this;
+      if (!file) return;
+      var type = String(file.type || '');
+      if (!/^image\/(png|jpeg|webp)$/.test(type)) {
+        this.say('关卡背景只支持 PNG/JPEG/WebP 图片', 'bad');
+        return;
+      }
+      if (file.size > 6 * 1024 * 1024) {
+        this.say('图片超过 6 MiB,请先压缩后再选(避免关卡 JSON 过大)', 'bad');
+        return;
+      }
+      if (!globalThis.FileReader) { this.say('这个浏览器读不了本地图片', 'bad'); return; }
+      var r = new globalThis.FileReader();
+      r.onerror = function () { self.say('读取图片失败', 'bad'); };
+      r.onload = function () {
+        var data = String(r.result || '');
+        if (!INLINE_BG_RE.test(data) || data.length > MAX_BG_DATA) {
+          self.say('图片编码超出限制,请换一张更小的图片', 'bad');
+          return;
+        }
+        var probe = new globalThis.Image();
+        probe.onerror = function () { self.say('图片无法解码,未写入背景', 'bad'); };
+        probe.onload = function () {
+          if (!(probe.width > 0 && probe.height > 0)) { self.say('图片尺寸无效,未写入背景', 'bad'); return; }
+          self.pushUndo();
+          if (self.model.setBackgroundImage(data, file.name)) {
+            self.markDirty();
+            self.syncUI();
+            self.say('关卡背景:自定义 ' + file.name + '(' + probe.width + '×' + probe.height + ')');
+          } else {
+            self.popUndo();
+            self.say('写入关卡背景失败(数据超限或格式不支持)', 'bad');
+          }
+          if (self.$('bg-file')) self.$('bg-file').value = '';
+        };
+        probe.src = data;
+      };
+      r.readAsDataURL(file);
+    }
+
+    /**
+     * 35:关卡背景下拉框 — 「无背景」+ assets/background/catalog.js 里的小背景。
+     * 旧 sky1..8 / 未知 id 不偷偷改值:打开时保留原值并单列一条"已停用/缺失"选项。
+     */
+    buildBackgroundSelect() {
+      var sel = this.$('bg-select');
       if (!sel) return;
       sel.innerHTML = '';
       var add = function (value, label) {
@@ -1466,10 +1844,16 @@
         op.textContent = label;
         sel.appendChild(op);
       };
-      add('', '自动(随层数循环)');
-      RA.EntityRegistry.backgroundIds().forEach(function (id) {
-        add(id, id + ' · assets/sky/' + id + '.png');
+      add('', '无背景(照常可玩)');
+      var custom = this.model && this.model.backgroundImage;
+      if (custom) add('__custom__', '自定义图片:' + (this.model.backgroundName || '已选择'));
+      (RA.LevelBackgrounds ? RA.LevelBackgrounds.list() : []).forEach(function (e) {
+        add(e.id, e.label + ' · ' + e.width + '×' + e.height);
       });
+      var cur = this.model ? (this.model.backgroundId || '') : '';
+      if (!custom && cur && RA.LevelBackgrounds && !RA.LevelBackgrounds.has(cur)) {
+        add(cur, '已停用/缺失:' + cur + '(按无背景显示,保留原值)');
+      }
     }
 
     buildDifficultySelect() {
@@ -1503,6 +1887,12 @@
       this.syncUI();
       var item = this.paletteItems.filter(function (x) { return x.ch === ch; })[0];
       if (item) this.say('当前地物:' + item.name);
+      else if (LD.idOf(ch) !== null) {
+        // 33:旧基础地块(^ _ ~ =)仍可被吸管选中/原样绘制,但笔刷里不再重复摆一排
+        var t = LD.TILES.filter(function (x) { return x.ch === ch; })[0];
+        this.say('旧基础地块' + (t ? '「' + t.name + '」' : '') +
+          '(笔刷已并入「地块」分类;此格仍按旧图原样保留)');
+      }
     }
 
     setBrush(n) {
@@ -1513,9 +1903,6 @@
     // ================= 关卡操作 =================
     takenTitles() {
       var out = [];
-      Object.keys(RA.LEVEL_TEXT || {}).forEach(function (id) {
-        out.push(RA.LevelPack.levelName(RA.LEVEL_TEXT[id], id));
-      });
       if (this.model) out.push(this.model.title);
       return out;
     }
@@ -1842,23 +2229,6 @@
       return true;
     }
 
-    /** 打开下拉框里的内置旧关卡(只读复制,不回写 levels/) */
-    openFromPool() {
-      var sel = this.$('pool-select');
-      var id = sel ? sel.value : '';
-      if (!id) { this.say('先在下拉框里选一张内置关卡', 'bad'); return; }
-      if (id.indexOf('b4-fixed:') === 0) {
-        var key = id.slice('b4-fixed:'.length);
-        var sample = RA.B4_SAMPLES && RA.B4_SAMPLES[key];
-        if (!sample) { this.say('读不到 B4 固定场景「' + key + '」', 'bad'); return; }
-        this.openJSONText(JSON.stringify(sample, null, 2), 'B4 固定场景 ' + key + '(只读)');
-        return;
-      }
-      var text = (RA.LEVEL_TEXT || {})[id];
-      if (!text) { this.say('读不到内置关卡「' + id + '」', 'bad'); return; }
-      this.importLegacyText(text, { id: id, fallbackId: id, source: '内置关卡 ' + id });
-    }
-
     /** 文件输入:json = v2 直接读;legacy = 旧 TXT/旧 JSON 显式迁移 */
     openFiles(files, kind) {
       var self = this;
@@ -1912,6 +2282,85 @@
         this.say('这个浏览器不让直接下载,已经把 JSON 摊开给你手动复制', 'warn');
         return false;
       }
+    }
+
+    // ================= 41:正式导出(浏览器/本地) =================
+    async exportToBrowser() {
+      return this.publishCurrent();
+    }
+
+    async chooseLevelsDir() {
+      if (!globalThis.showDirectoryPicker) return undefined;
+      try {
+        var h = await globalThis.showDirectoryPicker({ mode: 'readwrite' });
+        if (h && h.queryPermission) {
+          var st = await h.queryPermission({ mode: 'readwrite' });
+          if (st !== 'granted' && h.requestPermission) {
+            st = await h.requestPermission({ mode: 'readwrite' });
+          }
+          if (st !== 'granted') { this.say('目录未授权读写,没有写入', 'bad'); return null; }
+        }
+        return h;
+      } catch (e) {
+        if (e && e.name === 'AbortError') { this.say('已取消选择目录,没有写入'); return null; }
+        this.say('打不开目录:' + (e && e.message || e), 'bad');
+        return null;
+      }
+    }
+
+    downloadBundle(entries, name) {
+      try {
+        var bundle = globalThis.RA.LevelExport.bundle(entries);
+        var text = JSON.stringify(bundle, null, 2);
+        var blob = new globalThis.Blob([text], { type: 'application/json;charset=utf-8' });
+        var a = globalThis.document.createElement('a');
+        a.href = globalThis.URL.createObjectURL(blob);
+        a.download = name || 'reverse-abyss-levels-bundle.json';
+        if (globalThis.document.body) globalThis.document.body.appendChild(a);
+        a.click();
+        if (globalThis.document.body && globalThis.document.body.removeChild) globalThis.document.body.removeChild(a);
+        globalThis.URL.revokeObjectURL(a.href);
+        this.say('已下载关卡包(尚未写入 levels/);把包放到仓库后运行 node tools/import_level_bundle.mjs <包路径>', 'ok');
+        return true;
+      } catch (e) { this.say('生成关卡包失败:' + (e && e.message || e), 'bad'); return false; }
+    }
+
+    async exportLocalCurrent() {
+      if (!globalThis.RA.LevelExport) { this.say('缺少本地导出模块', 'bad'); return false; }
+      var res = globalThis.RA.LevelExport.current(this.model.data, {
+        draftId: this.draftId, revision: this.draftRevision
+      });
+      if (!res.ok) { this.say('不能导出到本地:[' + res.error.code + '] ' + res.error.message, 'bad'); return false; }
+      var handle = await this.chooseLevelsDir();
+      if (handle === undefined) { this.downloadBundle([res.value], 'reverse-abyss-level-' + res.value.levelId + '.json'); return false; }
+      if (handle === null) return false;
+      var out = await globalThis.RA.LevelExport.writeDirectory(handle, [res.value]);
+      if (!out.ok) { this.say('本地导出失败:[' + out.error.code + '] ' + out.error.message, 'bad'); return false; }
+      this.say('已写入 ' + out.value.written.length + ' 个 JSON,并更新 levels.js(' +
+        out.value.entries + ' 张内置普通图)' + (out.value.skipped.length ? ';跳过 ' + out.value.skipped.length + ' 个已存在版本' : ''), 'ok');
+      return true;
+    }
+
+    async exportLocalBatch() {
+      if (!globalThis.RA.LevelExport) { this.say('缺少本地导出模块', 'bad'); return false; }
+      var list = await globalThis.RA.LevelExport.list(this.repo);
+      if (!list.ok) { this.say('读取导出候选失败:[' + list.error.code + '] ' + list.error.message, 'bad'); return false; }
+      var v = list.value;
+      if (!v.entries.length) { this.say('没有可导出的有效已发布版本或已通过草稿', 'bad'); return false; }
+      var preview = '批量导出预览:' + v.entries.length + ' 个有效版本(id/hash 去重),跳过 ' +
+        v.skipped.length + ' 项' + (v.duplicates ? '(重复 ' + v.duplicates + ')' : '') + '。\n' +
+        v.entries.slice(0, 12).map(function (e) {
+          return '  · ' + e.levelId + ' · ' + e.difficulty + '档 · ' + String(e.contentHash).slice(0, 18) + '…';
+        }).join('\n') + (v.entries.length > 12 ? '\n  …' : '') + '\n继续选择 levels 目录?';
+      if (globalThis.confirm && !globalThis.confirm(preview)) { this.say('已取消批量导出', 'ok'); return false; }
+      var handle = await this.chooseLevelsDir();
+      if (handle === undefined) { this.downloadBundle(v.entries, 'reverse-abyss-levels-bundle.json'); return false; }
+      if (handle === null) return false;
+      var out = await globalThis.RA.LevelExport.writeDirectory(handle, v.entries);
+      if (!out.ok) { this.say('批量导出失败:[' + out.error.code + '] ' + out.error.message, 'bad'); return false; }
+      this.say('批量导出完成:新写 ' + out.value.written.length + ' 个 JSON,levels.js 共 ' +
+        out.value.entries + ' 张;跳过 ' + out.value.skipped.length + ' 项', 'ok');
+      return true;
     }
 
     copyJSON() {
@@ -2140,19 +2589,19 @@
     }
 
     /**
-     * 30:金币/弓箭手的直接放置。一次左键放一个;同一拖动内只记一步撤销。
+     * 30/32:金币/弓箭手/幽灵/喷火火球的直接放置。一次左键放一个;同一拖动内只记一步撤销。
      * 同格同 type 幂等(已有同类不新增);不擦真实地形/机关/出生点,不删同格异类。
      */
     placeDirectObject(type, cell) {
       if (this.model.readOnly) return false;
-      if (type !== 'coin' && type !== 'archer') return false;
+      if (!isDirectPlaceType(type)) return false;
       var at = this.model.objectsAt(cell.c, cell.r);
       for (var i = 0; i < at.length; i++) if (at[i].type === type) return false;
       if (!this.directStroke) { this.pushUndo(); this.directStroke = true; }
       var res = this.model.placeObject(type, cell.c, cell.r);
       if (!res.ok) {
         if (this.directStroke) { this.popUndo(); this.directStroke = false; }
-        this.say('放置' + (type === 'coin' ? '金币' : '弓箭手') + '失败:' + res.error.message, 'bad');
+        this.say('放置' + DIRECT_PLACE_TYPES[type] + '失败:' + res.error.message, 'bad');
         return false;
       }
       this.model.invalidate();
@@ -2449,6 +2898,7 @@
           '· 路径 ' + impact.paths + ' 条(共 ' + impact.pathPoints + ' 点)\n' +
           '· 出生点 ' + impact.spawn + '\n' +
           '· 装饰 ' + impact.decorations + '\n' +
+          '· 地块外观 ' + impact.skins + ' 格\n' +
           '· 接口 ' + impact.ports + ' 个' +
           (impact.ports ? '(会完整存进 extensions.retiredPorts,再把 ports 置空)' : '') +
           '\n\n确定继续吗?(可以撤销)';
@@ -2753,9 +3203,10 @@
         this.placeFlail(cell);
         return;
       }
-      // 30:金币/弓箭手直接放置工具 —— 一次左键放一个,无方向/参数/路径二次确认;
+      // 30/32:金币/弓箭手/幽灵/喷火火球直接放置工具 —— 一次左键放一个,无方向/参数/路径二次确认;
       // 连续拖画仍按同类幂等笔刷(同格同 type 不重复,不擦地形/机关/异类)
-      if ((this.ch === '~coin' || this.ch === '~archer') && this.tool === 'brush') {
+      if (this.ch && this.ch.charAt(0) === '~' && isDirectPlaceType(this.ch.slice(1)) &&
+        this.tool === 'brush') {
         this.placeDirectObject(this.ch.slice(1), cell);
         return;
       }
@@ -2770,11 +3221,19 @@
           var picked = this.model.getChar(cell.c, cell.r);
           var obj = this.model.objectAt(cell.c, cell.r);
           if (picked === null && obj) {
-            this.say('这一格是未注册对象 "' + obj.type + '",画笔不能取它(位置会保留)', 'warn');
+            // 注册了但没有字符画笔的类型(金币/弓箭手/幽灵/喷火火球等)不是"未知对象":
+            // 要用调色板里对应的直接放置工具,而不是说它未注册。
+            var regObj = RA.EntityRegistry.get(obj.type);
+            this.say(regObj
+              ? '这一格是「' + regObj.name + '」,没有字符画笔;用调色板里对应的工具放置/擦除'
+              : '这一格是未注册对象 "' + obj.type + '",画笔不能取它(位置会保留)', 'warn');
             return;
           }
           this.selectChar(picked === null ? AIR : picked);
-          this.say('取到 ' + (picked === AIR ? '空气' : "'" + picked + "'"));
+          var pickedItem = this.paletteItems.filter(function (x) {
+            return x.ch === (picked === null ? AIR : picked);
+          })[0];
+          this.say('取到 ' + (picked === AIR ? '空气' : (pickedItem ? pickedItem.name : "'" + picked + "'")));
           return;
         }
         var priorRedo = this.redoStack, priorRedoBytes = this.redoBytes;
@@ -2929,6 +3388,17 @@
       var vc1 = Math.min(m.cols - 1, Math.floor((this.view.x + B.w / z) / TS));
       var vr1 = Math.min(m.rows - 1, Math.floor((this.view.y + B.h / z) / TS));
 
+      // 35:关卡小背景 — 与正式/Trial 同一份绘制,先画背景再画地形;
+      // 矩形=地图框(随平移/缩放只变换一次),不参与裁空白/占用扫描
+      var bgVis = m.data.visuals || {};
+      var bgId = bgVis.backgroundId;
+      var bgInline = bgVis.backgroundImage;
+      if ((bgId || bgInline) && RA.drawLevelBackground) {
+        var bg0 = this.cellToScreen(0, 0);
+        RA.drawLevelBackground(ctx, bgId,
+          { x: bg0.x, y: bg0.y, w: m.cols * ts, h: m.rows * ts }, this.assets, bgInline);
+      }
+
       // 地块(直接读 LevelData.terrain.tiles,没有第二份字符地图)
       var tiny = ts < 8;
       for (r = vr0; r <= vr1; r++) {
@@ -2938,11 +3408,18 @@
           var ch = LD.charOf(tileId);
           if (!ch) continue;
           var q = this.cellToScreen(c, r);
+          // 33:有地块外观就整格换图(不在旧石块上叠加),缺图回退基础地块
+          var skinId = m.tileSkinAt(c, r);
+          var skinReg = skinId && RA.TileSkins ? RA.TileSkins.get(skinId) : null;
           if (tiny) {
             ctx.fillStyle = tileColor(ch);
             ctx.fillRect(q.x, q.y, ts + 0.5, ts + 0.5);
+          } else if (skinReg) {
+            RA.drawSkinTile(ctx, this.assets.image(skinReg.asset), q.x, q.y, ts);
           } else {
-            RA.drawTile(ctx, ch, this.assets.image(RA.TILE_IMAGES[ch][0]), q.x, q.y, ts);
+            var tileAsset = RA.TILE_IMAGES[ch][0];
+            RA.drawTile(ctx, ch, this.assets.image(tileAsset), q.x, q.y, ts,
+              tileAsset.indexOf('authored/') === 0 ? { nearest: true } : null);
           }
         }
       }
@@ -2979,6 +3456,60 @@
                 Math.min(anchorScreen.y, headScreen.y) - pad > self.H) return;
           } else if (obj.col < vc0 || obj.col > vc1 || obj.row < vr0 || obj.row > vr1) return;
           var q2 = self.cellToScreen(obj.col, obj.row);
+          // 33:有作者图的对象在编辑器里也画同一张图(静态预览,不启动 AI),再叠小标签方便辨认
+          var pieces = editorArtPieces(obj);
+          if (pieces) {
+            var allImgs = [];
+            for (var pi = 0; pi < pieces.length; pi++) {
+              var pimg = RA.ArtCatalog.image(self.assets, pieces[pi].key);
+              if (!pimg) { allImgs = null; break; }
+              allImgs.push(pimg);
+            }
+            if (allImgs) {
+              for (var pj = 0; pj < pieces.length; pj++) {
+                var piece = pieces[pj];
+                var pimg2 = allImgs[pj];
+                if (piece.chain) {
+                  // 流星锤锁链:端点→锤头重复铺,不拉伸
+                  var a0 = self.cellToScreen(piece.c, piece.r);
+                  var b0 = self.cellToScreen(piece.chain.c, piece.chain.r);
+                  var dx0 = b0.x - a0.x, dy0 = b0.y - a0.y;
+                  var len0 = Math.hypot(dx0, dy0), ang0 = Math.atan2(dy0, dx0);
+                  var unit0 = ts * 0.42, step0 = unit0 * 0.62;
+                  ctx.save();
+                  ctx.translate(a0.x, a0.y);
+                  ctx.rotate(ang0 - Math.PI / 2);
+                  ctx.imageSmoothingEnabled = false;
+                  for (var dpos = unit0 * 0.5; dpos < len0 - unit0 * 0.35; dpos += step0) {
+                    ctx.drawImage(pimg2, -unit0 / 2, dpos - unit0 / 2, unit0, unit0);
+                  }
+                  ctx.restore();
+                } else if (piece.rect) {
+                  // 34:地刺按可见包络裁绘(底座/探出两种),矩形与判定几何同源
+                  var rq = self.cellToScreen(piece.rect.x, piece.rect.y);
+                  if (RA.drawSpriteBBox) {
+                    RA.drawSpriteBBox(ctx, pimg2, piece.bbox, rq.x, rq.y,
+                      piece.rect.w * ts, piece.rect.h * ts);
+                  }
+                } else {
+                  var pc = self.cellToScreen(piece.c, piece.r);
+                  var psz = (piece.px / TS) * ts;
+                  if (psz >= 3) {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(pimg2, pc.x - psz / 2, pc.y - psz / 2, psz, psz);
+                    ctx.restore();
+                  }
+                }
+              }
+              var regA = RA.EntityRegistry.get(obj.type);
+              if (ts >= 12 && regA) {
+                RA.text(ctx, (regA.name || obj.type).slice(0, 2), Math.max(7, ts * 0.26), [214, 232, 255],
+                  q2.x + ts / 2, q2.y - 3, { bold: true, shadow: false });
+              }
+              return;
+            }
+          }
           var reg = RA.EntityRegistry.get(obj.type);
           var letter = reg && reg.letter;
           var cls = letter ? RA.BY_LETTER[letter] : null;
@@ -3050,6 +3581,29 @@
               ctx.closePath(); ctx.fill();
               if (ts >= 12) RA.text(ctx, '弓', Math.max(7, ts * 0.26), [205, 255, 235],
                 ax0, q2.y - 3, { bold: true, shadow: false });
+            } else if (obj.type === 'ghost_dash') {
+              // 32:幽灵在编辑器里是静态图标(不启动冲刺 AI),朝右显示
+              var gx0 = q2.x + ts / 2, gy0 = q2.y + ts / 2;
+              ctx.globalAlpha = 0.35;
+              ctx.strokeStyle = '#c9b6ff'; ctx.lineWidth = Math.max(2, ts * 0.06);
+              ctx.beginPath(); ctx.moveTo(q2.x + ts * 0.14, gy0); ctx.lineTo(gx0, gy0); ctx.stroke();
+              ctx.globalAlpha = 0.9;
+              ctx.fillStyle = '#d9ccff';
+              ctx.beginPath(); ctx.arc(gx0, gy0, Math.max(4, ts * 0.26), 0, Math.PI * 2); ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.strokeStyle = '#f3edff'; ctx.lineWidth = 2; ctx.stroke();
+              if (ts >= 12) RA.text(ctx, '幽', Math.max(7, ts * 0.26), [235, 228, 255],
+                gx0, q2.y - 3, { bold: true, shadow: false });
+            } else if (obj.type === 'fireball_spitter') {
+              // 32:喷火火球:本体 + 朝右炮口(静态预览;运行时再朝玩家翻面)
+              var fx0 = q2.x + ts * 0.42, fy0 = q2.y + ts / 2;
+              ctx.fillStyle = '#ff8f3a';
+              ctx.beginPath(); ctx.arc(fx0, fy0, Math.max(4, ts * 0.22), 0, Math.PI * 2); ctx.fill();
+              ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2; ctx.stroke();
+              ctx.fillStyle = '#ff7a1a';
+              ctx.fillRect(fx0 + ts * 0.16, fy0 - ts * 0.06, Math.max(4, ts * 0.24), Math.max(2, ts * 0.12));
+              if (ts >= 12) RA.text(ctx, '喷', Math.max(7, ts * 0.26), [255, 226, 190],
+                q2.x + ts / 2, q2.y - 3, { bold: true, shadow: false });
             } else {
               RA.rect(ctx, q2.x + 1, q2.y + 1, ts - 2, ts - 2,
                 knownNoLetter ? [34, 48, 78] : [72, 40, 96], 4);
@@ -3121,6 +3675,28 @@
         RA.strokeRect(ctx, hq.x, hq.y, ts * hs, ts * hs,
           [255, 205, 110], 2, 3);
       }
+
+      // 33:齿轮轨道换作者图(只换显示,不改 paths/模式/节点/运动);移动火球仍只有创作辅助线
+      var gearPaths = {};
+      (m.data.objects || []).forEach(function (o) { if (o.type === 'gear' && o.pathId) gearPaths[o.pathId] = true; });
+      Object.keys(gearPaths).forEach(function (pid) {
+        if (!RA.trackPieces || !RA.ArtCatalog) return;
+        var gp = (m.data.paths || []).filter(function (p) { return p.id === pid; })[0];
+        var pieces = RA.trackPieces(gp);
+        if (!pieces) return;
+        pieces.forEach(function (piece) {
+          var key = piece.kind === 'corner' ? 'authored/objects/track_corner' : 'authored/objects/track_straight';
+          var timg = RA.ArtCatalog.image(this.assets, key);
+          if (!timg) return;
+          var tpt = this.cellToScreen(piece.c, piece.r);
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.translate(tpt.x, tpt.y);
+          if (piece.rot) ctx.rotate(piece.rot);
+          ctx.drawImage(timg, -ts / 2, -ts / 2, ts, ts);
+          ctx.restore();
+        }, this);
+      }, this);
 
       // 齿轮直角路径:与运行共享同一 segments
       (m.data.paths || []).forEach(function (path) {
@@ -3306,46 +3882,28 @@
       if (gearRow) gearRow.style.display = showGear ? 'flex' : 'none';
       if (gearNote) gearNote.style.display = showGear ? 'block' : 'none';
 
-      var skySel = this.$('sky-select');
-      if (skySel) skySel.value = this.model.backgroundId || '';
-      var diffSel = this.$('difficulty-select');
-      if (diffSel) diffSel.value = String(this.model.difficulty === null ? 1 : this.model.difficulty);
-
-      // 内置关卡下拉框:只读副本
-      var sel = this.$('pool-select');
-      if (sel && sel.tagName !== undefined) {
-        var ids = Object.keys(RA.LEVEL_TEXT || {});
-        var b4 = RA.B4_SAMPLES ? [['lobby', '大厅'], ['rest', '休整'], ['boss', 'Boss']] : [];
-        var want = ids.join(',') + '|' + b4.map(function (x) { return x[0]; }).join(',');
-        if (sel.__want !== want) {
-          sel.__want = want;
-          sel.innerHTML = '';
-          ids.forEach(function (id) {
-            var op = globalThis.document.createElement('option');
-            op.value = id;
-            op.textContent = id + ' · ' + RA.LevelPack.levelName(RA.LEVEL_TEXT[id], id);
-            sel.appendChild(op);
-          });
-          b4.forEach(function (x) {
-            var op = globalThis.document.createElement('option');
-            op.value = 'b4-fixed:' + x[0];
-            op.textContent = 'B4 ' + x[1] + ' · 固定场景只读';
-            sel.appendChild(op);
-          });
+      var bgSel = this.$('bg-select');
+      if (bgSel) {
+        var wantLen = 1 + (RA.LevelBackgrounds ? RA.LevelBackgrounds.list().length : 0) +
+          (this.model.backgroundImage ? 1 : 0) +
+          (this.model.backgroundId && !(RA.LevelBackgrounds && RA.LevelBackgrounds.has(this.model.backgroundId)) ? 1 : 0);
+        // 清单条数变了(或首次值不在选项里)才重建;测试替身没有 .options 时跳过
+        if (bgSel.options && bgSel.options.length !== wantLen) this.buildBackgroundSelect();
+        bgSel.value = this.model.backgroundImage ? '__custom__' : (this.model.backgroundId || '');
+        var bgStatus = this.$('bg-file-status');
+        if (bgStatus) {
+          bgStatus.textContent = this.model.backgroundImage
+            ? ('当前自定义图片:' + (this.model.backgroundName || '已选择') + '(写入 visuals.backgroundImage,跟随本关 JSON)')
+            : '内置背景写在 visuals.backgroundId;自定义图片写入 visuals.backgroundImage,不同关卡可各选一张。';
         }
       }
-      var pl = this.$('pool-label');
-      if (pl) {
-        var legacyCount = Object.keys(RA.LEVEL_TEXT || {}).length;
-        pl.textContent = legacyCount
-          ? '内置关卡 ' + legacyCount + ' 张:打开后是可编辑的迁移副本;导出为新的 JSON,不回写 levels/'
-          : '活动内置普通池已清空(旧 floor01–12 归档于 levels/archive/legacy-pool-2026-11-09);下方只保留固定场景只读副本';
-      }
+      var diffSel = this.$('difficulty-select');
+      if (diffSel) diffSel.value = String(this.model.difficulty === null ? 1 : this.model.difficulty);
 
       var ro = this.model.readOnly;
       var banner = this.$('readonly-banner');
       if (banner) banner.hidden = !ro;
-      ['name', 'w-input', 'h-input', 'btn-apply-size', 'btn-crop', 'btn-play', 'btn-publish', 'btn-start-mark', 'btn-finish-mark', 'btn-start-clear', 'btn-finish-clear', 'btn-undo', 'btn-redo'].forEach(function (id) {
+      ['name', 'w-input', 'h-input', 'btn-apply-size', 'btn-crop', 'btn-play', 'btn-start-mark', 'btn-finish-mark', 'btn-start-clear', 'btn-finish-clear', 'btn-undo', 'btn-redo'].forEach(function (id) {
         var el = self.$(id); if (el) el.disabled = ro;
       });
       if (ro) {

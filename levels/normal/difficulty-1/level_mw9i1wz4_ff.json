@@ -1,0 +1,1536 @@
+{
+  "schemaVersion": 2,
+  "id": "level_mw9i1wz4_ff",
+  "title": "新楼层 1",
+  "kind": "normal",
+  "difficulty": 1,
+  "size": {
+    "cols": 17,
+    "rows": 21
+  },
+  "terrain": {
+    "tiles": [
+      [
+        4,
+        5,
+        5,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        5,
+        5,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0
+      ],
+      [
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0
+      ],
+      [
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0
+      ],
+      [
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        4,
+        4,
+        4,
+        5,
+        5,
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    ]
+  },
+  "ports": {
+    "start": {
+      "col": 10,
+      "row": 20
+    },
+    "finish": {
+      "col": 1,
+      "row": 0
+    },
+    "profile": "cloud-pipe-v2"
+  },
+  "spawn": null,
+  "objects": [
+    {
+      "id": "coin_1",
+      "type": "coin",
+      "col": 5,
+      "row": 11,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "soul_1",
+      "type": "soul",
+      "col": 13,
+      "row": 17,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20,
+        "initialDirection": 2
+      },
+      "pathId": null
+    },
+    {
+      "id": "soul_2",
+      "type": "soul",
+      "col": 6,
+      "row": 13,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20,
+        "initialDirection": 0
+      },
+      "pathId": null
+    }
+  ],
+  "paths": [],
+  "visuals": {
+    "backgroundId": "levelbg-sample-cave-01",
+    "decorations": [],
+    "tileSkins": [
+      {
+        "col": 6,
+        "row": 20,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 7,
+        "row": 20,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 8,
+        "row": 20,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 9,
+        "row": 20,
+        "skinId": "dirt"
+      },
+      {
+        "col": 9,
+        "row": 19,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 8,
+        "row": 19,
+        "skinId": "dirt"
+      },
+      {
+        "col": 7,
+        "row": 19,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 6,
+        "row": 19,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 6,
+        "row": 18,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 8,
+        "row": 18,
+        "skinId": "dirt"
+      },
+      {
+        "col": 7,
+        "row": 18,
+        "skinId": "dirt"
+      },
+      {
+        "col": 7,
+        "row": 17,
+        "skinId": "dirt"
+      },
+      {
+        "col": 6,
+        "row": 17,
+        "skinId": "dirt"
+      },
+      {
+        "col": 6,
+        "row": 16,
+        "skinId": "dirt"
+      },
+      {
+        "col": 6,
+        "row": 15,
+        "skinId": "dirt"
+      },
+      {
+        "col": 7,
+        "row": 16,
+        "skinId": "dirt"
+      },
+      {
+        "col": 6,
+        "row": 14,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 7,
+        "row": 15,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 8,
+        "row": 17,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 12,
+        "row": 20,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 13,
+        "row": 20,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 14,
+        "row": 20,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 15,
+        "row": 20,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 13,
+        "row": 19,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 14,
+        "row": 19,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 15,
+        "row": 19,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 14,
+        "row": 18,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 15,
+        "row": 18,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 15,
+        "row": 17,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 15,
+        "row": 16,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 14,
+        "row": 17,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 14,
+        "row": 16,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 14,
+        "row": 15,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 14,
+        "row": 14,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 15,
+        "row": 14,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 15,
+        "row": 15,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 14,
+        "row": 13,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 14,
+        "row": 12,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 13,
+        "row": 12,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 13,
+        "row": 13,
+        "skinId": "stone"
+      },
+      {
+        "col": 13,
+        "row": 14,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 13,
+        "row": 15,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 12,
+        "row": 14,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 12,
+        "row": 13,
+        "skinId": "chiseled_stone_bricks"
+      },
+      {
+        "col": 12,
+        "row": 12,
+        "skinId": "stone"
+      },
+      {
+        "col": 11,
+        "row": 12,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 11,
+        "row": 11,
+        "skinId": "stone"
+      },
+      {
+        "col": 12,
+        "row": 11,
+        "skinId": "stone"
+      },
+      {
+        "col": 13,
+        "row": 11,
+        "skinId": "stone"
+      },
+      {
+        "col": 13,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 14,
+        "row": 11,
+        "skinId": "stone"
+      },
+      {
+        "col": 15,
+        "row": 13,
+        "skinId": "stone"
+      },
+      {
+        "col": 15,
+        "row": 12,
+        "skinId": "stone"
+      },
+      {
+        "col": 12,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 12,
+        "row": 9,
+        "skinId": "stone"
+      },
+      {
+        "col": 12,
+        "row": 8,
+        "skinId": "stone"
+      },
+      {
+        "col": 11,
+        "row": 8,
+        "skinId": "stone"
+      },
+      {
+        "col": 10,
+        "row": 8,
+        "skinId": "stone"
+      },
+      {
+        "col": 10,
+        "row": 7,
+        "skinId": "stone"
+      },
+      {
+        "col": 10,
+        "row": 6,
+        "skinId": "stone"
+      },
+      {
+        "col": 11,
+        "row": 7,
+        "skinId": "stone"
+      },
+      {
+        "col": 9,
+        "row": 5,
+        "skinId": "stone"
+      },
+      {
+        "col": 11,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 11,
+        "row": 9,
+        "skinId": "stone"
+      },
+      {
+        "col": 10,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 10,
+        "row": 9,
+        "skinId": "stone"
+      },
+      {
+        "col": 5,
+        "row": 12,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 5,
+        "row": 13,
+        "skinId": "dirt"
+      },
+      {
+        "col": 4,
+        "row": 11,
+        "skinId": "dirt"
+      },
+      {
+        "col": 4,
+        "row": 10,
+        "skinId": "dirt"
+      },
+      {
+        "col": 4,
+        "row": 9,
+        "skinId": "dirt"
+      },
+      {
+        "col": 4,
+        "row": 8,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 3,
+        "row": 7,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 2,
+        "row": 6,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 1,
+        "row": 6,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 5,
+        "row": 14,
+        "skinId": "dirt"
+      },
+      {
+        "col": 5,
+        "row": 15,
+        "skinId": "dirt"
+      },
+      {
+        "col": 4,
+        "row": 13,
+        "skinId": "dirt"
+      },
+      {
+        "col": 4,
+        "row": 12,
+        "skinId": "dirt"
+      },
+      {
+        "col": 3,
+        "row": 11,
+        "skinId": "dirt"
+      },
+      {
+        "col": 3,
+        "row": 10,
+        "skinId": "dirt"
+      },
+      {
+        "col": 3,
+        "row": 9,
+        "skinId": "dirt"
+      },
+      {
+        "col": 3,
+        "row": 8,
+        "skinId": "dirt"
+      },
+      {
+        "col": 2,
+        "row": 8,
+        "skinId": "dirt"
+      },
+      {
+        "col": 2,
+        "row": 9,
+        "skinId": "stone"
+      },
+      {
+        "col": 1,
+        "row": 8,
+        "skinId": "stone"
+      },
+      {
+        "col": 1,
+        "row": 9,
+        "skinId": "stone"
+      },
+      {
+        "col": 2,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 1,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 2,
+        "row": 11,
+        "skinId": "stone"
+      },
+      {
+        "col": 2,
+        "row": 12,
+        "skinId": "stone"
+      },
+      {
+        "col": 1,
+        "row": 12,
+        "skinId": "stone"
+      },
+      {
+        "col": 1,
+        "row": 11,
+        "skinId": "stone"
+      },
+      {
+        "col": 1,
+        "row": 13,
+        "skinId": "stone"
+      },
+      {
+        "col": 2,
+        "row": 14,
+        "skinId": "stone"
+      },
+      {
+        "col": 3,
+        "row": 15,
+        "skinId": "stone"
+      },
+      {
+        "col": 3,
+        "row": 13,
+        "skinId": "stone"
+      },
+      {
+        "col": 3,
+        "row": 12,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 2,
+        "row": 13,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 1,
+        "row": 14,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 2,
+        "row": 15,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 3,
+        "row": 14,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 4,
+        "row": 14,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 4,
+        "row": 15,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 4,
+        "row": 16,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 2,
+        "row": 16,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 3,
+        "row": 16,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 5,
+        "row": 16,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 5,
+        "row": 17,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 4,
+        "row": 17,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 4,
+        "row": 18,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 3,
+        "row": 17,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 5,
+        "row": 19,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 5,
+        "row": 20,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 5,
+        "row": 18,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 9,
+        "row": 8,
+        "skinId": "stone"
+      },
+      {
+        "col": 9,
+        "row": 7,
+        "skinId": "stone"
+      },
+      {
+        "col": 9,
+        "row": 6,
+        "skinId": "stone"
+      },
+      {
+        "col": 10,
+        "row": 5,
+        "skinId": "stone"
+      },
+      {
+        "col": 11,
+        "row": 6,
+        "skinId": "stone"
+      },
+      {
+        "col": 8,
+        "row": 6,
+        "skinId": "stone"
+      },
+      {
+        "col": 8,
+        "row": 5,
+        "skinId": "stone"
+      },
+      {
+        "col": 8,
+        "row": 4,
+        "skinId": "stone"
+      },
+      {
+        "col": 7,
+        "row": 4,
+        "skinId": "stone"
+      },
+      {
+        "col": 7,
+        "row": 3,
+        "skinId": "stone"
+      },
+      {
+        "col": 6,
+        "row": 3,
+        "skinId": "stone"
+      },
+      {
+        "col": 5,
+        "row": 3,
+        "skinId": "stone"
+      },
+      {
+        "col": 5,
+        "row": 2,
+        "skinId": "stone"
+      },
+      {
+        "col": 6,
+        "row": 2,
+        "skinId": "stone"
+      },
+      {
+        "col": 7,
+        "row": 2,
+        "skinId": "stone"
+      },
+      {
+        "col": 8,
+        "row": 2,
+        "skinId": "stone"
+      },
+      {
+        "col": 8,
+        "row": 3,
+        "skinId": "stone"
+      },
+      {
+        "col": 9,
+        "row": 3,
+        "skinId": "stone"
+      },
+      {
+        "col": 9,
+        "row": 4,
+        "skinId": "stone"
+      },
+      {
+        "col": 10,
+        "row": 4,
+        "skinId": "stone"
+      },
+      {
+        "col": 6,
+        "row": 1,
+        "skinId": "stone"
+      },
+      {
+        "col": 5,
+        "row": 1,
+        "skinId": "stone"
+      },
+      {
+        "col": 4,
+        "row": 1,
+        "skinId": "stone"
+      },
+      {
+        "col": 4,
+        "row": 0,
+        "skinId": "stone"
+      },
+      {
+        "col": 5,
+        "row": 0,
+        "skinId": "stone"
+      },
+      {
+        "col": 0,
+        "row": 7,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 0,
+        "row": 6,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 0,
+        "row": 5,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 0,
+        "row": 4,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 0,
+        "row": 3,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 0,
+        "row": 2,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 0,
+        "row": 1,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 1,
+        "row": 7,
+        "skinId": "dirt"
+      },
+      {
+        "col": 2,
+        "row": 7,
+        "skinId": "dirt"
+      },
+      {
+        "col": 0,
+        "row": 8,
+        "skinId": "stone"
+      },
+      {
+        "col": 0,
+        "row": 9,
+        "skinId": "stone"
+      },
+      {
+        "col": 0,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 16,
+        "row": 20,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 16,
+        "row": 19,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 16,
+        "row": 18,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 16,
+        "row": 17,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 16,
+        "row": 16,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 16,
+        "row": 15,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 16,
+        "row": 14,
+        "skinId": "deepslate"
+      },
+      {
+        "col": 16,
+        "row": 13,
+        "skinId": "stone"
+      },
+      {
+        "col": 16,
+        "row": 12,
+        "skinId": "stone"
+      },
+      {
+        "col": 16,
+        "row": 11,
+        "skinId": "stone"
+      },
+      {
+        "col": 15,
+        "row": 11,
+        "skinId": "stone"
+      },
+      {
+        "col": 15,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 14,
+        "row": 10,
+        "skinId": "stone"
+      },
+      {
+        "col": 14,
+        "row": 9,
+        "skinId": "stone"
+      },
+      {
+        "col": 13,
+        "row": 9,
+        "skinId": "stone"
+      },
+      {
+        "col": 13,
+        "row": 8,
+        "skinId": "stone"
+      },
+      {
+        "col": 13,
+        "row": 7,
+        "skinId": "stone"
+      },
+      {
+        "col": 12,
+        "row": 7,
+        "skinId": "stone"
+      },
+      {
+        "col": 12,
+        "row": 6,
+        "skinId": "stone"
+      },
+      {
+        "col": 11,
+        "row": 5,
+        "skinId": "stone"
+      },
+      {
+        "col": 10,
+        "row": 3,
+        "skinId": "stone"
+      },
+      {
+        "col": 9,
+        "row": 2,
+        "skinId": "stone"
+      },
+      {
+        "col": 8,
+        "row": 1,
+        "skinId": "stone"
+      },
+      {
+        "col": 7,
+        "row": 1,
+        "skinId": "stone"
+      },
+      {
+        "col": 6,
+        "row": 0,
+        "skinId": "stone"
+      },
+      {
+        "col": 0,
+        "row": 0,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 3,
+        "row": 1,
+        "skinId": "stone"
+      },
+      {
+        "col": 3,
+        "row": 0,
+        "skinId": "stone"
+      },
+      {
+        "col": 4,
+        "row": 2,
+        "skinId": "stone"
+      },
+      {
+        "col": 11,
+        "row": 13,
+        "skinId": "mossy_stone_bricks"
+      },
+      {
+        "col": 7,
+        "row": 0,
+        "skinId": "dirt"
+      },
+      {
+        "col": 8,
+        "row": 0,
+        "skinId": "dirt"
+      },
+      {
+        "col": 9,
+        "row": 1,
+        "skinId": "dirt"
+      },
+      {
+        "col": 10,
+        "row": 1,
+        "skinId": "dirt"
+      },
+      {
+        "col": 10,
+        "row": 2,
+        "skinId": "dirt"
+      },
+      {
+        "col": 11,
+        "row": 2,
+        "skinId": "dirt"
+      },
+      {
+        "col": 11,
+        "row": 3,
+        "skinId": "dirt"
+      },
+      {
+        "col": 11,
+        "row": 4,
+        "skinId": "dirt"
+      },
+      {
+        "col": 12,
+        "row": 4,
+        "skinId": "dirt"
+      },
+      {
+        "col": 12,
+        "row": 5,
+        "skinId": "dirt"
+      },
+      {
+        "col": 13,
+        "row": 6,
+        "skinId": "dirt"
+      },
+      {
+        "col": 14,
+        "row": 6,
+        "skinId": "dirt"
+      },
+      {
+        "col": 14,
+        "row": 7,
+        "skinId": "dirt"
+      },
+      {
+        "col": 14,
+        "row": 8,
+        "skinId": "dirt"
+      },
+      {
+        "col": 15,
+        "row": 8,
+        "skinId": "dirt"
+      },
+      {
+        "col": 15,
+        "row": 9,
+        "skinId": "dirt"
+      },
+      {
+        "col": 16,
+        "row": 10,
+        "skinId": "dirt"
+      },
+      {
+        "col": 16,
+        "row": 9,
+        "skinId": "dirt"
+      },
+      {
+        "col": 13,
+        "row": 5,
+        "skinId": "dirt"
+      },
+      {
+        "col": 9,
+        "row": 0,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 10,
+        "row": 0,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 11,
+        "row": 1,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 12,
+        "row": 2,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 12,
+        "row": 3,
+        "skinId": "dirt"
+      },
+      {
+        "col": 13,
+        "row": 4,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 14,
+        "row": 5,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 15,
+        "row": 7,
+        "skinId": "grass_top"
+      },
+      {
+        "col": 16,
+        "row": 8,
+        "skinId": "grass_top"
+      }
+    ]
+  },
+  "extensions": {
+    "authorAcceptance": {
+      "source": "user-confirmed",
+      "confirmedOn": "2026-11-10",
+      "scope": "本示例加入小背景后的最终运行副本",
+      "note": "用户2026-11-10明确确认该示例可通关并要求登记通过记录;不是 agent 实际试玩。",
+      "rulesVersion": "b4-12"
+    }
+  },
+  "contentHash": "sha256:a2c2f1d4a351e19077b8a76658ddb3cc2282c7d449d5904c87800472613de56f",
+  "certification": {
+    "contentHash": "sha256:a2c2f1d4a351e19077b8a76658ddb3cc2282c7d449d5904c87800472613de56f",
+    "rulesVersion": "b4-12",
+    "rulesFingerprint": "rules=b4-12|ts=45|gravity=2300|jump=-830|hp=100|halo=14/20|radius=2.25|boss=12/8|objects=archer,blink_platform,coin,crumble_door,fireball_moving,fireball_spitter,fireball_static,flail,gear,ghost_dash,sewage_pool,soul,spike,spring|interface=cloud-pipe-v2/2x3/gap4|fixed=short-fixed-v1|collision=world-v3|path=orth-v1|trial=manual-single-map-v3|profile=run-v1|tower=full40-v1/4-buckets/test3-fallback|poolEpoch=full40-pool-reset-2026-11-09|monsters=gear340/fireball170/flail4t-2v3|soul=170/contour/dynamic-fly-reattach;sewage=20|coins=collect/body-only/0.25r;archer=static/4s/170px/20-20/arrow-clip-floor|ghost=2s/dash3t-0.2s/wallpass/20-selfdestruct-on-hit;spitter=static/4s/horiz170-20/flame-blocked-by-solid-wall/no-cross-floor|seek=archer+ghost+spitter-center20t;boss=unchanged|halo=2.25t/14-20/formal+trial-shared-draw|view=formal+trial-zoom2-3|tileskins=visuals.tileSkins/15-authored/tile4-display-only;art=authored-33/nearest/anchor-center|score=formal-only/floor20/enemy5/coin10/boss-final-once",
+    "profileId": "run-v1",
+    "status": "passed",
+    "completedAt": "2026-11-09T17:58:59.724Z",
+    "source": "imported-declaration"
+  }
+}

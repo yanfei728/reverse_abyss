@@ -23,7 +23,7 @@
  *       "difficulty": 1,              ← 难度 1~4 档
  *       "verified": true,             ← 是不是"验过能通"的关卡
  *       "size": {"cols": 22, "rows": 32},   ← 关卡大小(和 asc 对不上会提醒,以 asc 为准)
- *       "sky": 0,                     ← 0 = 天空随层数循环;1~8 = 固定用那一张
+ *       "sky": 0,                     ← 历史字段(35起天空贴图已退役,只原样保留)
  *       "objects": [],                ← 带参数的元素(怪物 / 以后的机关):见 _buildObjects
  *       "asc": ["+++++G+++", "+++^^^+", …]  ← 地图本体,一行一格
  *     }
@@ -61,7 +61,8 @@
     '_': ['tiles/dirt', '泥土'],
     '~': ['tiles/brick', '砖块'],
     '=': ['tiles/stone', '石块'],
-    '-': ['tiles/cloud', '云板(单向,下往上能穿)']
+    // 33号卡:云板换成作者提供的 16×3 薄板整图(缺图时回退程序画的 45×45 云板)
+    '-': ['authored/objects/cloud', '云板(单向,下往上能穿)']
   };
   // 单向地块(云板):从下面往上跳能穿过去,从上面掉下来会被接住 —— 只挡"往下踩"。
   // 横向不当墙(能穿过去),也不能像实心那样顶头。以后加更多单向地块就写进这个字符串。
@@ -112,21 +113,41 @@
   /**
    * 把一个地块贴图画进 (x, y) 起的 size×size 格子里。
    * 游戏(level.draw)和编辑器(地图 + 调色板)都走这一条,免得两边画得不一样。
+   *
+   * opts.nearest = true 时强制最近邻(33号卡的像素风作者贴图);缺省仍按老规则:
+   * 源图比一格小就硬边放大,比一格大就平滑缩小。
    */
-  function drawTile(ctx, ch, img, x, y, size) {
+  function drawTile(ctx, ch, img, x, y, size, opts) {
     if (!img) return;
     var iw = img.width || size;
     var ih = img.height || size;
     var plate = TILE_PLATE[ch];
     // 源图比格子大 = 要缩小,保留平滑;否则(像素画放大)用硬边
     var shrink = Math.max(iw, ih) > size;
+    var nearest = !!(opts && opts.nearest);
     if (plate) {
+      // 33:薄板源的图本身就是一条(如 16×3),整条铺进薄板槽,不能按行裁成 1px
+      if (ih * 3 <= iw) {
+        ctx.imageSmoothingEnabled = nearest ? false : shrink;
+        ctx.drawImage(img, 0, 0, iw, ih, x, y, size, size * plate);
+        return;
+      }
       var sh = Math.max(1, Math.min(ih, Math.round(ih * plate)));   // 源图上面这一截
-      ctx.imageSmoothingEnabled = shrink;
+      ctx.imageSmoothingEnabled = nearest ? false : shrink;
       ctx.drawImage(img, 0, 0, iw, sh, x, y, size, size * plate);
       return;
     }
-    ctx.imageSmoothingEnabled = shrink;
+    ctx.imageSmoothingEnabled = nearest ? false : shrink;
+    ctx.drawImage(img, x, y, size, size);
+  }
+
+  /**
+   * 33:画一格"地块外观"(visuals.tileSkins)。整格替换基础石块图,不在旧图上叠加;
+   * 透明处露出背景(叶子/活板花纹只是图案,不代表穿透)。缺图由调用方回退旧石块。
+   */
+  function drawSkinTile(ctx, img, x, y, size) {
+    if (!img) return;
+    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, x, y, size, size);
   }
 
@@ -184,6 +205,94 @@
     return lines;
   }
 
+  /** 35/36:小背景压暗的离屏缓存(只调暗图片可见像素,alpha 原样;不在主画布盖黑框)。
+   *  缓存键 = 图像对象(重新加载会换对象)+ 压暗值;尺寸用源图本身,不按地图矩形新建大画布。 */
+  var bgTintCache = null;
+  function tintLevelBackgroundImage(img, alpha) {
+    if (!img || !(img.width > 0) || !(img.height > 0)) return null;
+    var a = (typeof alpha === 'number' && isFinite(alpha) && alpha > 0) ? alpha : 0;
+    if (bgTintCache && bgTintCache.img === img && bgTintCache.alpha === a) return bgTintCache.canvas;
+    var w = img.width, h = img.height;
+    var cv = RA.makeCanvas(w, h);
+    var c2 = cv.getContext('2d');
+    c2.clearRect(0, 0, w, h);
+    c2.drawImage(img, 0, 0, w, h);
+    if (a > 0) {
+      // source-atop:只在图片已画出的地方上色,结果 alpha = 原图 alpha(全透明处保持透明)
+      c2.save();
+      c2.globalCompositeOperation = 'source-atop';
+      c2.fillStyle = 'rgba(0,0,0,' + a + ')';
+      c2.fillRect(0, 0, w, h);
+      c2.restore();
+    }
+    bgTintCache = { img: img, alpha: a, canvas: cv };
+    return cv;
+  }
+
+  /**
+   * 35/36:关卡小背景(整图铺满地图矩形,只压暗图片可见像素)。
+   * - 不平铺、不裁切、不视差:宽高比不同也完整拉伸到同一矩形;
+   * - 缺图/未知 id/旧 sky1..8 返回 false,调用方照常画地形,游玩不受影响;
+   * - 透明/半透明 alpha 原样保留,主画布不盖黑矩形;只碰背景,不碰碰撞/灵魂/索敌/计分。
+   */
+  // 39/40:编辑器从文件夹选入的每关独立背景(data URL)。图片异步加载,
+  // 失败/未完成只返回 null,不阻塞关卡运行;加载完成后通知页面重绘。
+  var inlineBgCache = Object.create(null);
+  function inlineBackgroundImage(dataUrl) {
+    if (typeof dataUrl !== 'string' || !dataUrl) return null;
+    var rec = inlineBgCache[dataUrl];
+    if (rec) {
+      if (rec.ready && rec.img && rec.img.width > 0) return rec.img;
+      return null;
+    }
+    if (typeof globalThis.Image !== 'function') return null;
+    var img = new globalThis.Image();
+    rec = { img: img, ready: false, error: false };
+    inlineBgCache[dataUrl] = rec;
+    img.onload = function () {
+      if (img.width > 0 && img.height > 0) {
+        rec.ready = true;
+        if (typeof RA.requestBackgroundRedraw === 'function') {
+          try { RA.requestBackgroundRedraw(); } catch (e) { /* 页面已关闭 */ }
+        }
+      } else rec.error = true;
+    };
+    img.onerror = function () { rec.error = true; };
+    try { img.src = dataUrl; } catch (e) { rec.error = true; return null; }
+    return null;
+  }
+
+  /**
+   * 画关卡小背景(内置清单 id 或每关自定义 data URL;自定义优先)。
+   * - 整图铺满地图矩形;透明/半透明 alpha 原样,只压暗图片可见像素;
+   * - 缺图/未知 id/加载未完成返回 false,调用方照常画地形;
+   * - 不参与碰撞/灵魂/索敌/计分/裁空白/端点。
+   */
+  function drawLevelBackground(ctx, backgroundId, rect, assets, inlineDataUrl) {
+    if (!rect || !(rect.w > 0 && rect.h > 0)) return false;
+    var img = null;
+    if (inlineDataUrl) {
+      img = inlineBackgroundImage(inlineDataUrl);
+    } else {
+      var reg = RA.LevelBackgrounds && RA.LevelBackgrounds.get ? RA.LevelBackgrounds.get(backgroundId) : null;
+      if (!reg) return false;
+      if (assets && typeof assets.image === 'function') {
+        var loaded = (assets.hasFile && assets.hasFile(reg.file)) ||
+          (assets.cache && assets.cache[reg.file] && assets.cache[reg.file].width);
+        if (loaded) img = assets.image(reg.file);
+      }
+    }
+    if (!img || !(img.width > 0)) return false;
+    var alpha = (RA.C && RA.C.VISUAL && typeof RA.C.VISUAL.levelBackgroundDarkenAlpha === 'number')
+      ? RA.C.VISUAL.levelBackgroundDarkenAlpha : 0.25;
+    var tinted = tintLevelBackgroundImage(img, alpha) || img;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tinted, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    return true;
+  }
+
   class Level {
     // ================= 构造 =================
     constructor(id, chars, meta) {
@@ -200,8 +309,8 @@
       // 验没验过:新格式里是数据的一部分;老格式没有这个概念,当成"验过"(不然控制台全是提醒)
       this.verified = this.meta.verified === undefined ? true : !!this.meta.verified;
 
-      // 天空:关卡可以写 sky: 3 指定用 assets/sky/sky3.png;
-      // 不写(或 0)就是自动 —— 爬塔时按层循环,见 game.js 的 skyOf
+      // 历史字段:旧格式可以写 sky: 3。35号卡起天空贴图已退役,这个值只原样保留
+      // (不进入小背景绘制);关卡小背景改用 visuals.backgroundId,见 RA.drawLevelBackground。
       var sky = parseInt(this.meta.sky, 10);
       this.sky = (sky >= 1 && sky <= (C.SKY_COUNT || 8)) ? sky : 0;
 
@@ -586,11 +695,16 @@
         var up = this._hitTiles(x, ny, w, h);          // 只算实心
         if (up.length) {
           var topRow = Math.min.apply(null, up.map(function (p) { return p[0]; }));
-          // 碰到的是"有碰撞体积的地物"(会变的机关)时,只把人顶到它下边缘往里 1px ——
-          // 正好贴边的话,那个实体的矩形和玩家的矩形会刚好擦边、判不出重叠
-          // (浮石就永远踩不湿、碎影撞了也不碎)。贴 1px 进去,重叠判定就稳了。
-          var onlyEntity = up.every(function (p) { return this.solidEntityAt(p[0], p[1]); }, this);
-          ny = (topRow + 1) * t - (onlyEntity ? 1 : 0);
+          // 36:顶到"纯对象"(浮石/门这类会变的机关)时停在实际底面外,不再故意往块里塞 1px。
+          // 塞进去后,下一步的下落探测会把这个对象当成落脚面,角色被吸到整块顶端向上瞬移
+          // 80px 并错误刷新落地/二段跳(正式与 Trial 都复现)。
+          // 管壁/竖向接口底板/混合行仍按旧规则推入 1px —— 26 连续接缝的越线提交依赖这一下,
+          // 不在这里重做物理;门 near、浮石 feetOnTop(±8/10)本来就不靠这 1px。
+          var allSolidEntity = up.every(function (p) { return this.solidEntityAt(p[0], p[1]); }, this);
+          var allPureObjects = allSolidEntity && up.every(function (p) {
+            return this.pureObjectSolidAt ? this.pureObjectSolidAt(p[0], p[1]) : false;
+          }, this);
+          ny = (topRow + 1) * t - (allSolidEntity && !allPureObjects ? 1 : 0);
           vy = 0;
         }
       }
@@ -605,17 +719,37 @@
      */
     draw(ctx, cam, assets) {
       var t = this.tile;
+      // 35:小背景先画,再画地形/对象;矩形就是这张图的世界框(不按视口/整塔)
+      var vis = this.meta && this.meta.visuals ? this.meta.visuals : null;
+      var bgId = vis ? vis.backgroundId : null;
+      var bgInline = vis ? vis.backgroundImage : null;
+      if (bgId || bgInline) {
+        drawLevelBackground(ctx, bgId,
+          { x: -cam.ox, y: -cam.oy, w: this.worldW, h: this.worldH }, assets, bgInline);
+      }
       var c0 = Math.max(0, Math.floor(cam.ox / t));
       var c1 = Math.min(this.cols - 1, Math.floor((cam.ox + cam.vw) / t));
       var r0 = Math.max(0, Math.floor(cam.oy / t));
       var r1 = Math.min(this.rows - 1, Math.floor((cam.oy + cam.vh) / t));
+      var skins = this.tileSkins;          // 33:实例注入的 (r,c)→skinId 查询,没有就按原图
       ctx.save();
       for (var r = r0; r <= r1; r++) {
         for (var c = c0; c <= c1; c++) {
           var ch = this.chars[r][c];
           if (!isTileChar(ch)) continue;      // 实心和单向云板都要画
-          drawTile(ctx, ch, assets.image(TILE_IMAGES[ch][0]),
-            c * t - cam.ox, r * t - cam.oy, t);
+          var skinId = skins ? skins(r, c) : null;
+          if (skinId) {
+            var reg = RA.TileSkins && RA.TileSkins.get(skinId);
+            var skinImg = reg && assets ? assets.image(reg.asset) : null;
+            if (skinImg) {
+              drawSkinTile(ctx, skinImg, c * t - cam.ox, r * t - cam.oy, t);
+              continue;
+            }
+          }
+          var assetName = TILE_IMAGES[ch][0];
+          drawTile(ctx, ch, assets.image(assetName),
+            c * t - cam.ox, r * t - cam.oy, t,
+            assetName.indexOf('authored/') === 0 ? { nearest: true } : null);
         }
       }
       ctx.restore();
@@ -642,10 +776,14 @@
   Level.normalizeRows = normalizeRows;
 
   RA.Level = Level;
+  RA.drawLevelBackground = drawLevelBackground;
+  RA.inlineLevelBackground = inlineBackgroundImage;
+  RA.tintLevelBackgroundImage = tintLevelBackgroundImage;
   RA.levelData = dataOf;             // 关卡数据归一化(levelpack / 关卡工具共用一处)
   RA.TILE_IMAGES = TILE_IMAGES;
   RA.TILE_PLATE = TILE_PLATE;        // 哪些地块是"薄平台"(只画上面一截)
   RA.drawTile = drawTile;            // 地块贴图 → 一格(尺寸自适应,编辑器也用它)
+  RA.drawSkinTile = drawSkinTile;    // 33:作者地块外观整格替换
   RA.SOLID_CHARS = SOLID_CHARS;
   RA.ONEWAY_CHARS = ONEWAY_CHARS;
   RA.EMPTY_CHARS = EMPTY_CHARS;

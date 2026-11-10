@@ -22,6 +22,13 @@
     return { ok: false, error: { code: code, message: message, issues: issues || [] } };
   }
   function num(v, d) { v = Number(v); return isFinite(v) ? v : d; }
+  function clone(v) { return JSON.parse(JSON.stringify(v)); }
+  var FLOOR_HEAL_AMOUNTS = [0, 20, 40, 60, 100];
+  /** 36:正式换层额外回血只接受五档;其它值按 0(显示/设置在页面侧负责提示) */
+  function sanFloorHeal(v) {
+    var n = Number(v);
+    return FLOOR_HEAL_AMOUNTS.indexOf(n) >= 0 ? n : 0;
+  }
 
   class GameSession {
     constructor(world, player, opts) {
@@ -56,6 +63,8 @@
       this.eventSeq = 0;
       this.runId = opts.runId || ('run_' + Date.now().toString(36) + '_' + (++seq));
       this.manifestId = (opts.manifest && opts.manifest.manifestId) || opts.manifestId || null;
+      // 36:正式换层额外回血(只五档,默认0).只影响 full40-formal;Trial 不读这项.
+      this.floorHealAmount = sanFloorHeal(opts.floorHealAmount);
       this.run = {
         status: 'running',                 // running / dead / won
         hp: profile.hp,
@@ -65,18 +74,28 @@
         haloCooldownRemaining: num(profile.haloCooldown, 0),
         castId: 0,
         visited: new Set(),
-        claimedRest: new Set(),
+        // 37:10/30 各一次三选一(choice id 或 null),本局唯一真值
+        restChoices: {},
+        floorHealGranted: new Set(),       // 36:已结算过额外回血的真实槽号(0 也记录)
         defeatedBosses: new Set(),
         elapsed: 0
       };
       this._damagedThisStep = false;
       this.boss = null;
+      // 37:固定休息小屋是同一 Session/Player 的独立静态场景,不是第四层/World/Trial。
+      // 模板由页面从 FULL40.restHouse 显式注入;核心不读外部路径/DOM,试玩不读。
+      this.restHouseTemplate = opts.restHouseTemplate || null;
+      this.sceneKind = 'tower';
+      this.restHouse = null;
+      this.houseOwner = null;
       /*
        * 30:只有正式完整塔计分(现有正式身份 mode:'full40-formal',由 short.startFormal 传入)。
        * 不能用“有 run-v1”判断 —— 试玩也用 run-v1。试玩/开发短塔的 score 保持 null,
        * 不创建计分状态、不发 scoreChanged、不写最高分。
        */
-      this.formal = this.mode === ((RA.C.SCORE && RA.C.SCORE.formalMode) || 'full40-formal');
+      var formalModes = (RA.C.SCORE && RA.C.SCORE.formalModes) ||
+        [(RA.C.SCORE && RA.C.SCORE.formalMode) || 'full40-formal'];
+      this.formal = formalModes.indexOf(this.mode) >= 0;
       this.score = this.formal ? 0 : null;
       this._scoredFloors = new Set();
       this._scoredEnemies = new Set();
@@ -128,6 +147,9 @@
     /** 大厅 F 提示 + 20 层 Boss 击败后的 F 传送提示;其他层没有可交互物 */
     interactionPrompt() {
       if (!this.world || this.run.status !== 'running') return null;
+      if (this.sceneKind === 'rest-house') {
+        return this.restHouse ? this.restHouse.prompt(this.player) : null;
+      }
       var f = this.world.currentFloor;
       if (!f) return null;
       if (this.world.current === 0) {
@@ -147,7 +169,25 @@
           return { kind: 'boss-transfer', text: '按 F 进入21层', action: 'transfer' };
         }
       }
+      // 37:只有真实10/30休息槽 + 固定入口元数据才提示进屋
+      if (f.data.kind === 'rest' && (this.world.current === 10 || this.world.current === 30)) {
+        var fs = f.data.extensions && f.data.extensions.fixedScene;
+        var he = fs && fs.houseEntrance;
+        if (he && he.region && this._overlapsWorldRect(f, he.region)) {
+          return { kind: 'enter-rest-house', text: '按 F 进入休息小屋', action: 'enter-rest-house' };
+        }
+      }
       return null;
+    }
+
+    /** 37:玩家身体是否与世界坐标的区域(层内列/行)重叠 */
+    _overlapsWorldRect(floor, region) {
+      var t = RA.C.TS;
+      var x = floor.origin.x + region.col * t;
+      var y = floor.origin.y + region.row * t;
+      var p = this.player;
+      return p.x < x + region.cols * t && p.x + p.w > x &&
+        p.y < y + region.rows * t && p.y + p.h > y;
     }
 
     pressSkill() { this.actions.skillPressed = true; }
@@ -192,18 +232,14 @@
 
     stepOnce() {
       if (this.paused || this.disposed || this.run.status !== 'running') return;
-      // F:按当前槽位的提示分派传送(0→1 大厅出发 / 20 Boss 击败后→21),不写死 enterFirstFloor
+      /*
+       * 37:一个 F 边沿只分派一次动作(传送/进屋/出屋/领奖),消费后本步不再重复。
+       * 进屋与出屋都改活动场景,不能在进屋同一步继续用新门位置再判一次出屋。
+       */
       if (this.actions.interactPressed) {
-        var prompt = this.interactionPrompt();
-        if (prompt && prompt.action === 'transfer') {
-          this.actions.interactPressed = false;
-          var tr = this.world.transferNext(this.player);
-          if (tr.ok) {
-            this._onFloorEntered(tr.value);
-            this._event(prompt.kind === 'start-tower' ? 'towerStarted' : 'bossTransfer', { floor: this.world.current });
-            this.transferredThisStep = true;
-          }
-        }
+        this.actions.interactPressed = false;
+        this._dispatchInteract();
+        if (this.paused || this.disposed || this.run.status !== 'running') return;
       }
       this.time += STEP;
       this.run.elapsed += STEP;
@@ -214,11 +250,15 @@
       run.haloCooldownRemaining = Math.max(0, run.haloCooldownRemaining - STEP);
 
       var skillPressed = this.actions.skillPressed;
-      var interactPressed = this.actions.interactPressed;
       this.actions.skillPressed = false;
-      this.actions.interactPressed = false;
       if (skillPressed) this.castSkill();
-      if (interactPressed) this.interact();
+
+      // 37:小屋内只用局部静态 Level 跑 Player/技能/计时;外部塔 World 完全暂停
+      if (this.sceneKind === 'rest-house') {
+        this._stepRestHouse();
+        this._syncEvents();
+        return;
+      }
 
       var activeFloor = this.world.currentFloor;
       if (activeFloor && this._outOfBounds(activeFloor)) { this.die('outOfBounds'); this._event('outOfBounds', { floor: this.world.current }); this._syncEvents(); return; }
@@ -232,6 +272,7 @@
       }, { snd: null });
       var entered = this.world.afterPlayerStep(this.player, prevFeet);
       if (entered) this._onFloorEntered(entered);
+      if (this.run.status !== 'running') { this._syncEvents(); return; }
 
       var active = this.world.currentFloor;
       if (active) active.updateActiveObjects(STEP, this);
@@ -253,21 +294,154 @@
       this._syncEvents();
     }
 
+    // ---------------- 37:固定场景交互 / 休息小屋 ----------------
+    _dispatchInteract() {
+      if (this.sceneKind === 'rest-house') {
+        var hp = this.restHouse ? this.restHouse.prompt(this.player) : null;
+        if (!hp) return false;
+        if (hp.action === 'leave-rest-house') return this.leaveRestHouse().ok;
+        if (hp.action === 'choose-rest-reward') return this.chooseRestReward(hp.choice).ok;
+        return false;
+      }
+      var prompt = this.interactionPrompt();
+      if (!prompt) return false;
+      if (prompt.action === 'transfer') {
+        var tr = this.world.transferNext(this.player);
+        if (!tr.ok) return false;
+        this._transferEntry = true;
+        this._onFloorEntered(tr.value);
+        this._transferEntry = false;
+        this._event(prompt.kind === 'start-tower' ? 'towerStarted' : 'bossTransfer', { floor: this.world.current });
+        this.transferredThisStep = true;
+        return true;
+      }
+      if (prompt.action === 'enter-rest-house') return this.enterRestHouse().ok;
+      return false;
+    }
+
+    /** 37:进入10/30休息小屋;成功前不移动玩家/不改run */
+    enterRestHouse() {
+      if (this.run.status !== 'running') return fail('NOT_RUNNING', '当前不能进入休息小屋');
+      if (this.sceneKind !== 'tower') return fail('NOT_TOWER', '已经在休息小屋里');
+      if (!this.formal) return fail('NOT_FORMAL', '只有正式完整塔能进入休息小屋');
+      if (!this.restHouseTemplate) return fail('NO_TEMPLATE', '本局没有固定休息小屋模板');
+      var slot = this.world.current;
+      if (slot !== 10 && slot !== 30) return fail('NOT_REST_SLOT', '只有第10/30层休息区能进入小屋');
+      var floor = this.world.currentFloor;
+      if (!floor || floor.data.kind !== 'rest') return fail('NOT_REST', '当前不是休息区');
+      var fs = floor.data.extensions && floor.data.extensions.fixedScene;
+      var he = fs && fs.houseEntrance;
+      if (!he || !he.region || !he.returnPose) return fail('NO_ENTRANCE', '休息区缺少小屋入口元数据');
+      if (!this._overlapsWorldRect(floor, he.region)) return fail('NOT_AT_DOOR', '角色没有站在小屋门口');
+      var used = !!this.run.restChoices[String(slot)];
+      var created = RA.RestHouseScene.create(this.restHouseTemplate, {
+        ownerFloorSlot: slot, ownerInstanceId: floor.instanceId, used: used
+      });
+      if (!created.ok) return created;
+      this.restHouse = created.value;
+      this.sceneKind = 'rest-house';
+      this.houseOwner = { slot: slot, instanceId: floor.instanceId, returnPose: clone(he.returnPose) };
+      var p = this.player;
+      p.level = this.restHouse.level;
+      p.x = this.restHouse.startPose.x;
+      p.y = this.restHouse.startPose.feet - p.h;
+      p.vx = 0; p.vy = 0; p.onGround = false;
+      p.coyote = 0; p.jumpBuffer = 0; p.jumpsUsed = 0; p.prevJump = false; p.jumpCut = false;
+      p.spinT = p.SPIN_TIME; p.ledgeUsed = false;
+      this._event('sceneChanged', { from: 'tower', to: 'rest-house', ownerFloorSlot: slot });
+      return ok({ sceneKind: this.sceneKind, ownerFloorSlot: slot });
+    }
+
+    /** 37:离开小屋回到休息区门口;不算换层/不加分/不回血 */
+    leaveRestHouse() {
+      if (this.sceneKind !== 'rest-house' || !this.restHouse || !this.houseOwner) {
+        return fail('NOT_IN_HOUSE', '当前不在休息小屋里');
+      }
+      if (this.run.status !== 'running') return fail('NOT_RUNNING', '当前不能离开休息小屋');
+      var owner = this.houseOwner;
+      var floor = this.world.currentFloor;
+      if (this.world.current !== owner.slot || !floor || floor.instanceId !== owner.instanceId) {
+        return fail('OWNER_CHANGED', '休息区已变化,不能恢复原门位置');
+      }
+      this.restHouse.dispose();
+      this.restHouse = null;
+      this.sceneKind = 'tower';
+      this.houseOwner = null;
+      var p = this.player;
+      p.level = floor.view;
+      p.x = floor.origin.x + owner.returnPose.centerCol * RA.C.TS - p.w / 2;
+      p.y = floor.origin.y + owner.returnPose.feetRow * RA.C.TS - p.h;
+      p.vx = 0; p.vy = 0; p.onGround = false;
+      p.coyote = 0; p.jumpBuffer = 0; p.jumpsUsed = 0; p.prevJump = false; p.jumpCut = false;
+      p.spinT = p.SPIN_TIME; p.ledgeUsed = false;
+      this._event('sceneChanged', { from: 'rest-house', to: 'tower', ownerFloorSlot: owner.slot });
+      return ok({ sceneKind: this.sceneKind, ownerFloorSlot: owner.slot });
+    }
+
+    /** 37:领取三选一;同一事务写 choice 与 hp/maxHp,并隐藏本轮全部道具 */
+    chooseRestReward(choiceId) {
+      if (this.sceneKind !== 'rest-house' || !this.restHouse || !this.houseOwner) {
+        return fail('NOT_IN_HOUSE', '只有在小屋里才能领取奖励');
+      }
+      if (this.run.status !== 'running') return fail('NOT_RUNNING', '当前不能领取奖励');
+      var slot = this.houseOwner.slot;
+      var key = String(slot);
+      if (this.run.restChoices[key]) return fail('ALREADY_CHOSEN', '本层休息奖励已经领取');
+      if (this.restHouse.used) return fail('ALREADY_CHOSEN', '本轮道具已使用');
+      var at = this.restHouse.choiceAt(this.player);
+      if (!at || at.id !== choiceId) return fail('NOT_AT_REWARD', '角色没有站在这件道具前');
+      var r = RA.RestHouseScene.REWARDS[choiceId];
+      if (!r) return fail('UNKNOWN_REWARD', '未知奖励 ' + choiceId);
+      var oldHp = this.run.hp, oldMax = this.run.maxHp;
+      var newMax = oldMax + r.maxDelta;
+      var newHp = Math.min(newMax, oldHp + r.heal + r.maxDelta);
+      this.run.maxHp = newMax;
+      this.run.hp = newHp;
+      this.run.restChoices[key] = choiceId;
+      this.restHouse.used = true;
+      this._event('restRewardChosen', {
+        floor: slot, choice: choiceId, maxDelta: newMax - oldMax, hpDelta: newHp - oldHp,
+        hp: newHp, maxHp: newMax
+      });
+      return ok({ choice: choiceId, hp: newHp, maxHp: newMax });
+    }
+
+    /** 37:调试跳层/死亡/退出时丢弃场景(不恢复门位置,不刷新奖励) */
+    closeRestHouse() {
+      if (this.restHouse) this.restHouse.dispose();
+      this.restHouse = null;
+      this.sceneKind = 'tower';
+      this.houseOwner = null;
+    }
+
+    _stepRestHouse() {
+      var scene = this.restHouse;
+      if (!scene) { this.closeRestHouse(); return; }
+      var prev = { x: this.player.x, feet: this.player.feet };
+      this.player.update(STEP, {
+        left: this.actions.left, right: this.actions.right, jump: this.actions.jumpHeld
+      }, { snd: null });
+      var t = RA.C.TS;
+      if (this.player.y > scene.rows * t + 60 ||
+        this.player.x < -4 * t || this.player.x > scene.cols * t + 4 * t) {
+        this.die('outOfBounds');
+        this._event('outOfBounds', { floor: this.houseOwner ? this.houseOwner.slot : this.world.current, scene: 'rest-house' });
+      }
+    }
+
     _onFloorEntered(ev) {
       var floor = this.world.currentFloor;
       if (!floor) return;
       this.run.visited.add(floor.instanceId);
-      this._event('floorEntered', { from: ev.from, to: ev.to });
+      // 39:显式标记 F 传送(0→1/20→21),页面据此直接切组而不播放管道换组动画
+      this._event('floorEntered', { from: ev.from, to: ev.to, transfer: !!(ev.transfer || this._transferEntry) });
       // 30:首次进入真实层号 1…40 各 +20(含 10/30 休息、20/40 Boss、F 传送;0 出生不加)。
       // 去重按本局槽号,重复的 floorEntered/调试跳层不会重复加分。
       this._awardFloorOnce();
-      if (floor.data.kind === 'rest' && this.profile.allowRest !== false &&
-        !this.run.claimedRest.has(floor.instanceId)) {
-        this.run.claimedRest.add(floor.instanceId);
-        var before = this.run.hp;
-        this.run.hp = Math.min(this.run.maxHp, this.run.hp + ((RA.RULES && RA.RULES.tuning.restHeal) || 40));
-        this._event('restHealed', { floor: this.world.current, amount: this.run.hp - before });
-      }
+      // 36:正式局真实换层时额外回血一次(0→1/管道/休息/Boss/20→21 F 都算;0 也记录已入槽)。
+      // 只在 running 且确属当前新槽时结算;休息层原 40 另算并叠加;cap=maxHp;死亡不复活。
+      this._grantFloorHealOnce();
+      if (this._completionReached()) { this.win('enterFloor'); return; }
       if (floor.data.kind === 'boss') {
         floor.exitOpen = false;
         // 20 与 40 都用同一 Boss 模板,但必须是独立实例;离开后不再复用旧状态
@@ -280,6 +454,13 @@
         // 离开 Boss 层:旧 Boss 不再 update/被光环命中;进 40 会创建全新实例
         this.boss = null;
       }
+    }
+
+    /** 41:简单模式完成条件由 manifest.completion 明确指定(进入20层)。 */
+    _completionReached() {
+      var c = this.manifest && this.manifest.completion;
+      return !!(c && c.type === 'enter-floor' && this.world.current === Number(c.floorNumber) &&
+        this.run.status === 'running');
     }
 
     // ---------------- 30:正式塔计分(唯一真值) ----------------
@@ -304,6 +485,34 @@
       if (this._scoredFloors.has(key)) return false;
       this._scoredFloors.add(key);
       return this._award((RA.C.SCORE && RA.C.SCORE.floorEnter) || 20, 'floor', { floor: n });
+    }
+
+    /**
+     * 36:正式换层的额外回血。每次真实进入新槽只结算一次(0 也记录已入槽,避免改设置后补发);
+     * 只加血、cap 到 maxHp,不碰无敌/技能/CD;设置值在进入时读取,所以修改只影响下一次换层。
+     */
+    _grantFloorHealOnce() {
+      if (!this.formal || this.run.status !== 'running') return false;
+      var n = this.world.current;
+      if (!(n >= 1 && n <= 40)) return false;
+      var key = String(n);
+      if (this.run.floorHealGranted.has(key)) return false;
+      this.run.floorHealGranted.add(key);
+      var amount = sanFloorHeal(this.floorHealAmount);
+      if (!amount) return false;
+      var before = this.run.hp;
+      this.run.hp = Math.min(this.run.maxHp, this.run.hp + amount);
+      var gained = this.run.hp - before;
+      if (gained > 0) this._event('floorHealed', { floor: n, requested: amount, amount: gained });
+      return gained > 0;
+    }
+
+    /** 36:暂停/首页设置改额外回血;只接受五档,返回当前有效值(非法值不改) */
+    setFloorHealAmount(v) {
+      var n = Number(v);
+      if (FLOOR_HEAL_AMOUNTS.indexOf(n) < 0) return this.floorHealAmount;
+      this.floorHealAmount = n;
+      return this.floorHealAmount;
     }
 
     /** 敌对单位真的被击败:按本局 instanceId + objectId 去重;机械/池/箭/弹幕不在此列 */
@@ -369,7 +578,7 @@
       var run = this.run;
       if (run.haloActiveRemaining <= 0 || run.status !== 'running') return;
       var t = (RA.RULES && RA.RULES.tuning) || {};
-      var radius = (t.haloRadiusTiles || 1.5) * RA.C.TS;
+      var radius = (t.haloRadiusTiles || 2.25) * RA.C.TS;
       var cx = this.player.x + this.player.w / 2;
       var cy = this.player.y + this.player.h / 2;
       var floor = this.world.currentFloor;
@@ -423,6 +632,7 @@
       this.run.hp = Math.max(0, this.run.hp);
       this.run.status = 'dead';
       this.accumulator = 0;
+      this.closeRestHouse();
       if (this.world && this.world.clearArrows) this.world.clearArrows();
       this._event('dead', { reason: reason || 'hp', floor: this.world.current });
       return true;
@@ -432,6 +642,7 @@
       if (this.run.status !== 'running') return false;
       this.run.status = 'won';
       this.accumulator = 0;
+      this.closeRestHouse();
       if (this.world && this.world.clearArrows) this.world.clearArrows();
       this._event('won', { reason: reason || 'bossDefeated' });
       return true;
@@ -482,6 +693,14 @@
         bossDefeated: !!(this.boss && this.boss.defeated),
         time: this.time,
         paused: this.paused,
+        sceneKind: this.sceneKind,
+        ownerFloorSlot: this.houseOwner ? this.houseOwner.slot : null,
+        restChoices: clone(this.run.restChoices || {}),
+        activeScene: this.activeSceneView ? {
+          kind: this.sceneKind,
+          cols: this.activeSceneView().cols, rows: this.activeSceneView().rows,
+          backgroundId: this.activeSceneView().backgroundId || null
+        } : null,
         player: {
           x: this.player.x, y: this.player.y, feet: this.player.feet,
           vx: this.player.vx, vy: this.player.vy,
@@ -493,16 +712,35 @@
           index: f.index, state: f.state, kind: f.data.kind || 'normal',
           cols: f.cols, rows: f.rows,
           origin: { x: f.origin.x, y: f.origin.y },
-          activeTime: f.activeTime, exitOpen: f.exitOpen !== false
+          activeTime: f.activeTime, exitOpen: f.exitOpen !== false,
+          easyFinish: !!(f.data.extensions && f.data.extensions.fixedScene && f.data.extensions.fixedScene.role === 'easy-finish')
         } : null,
         boss: this.boss ? this.boss.snapshot() : null,
         live: this.world.liveStates()
       };
     }
 
+    /** 37:正式渲染/相机只读活动场景,不猜 world.currentFloor */
+    activeSceneView() {
+      if (this.sceneKind === 'rest-house' && this.restHouse) {
+        return {
+          kind: 'rest-house', level: this.restHouse.level, cols: this.restHouse.cols,
+          rows: this.restHouse.rows, origin: { x: 0, y: 0 },
+          backgroundId: this.restHouse.backgroundId, slot: this.houseOwner ? this.houseOwner.slot : null
+        };
+      }
+      var f = this.world.currentFloor;
+      return {
+        kind: 'tower', level: f ? f.level : null, cols: f ? f.cols : 0,
+        rows: f ? f.rows : 0, origin: f ? f.origin : { x: 0, y: 0 },
+        backgroundId: f && f.data.visuals ? f.data.visuals.backgroundId : null, floor: f
+      };
+    }
+
     dispose() {
       this.disposed = true;
       this.events.length = 0;
+      this.closeRestHouse();
       if (this.world && this.world.clearArrows) this.world.clearArrows();
     }
   }

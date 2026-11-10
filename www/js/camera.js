@@ -89,4 +89,68 @@
   }
 
   RA.Camera = Camera;
+
+  /*
+   * 32:游玩镜头缩放的共用小工具(正式 js/short.js 与独立试玩 js/trial.js 都用这一份)。
+   *
+   *   zoom   = C.VIEW.zoom(默认 2/3)
+   *   可见世界宽 = CSS 宽 / zoom;可见世界高 = CSS 高 / zoom
+   *   屏幕坐标 = (世界坐标 - 相机世界坐标) * zoom
+   *
+   * 约定:
+   *   · 只缩"世界"绘制;HTML 的 HUD/按钮/暂停层保持 CSS 尺寸;
+   *   · DPR 仍只处理画布像素密度,不能在这里乘第二遍;
+   *   · 相机/裁剪/居中跟随全部用世界可见宽高,不能用 CSS 宽高;
+   *   · 坐标判伤、玩家物理、技能半径、索敌 10 格仍是原世界单位。
+   * 历史 Camera 类仍保持原样(旧页面/历史测试在用),不强行改成缩放版。
+   */
+  /**
+   * 36:两档视野。wide=当前 zoom 2/3(默认),classic=旧 zoom 1。
+   * 只影响世界绘制与相机可见范围;HTML HUD/按钮、DPR、物理/索敌/地图尺寸都不变。
+   * 页面从游玩偏好读出档位后调用 setMode;核心不读 DOM/storage。
+   */
+  var VIEW_MODES = ['wide', 'classic'];
+  function viewZoomOf(mode) {
+    var v = (RA.C && RA.C.VIEW) || {};
+    if (mode === 'classic') {
+      var c = v.classicZoom;
+      return (typeof c === 'number' && isFinite(c) && c > 0) ? c : 1;
+    }
+    var z = v.wideZoom;
+    if (!(typeof z === 'number' && isFinite(z) && z > 0)) z = v.zoom;
+    return (typeof z === 'number' && isFinite(z) && z > 0) ? z : 1;
+  }
+  var currentMode = (function () {
+    var d = RA.C && RA.C.VIEW && RA.C.VIEW.defaultMode;
+    return VIEW_MODES.indexOf(d) >= 0 ? d : 'wide';
+  })();
+  function viewZoom() { return viewZoomOf(currentMode); }
+  RA.ViewZoom = {
+    MODES: VIEW_MODES.slice(),
+    mode: function () { return currentMode; },
+    /** 只接受两档;返回是否真的改了(非法值不改) */
+    setMode: function (m) {
+      if (VIEW_MODES.indexOf(m) < 0) return false;
+      if (currentMode === m) return true;
+      currentMode = m;
+      return true;
+    },
+    zoom: viewZoom,
+    /** CSS 可见尺寸 → 世界可见尺寸 */
+    worldW: function (cssW) { return Math.max(1, cssW) / viewZoom(); },
+    worldH: function (cssH) { return Math.max(1, cssH) / viewZoom(); },
+    /** 相机世界坐标:让世界点 (wx, wy) 落在可见区域中心 */
+    camFor: function (wx, wy, cssW, cssH) {
+      return {
+        x: wx - RA.ViewZoom.worldW(cssW) / 2,
+        y: wy - RA.ViewZoom.worldH(cssH) / 2
+      };
+    },
+    /** 把绘制缩放到 zoom;调用方负责 save/restore(DPR 变换之前已由页面设好) */
+    apply: function (ctx) {
+      var z = viewZoom();
+      if (z !== 1) ctx.scale(z, z);
+      return z;
+    }
+  };
 })(globalThis.RA = globalThis.RA || {});

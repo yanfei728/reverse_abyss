@@ -59,7 +59,7 @@
   #import-status{color:#9fb0cc;font-size:12px}
   @media (max-height:420px){#menu .box{padding:10px 14px}#menu h1{font-size:18px;margin-bottom:2px}#menu p{font-size:11.5px;line-height:1.4;margin:3px 0}#menu button{font-size:12px;padding:6px 9px;margin-top:3px}#menu .box>p:first-of-type{display:none}#menu-status{min-height:1em}#settings-overlay .box{padding:10px 12px}#settings-overlay h2{font-size:16px;margin-bottom:4px}#settings-overlay p{font-size:11px;line-height:1.35;margin:3px 0}#settings-overlay .row{margin:4px 0;gap:5px}}
   #fatal-overlay{position:fixed;top:0;right:0;bottom:0;left:0;display:none;align-items:center;justify-content:center;background:#12090a;color:#ffd8d0;z-index:40;padding:16px;box-sizing:border-box;font-size:13px;line-height:1.6;text-align:center}
-  .logo{font:900 42px/1.05 "Arial Black",Impact,system-ui,sans-serif;letter-spacing:3px;color:#e8f0ff;text-align:center;margin:4px 0 6px;text-shadow:0 0 18px rgba(100,170,255,.35)} .tagline{text-align:center;letter-spacing:2px;color:#89a6d6;margin:0 0 18px} #main-menu-box{text-align:center} #main-menu-box .primary{display:block;width:100%;max-width:280px;margin:10px auto;font-size:16px;padding:12px 16px} #main-menu-box .dim{text-align:center;margin-top:18px} .settings-fab{position:absolute;right:18px;bottom:16px;background:#121a2b;border:1px solid #40557f;color:#cfd8ea;border-radius:10px;padding:8px 12px;font:inherit;font-size:12px;cursor:pointer} #main-settings,#exit-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,6,12,.78);z-index:9;padding:10px;box-sizing:border-box} #main-settings .box,#exit-overlay .box{width:92%;max-width:560px;max-height:calc(100% - 20px);overflow:auto;background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:18px 22px} #main-settings h2,#exit-overlay h2{margin:0 0 10px;text-align:center} #main-settings .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0} #main-settings input,#main-settings select{font:inherit;font-size:12px;padding:6px 8px;border-radius:7px;border:1px solid #40557f;background:#0b111d;color:#e8eefb;min-width:160px;flex:1} #main-settings button,#exit-overlay button{font:inherit;font-size:12px;padding:7px 10px;border-radius:8px;border:1px solid #40557f;background:#1d283d;color:#e8eefb;cursor:pointer} .dim{color:#8fa0c0;font-size:12px;line-height:1.55}</style>
+  .logo{font:900 42px/1.05 "Arial Black",Impact,system-ui,sans-serif;letter-spacing:3px;color:#e8f0ff;text-align:center;margin:4px 0 6px;text-shadow:0 0 18px rgba(100,170,255,.35)} .tagline{text-align:center;letter-spacing:2px;color:#89a6d6;margin:0 0 18px} #main-menu-box{text-align:center} #main-menu-box .primary{display:block;width:100%;max-width:280px;margin:10px auto;font-size:16px;padding:12px 16px} #main-menu-box .dim{text-align:center;margin-top:18px} .settings-fab{position:absolute;right:18px;bottom:16px;background:#121a2b;border:1px solid #40557f;color:#cfd8ea;border-radius:10px;padding:8px 12px;font:inherit;font-size:12px;cursor:pointer} #main-settings,#exit-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,6,12,.78);z-index:9;padding:10px;box-sizing:border-box} #main-settings .box,#exit-overlay .box{width:92%;max-width:560px;max-height:calc(100% - 20px);overflow:auto;background:#10131f;border:1px solid #2c3752;border-radius:12px;padding:18px 22px} #main-settings h2,#exit-overlay h2{margin:0 0 10px;text-align:center} #main-settings .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0} #main-settings input,#main-settings select{font:inherit;font-size:12px;padding:6px 8px;border-radius:7px;border:1px solid #40557f;background:#0b111d;color:#e8eefb;min-width:160px;flex:1} #main-settings button,#exit-overlay button{font:inherit;font-size:12px;padding:7px 10px;border-radius:8px;border:1px solid #40557f;background:#1d283d;color:#e8eefb;cursor:pointer} .dim{color:#8fa0c0;font-size:12px;line-height:1.55}#pause-overlay .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}#pause-overlay select{font:inherit;font-size:12px;padding:6px 8px;border-radius:7px;border:1px solid #40557f;background:#0b111d;color:#e8eefb}#pause-prefs-status{margin:4px 0 8px}</style>
 </head>
 <body>
 <div id="fatal-overlay"><div><b>页面初始化失败</b><p id="fatal-text" style="margin:8px 0 0;font-size:12px;color:#ffb3a6"></p></div></div>
@@ -96,6 +96,10 @@
   <div id="rotate-hint">请横屏游玩<br><span style="font-size:12px;color:#7f90b0">旋转设备后按钮会重新夹到安全区域</span></div>
   <div id="pause-overlay"><div class="box">
     <h2>已暂停</h2><p id="pause-reason">手动暂停</p>
+    <div class="row"><label for="pause-view-mode">视野</label><select id="pause-view-mode"><option value="wide">广视野（当前）</option><option value="classic">标准视野（原版）</option></select></div>
+<div class="row"><label for="pause-tower-mode">塔模式</label><select id="pause-tower-mode"><option value="easy">简单（0–20，默认）</option><option value="classic">经典（0–40）</option></select></div>
+    <div class="row"><label for="pause-floor-heal">换层回血</label><select id="pause-floor-heal"><option value="0">0</option><option value="20">20</option><option value="40">40</option><option value="60">60</option><option value="100">100</option></select></div>
+    <p id="pause-prefs-status" class="dim" role="status" aria-live="polite"></p>
     <button id="btn-resume">继续</button><button id="btn-menu-pause">返回主界面</button>
   </div></div>
   <div id="result-overlay"><div class="box">
@@ -112,6 +116,12 @@
     <p id="pool-detail" class="dim"></p>
     <div class="row"><label>历史最高分</label><span id="high-score-value">0</span></div>
     <p id="high-score-status" class="dim"></p>
+    <h2>游玩设置</h2>
+    <div class="row"><label for="set-view-mode">屏幕大小（视野）</label><select id="set-view-mode"><option value="wide">广视野（当前，默认）</option><option value="classic">标准视野（原版）</option></select></div>
+<div class="row"><label for="set-tower-mode">塔模式（新挑战/重构）</label><select id="set-tower-mode"><option value="easy">简单：0–20，无Boss，默认</option><option value="classic">经典：0–40，双Boss</option></select></div>
+    <div class="row"><label for="set-floor-heal">正式换层额外回血</label><select id="set-floor-heal"><option value="0">0（默认）</option><option value="20">20</option><option value="40">40</option><option value="60">60</option><option value="100">100</option></select></div>
+    <p id="play-prefs-status" class="dim" role="status" aria-live="polite"></p>
+    <p class="dim">视野：广视野=当前（看到的世界更大），标准=旧版 1:1；只改显示，不改 HUD/物理/索敌。换层额外回血只在正式完整塔生效（含 F 传送与休息层叠加、上限 100），修改从下一次真实换层起；试玩没有跨层回血。</p>
     <div class="row"><button id="btn-import">导入关卡 JSON</button><button id="btn-add-import" style="display:none">加入正式池</button></div>
     <p id="import-status" class="dim"></p>
     <div class="row"><label for="published-version">浏览器发布版本</label><select id="published-version" disabled></select></div>
@@ -127,6 +137,8 @@
 <script src="js/config.js"></script>
 <script src="js/util.js"></script>
 <script src="js/text.js"></script>
+<script src="assets/background/catalog.js"></script>
+<script src="assets/background/large/catalog.js"></script>
 <script src="js/level.js"></script>
 <script src="js/entity-registry.js"></script>
 <script src="js/level-data.js"></script>
@@ -137,6 +149,7 @@
 <script src="js/legacy-import.js"></script>
 <script src="js/entities/base.js"></script>
 <script src="js/entities/player.js"></script>
+<script src="js/player-art.js"></script>
 <script src="js/entities/goal.js"></script>
 <script src="js/entities/spring.js"></script>
 <script src="js/entities/ghost.js"></script>
@@ -144,12 +157,16 @@
 <script src="js/monsters.js"></script>
 <script src="js/soul-motion.js"></script>
 <script src="js/camera.js"></script>
+<script src="js/large-background.js"></script>
 <script src="js/assets.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/input.js"></script>
 <script src="js/content-repository.js"></script>
 <script src="js/rules.js"></script>
+<script src="js/normal-catalog.js"></script>
+<script src="js/level-export.js"></script>
 <script src="js/world.js"></script>
+<script src="js/rest-house.js"></script>
 <script src="js/session.js"></script>
 <script src="js/boss.js"></script>
 <script src="js/tower-planner.js"></script>
@@ -162,6 +179,7 @@
 <script src="js/platform/lifecycle.js"></script>
 <script src="js/seed-text.js"></script>
 <script src="js/high-score-store.js"></script>
+<script src="js/play-preferences.js"></script>
 <script src="js/short.js"></script>
 </body>
 </html>

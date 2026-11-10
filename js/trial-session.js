@@ -154,7 +154,7 @@
     _applyHalo() {
       if (this.run.haloActiveRemaining <= 0 || this.status !== 'running') return;
       var t = RA.RULES && RA.RULES.tuning || {};
-      var radius = (t.haloRadiusTiles || 1.5) * TS;
+      var radius = (t.haloRadiusTiles || 2.25) * TS;
       var cx = this.player.x + this.player.w / 2, cy = this.player.y + this.player.h / 2;
       var self = this;
       this.inst.objects.forEach(function (o) {

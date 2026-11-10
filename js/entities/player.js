@@ -241,7 +241,7 @@
     air: 'player/air'
   };
   Player.RUN_FRAMES = ['run0', 'run1', 'run2'];
-  Player.FEET_ANCHOR = 80;              // assets.js 里 FEET_Y
+  Player.FEET_ANCHOR = 53;              // 40:45×54 图集/兜底共同脚底锚点
 
   Player.JUMPS = C.JUMP_COUNT;          // 一次滞空最多跳几次(1 = 关掉二段跳)
   Player.SPIN_DEG = C.DOUBLE_JUMP_SPIN;

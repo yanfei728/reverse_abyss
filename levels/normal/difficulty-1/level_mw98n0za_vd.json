@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 2,
+  "id": "level_mw98n0za_vd",
+  "title": "新楼层 2",
+  "kind": "normal",
+  "difficulty": 1,
+  "size": {
+    "cols": 24,
+    "rows": 25
+  },
+  "terrain": {
+    "tiles": [
+      [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 4, 4, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 3, 3, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4],
+      [4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+    ]
+  },
+  "ports": {
+    "start": {
+      "col": 1,
+      "row": 24
+    },
+    "finish": {
+      "col": 19,
+      "row": 0
+    },
+    "profile": "cloud-pipe-v2"
+  },
+  "spawn": null,
+  "objects": [
+    {
+      "id": "sewage_pool_1",
+      "type": "sewage_pool",
+      "col": 6,
+      "row": 18,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "sewage_pool_2",
+      "type": "sewage_pool",
+      "col": 7,
+      "row": 18,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "sewage_pool_3",
+      "type": "sewage_pool",
+      "col": 8,
+      "row": 18,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "flail_1",
+      "type": "flail",
+      "col": 10,
+      "row": 19,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "gear_1",
+      "type": "gear",
+      "col": 14,
+      "row": 18,
+      "params": {
+        "speedTilesPerSecond": 7.555555555555555,
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": "path_1"
+    },
+    {
+      "id": "coin_1",
+      "type": "coin",
+      "col": 21,
+      "row": 16,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "spring_1",
+      "type": "spring",
+      "col": 1,
+      "row": 17,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "spring_2",
+      "type": "spring",
+      "col": 2,
+      "row": 17,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "spring_3",
+      "type": "spring",
+      "col": 3,
+      "row": 17,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "fireball_moving_1",
+      "type": "fireball_moving",
+      "col": 1,
+      "row": 16,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": "path_2"
+    },
+    {
+      "id": "blink_platform_1",
+      "type": "blink_platform",
+      "col": 4,
+      "row": 9,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_2",
+      "type": "blink_platform",
+      "col": 6,
+      "row": 9,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_3",
+      "type": "blink_platform",
+      "col": 5,
+      "row": 9,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_4",
+      "type": "blink_platform",
+      "col": 8,
+      "row": 9,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_5",
+      "type": "blink_platform",
+      "col": 9,
+      "row": 9,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_6",
+      "type": "blink_platform",
+      "col": 10,
+      "row": 9,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_1",
+      "type": "spike",
+      "col": 10,
+      "row": 17,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_2",
+      "type": "spike",
+      "col": 11,
+      "row": 17,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_3",
+      "type": "spike",
+      "col": 12,
+      "row": 17,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "fireball_static_1",
+      "type": "fireball_static",
+      "col": 14,
+      "row": 8,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "soul_1",
+      "type": "soul",
+      "col": 18,
+      "row": 4,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20,
+        "initialDirection": 2
+      },
+      "pathId": null
+    },
+    {
+      "id": "flail_2",
+      "type": "flail",
+      "col": 4,
+      "row": 19,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": null
+    }
+  ],
+  "paths": [
+    {
+      "id": "path_1",
+      "mode": "pingpong",
+      "points": [
+        {
+          "col": 14,
+          "row": 18
+        },
+        {
+          "col": 15,
+          "row": 18
+        },
+        {
+          "col": 16,
+          "row": 18
+        },
+        {
+          "col": 17,
+          "row": 18
+        },
+        {
+          "col": 18,
+          "row": 18
+        },
+        {
+          "col": 19,
+          "row": 18
+        },
+        {
+          "col": 20,
+          "row": 18
+        },
+        {
+          "col": 21,
+          "row": 18
+        },
+        {
+          "col": 22,
+          "row": 18
+        }
+      ]
+    },
+    {
+      "id": "path_2",
+      "mode": "pingpong",
+      "points": [
+        {
+          "col": 1,
+          "row": 16
+        },
+        {
+          "col": 1,
+          "row": 15
+        },
+        {
+          "col": 1,
+          "row": 14
+        },
+        {
+          "col": 1,
+          "row": 13
+        },
+        {
+          "col": 1,
+          "row": 12
+        },
+        {
+          "col": 2,
+          "row": 12
+        },
+        {
+          "col": 3,
+          "row": 12
+        },
+        {
+          "col": 4,
+          "row": 12
+        }
+      ]
+    }
+  ],
+  "visuals": {
+    "backgroundId": null,
+    "decorations": []
+  },
+  "extensions": {},
+  "contentHash": "sha256:4403b51497a1c652e0359f097946abb42bef9aa3ada3d839369725b38805ce3c",
+  "certification": {
+    "contentHash": "sha256:4403b51497a1c652e0359f097946abb42bef9aa3ada3d839369725b38805ce3c",
+    "rulesVersion": "b4-10",
+    "rulesFingerprint": "rules=b4-10|ts=45|gravity=2300|jump=-830|hp=100|halo=14/20|radius=1.5|boss=12/8|objects=archer,blink_platform,coin,crumble_door,fireball_moving,fireball_static,flail,gear,sewage_pool,soul,spike,spring|interface=cloud-pipe-v2/2x3/gap4|fixed=short-fixed-v1|collision=world-v3|path=orth-v1|trial=manual-single-map-v3|profile=run-v1|tower=full40-v1/4-buckets/test3-fallback|poolEpoch=full40-pool-reset-2026-11-09|monsters=gear340/fireball170/flail4t-2v3|soul=170/contour/dynamic-fly-reattach;sewage=20|coins=collect/body-only/0.25r;archer=static/2s/170px/20-20/arrow-clip-floor|score=formal-only/floor20/enemy5/coin10/boss-final-once",
+    "profileId": "run-v1",
+    "status": "passed",
+    "completedAt": "2026-11-09T12:35:34.324Z",
+    "source": "local-playtest"
+  }
+}

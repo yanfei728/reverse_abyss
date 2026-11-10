@@ -50,6 +50,20 @@
     FALL_MARGIN: 60,          // 掉到本层世界底部以下这么多像素 → 重生回本层起点
 
     // ===================== 镜头 =====================
+    /*
+     * 32:正式游玩与独立试玩共用同一个镜头缩放。zoom = 2/3 时,
+     * 同样 CSS 视口看到的世界宽/高各变成 1.5 倍(面积 2.25 倍);
+     * 地图尺寸、碰撞、角色移速/跳跃、技能半径、索敌距离仍是原世界单位,
+     * HUD/按钮/编辑器的 zoom 不受影响。屏幕坐标 = (世界 - 相机) * zoom。
+     */
+    VIEW: {
+      // 36:两档视野。宽=当前 zoom=2/3(默认),标准=旧 zoom=1;
+      // 只影响世界渲染/相机可见范围,不改 CSS/canvas/DPR/HUD/物理/索敌。
+      zoom: 2 / 3,
+      wideZoom: 2 / 3,
+      classicZoom: 1,
+      defaultMode: 'wide'
+    },
     // 垂直镜头带"死区":角色在这个范围内活动时镜头不动,原地起跳画面就不会上下抖。
     CAM_MARGIN_TOP: 90,       // 角色离屏幕上边多近 → 镜头开始强制跟(px)
     CAM_MARGIN_BOTTOM: 110,
@@ -171,7 +185,10 @@
       sewage_pool: {},
       // 30:金币是拾取物、弓箭手是固定敌人;都直接放置,无参数面板,params 保持 {}
       coin: {},
-      archer: {}
+      archer: {},
+      // 32:幽灵与喷火火球同样直接放置、无参数,数值固定在 C.GHOST / C.SPITTER
+      ghost_dash: {},
+      fireball_spitter: {}
     },
 
     /*
@@ -181,8 +198,16 @@
     COLLECT: {
       coinRadiusTiles: 0.25          // 金币判定半径(0.5 格直径);只被玩家身体拾取
     },
+    /*
+     * 32/33: 三类主动索敌怪(弓箭手 / 幽灵 / 喷火火球)共用的中心直线索敌距离。
+     * 世界单位(格),与镜头缩放无关;超距只限制"发起新攻击",不清已发出的弹。
+     * 33号卡按用户要求由 10 格放宽到 20 格(900px)。
+     */
+    SEEK: {
+      rangeTiles: 20
+    },
     ARCHER: {
-      fireIntervalSeconds: 2,        // 入层后完整 2 秒射第一箭,之后每 2 秒
+      fireIntervalSeconds: 4,        // 32:入层后完整 4 秒射第一箭,之后每 4 秒(全关卡统一)
       arrowSpeedPx: 170,             // 固定 V/2,不取玩家当前速度
       arrowDamage: 20,               // 箭命中伤害(沿用受伤无敌时间)
       contactDamage: 20,             // 本体接触伤害
@@ -190,9 +215,35 @@
       arrowLengthPx: 18,             // 箭可见长度
       arrowMaxAgeSeconds: 30         // 安全上限:正常情况下先被本层边界裁掉
     },
+    /*
+     * 32/33: 幽灵(ghost_dash)。漂浮、无重力;每 2 秒锁定玩家当刻方向直冲 3 格,
+     * 沿用 0.2 秒完成(135px / 0.2s = 675px/s),穿墙;接触伤害 20,真的扣血后才自消失。
+     * 33号卡按用户要求:周期 3→2 秒、冲刺 2→3 格。
+     */
+    GHOST: {
+      dashIntervalSeconds: 2,
+      dashTiles: 3,
+      dashSeconds: 0.2,
+      radiusTiles: 0.5,              // 本体判定/显示半径(沿用普通火球尺寸)
+      contactDamage: 20
+    },
+    /*
+     * 32: 喷火火球(fireball_spitter)。静止;左右始终朝玩家;每 4 秒水平弹;
+     * 弹 170px/s、20 伤害、不穿实体墙、不跨楼层、不可被光环清。
+     */
+    SPITTER: {
+      fireIntervalSeconds: 4,
+      contactDamage: 20,
+      radiusTiles: 0.5,              // 本体判定/显示半径
+      boltSpeedPx: 170,              // = V/2
+      boltDamage: 20,
+      boltRadiusPx: 9,               // 火焰弹半径 0.2 格:显示与判定一致
+      boltMaxAgeSeconds: 30          // 安全上限:正常情况下先被本层域/墙裁掉
+    },
     SCORE: {
       // 只有正式完整塔启用;试玩不创建/显示/保存分数
       formalMode: 'full40-formal',
+      formalModes: ['full40-formal', 'easy20-formal'],
       floorEnter: 20,                // 首次进入真实层号 1…40(共 800)
       enemyDefeat: 5,                // 敌对单位真的被击败(含 Boss 最终一次)
       coin: 10                       // 拾取金币
@@ -209,6 +260,28 @@
       spikeHeight: 16                   // 伸出尖刺高度;只这段伤害
     },
 
+    // 34:纯视觉旋转速度(转/秒),不影响碰撞/攻击/技能时间或路径运动。
+    //   gearSpinRps:齿轮绕自身中心默认顺时针自转(独立于轨道移动,单点也转);
+    //   haloSpinRps:用户指定的光环转速(施法期间每秒一圈)。
+    // 35:关卡小背景固定只压暗图片可见像素,alpha 不变(离屏合成,不在主画布盖黑框)。
+    // 36:压暗 55%→25%(可见 RGB ≈ 原图 75%);箭/火焰弹只放大显示,判定半径不变。
+    VISUAL: {
+      gearSpinRps: 1,
+      haloSpinRps: 1,
+      levelBackgroundDarkenAlpha: 0.15,
+      // 40:管道内底独立压暗(只作用 liveStoneLinks 的管底图;石砖/云板/玩家不压)
+      pipeBackgroundDarkenAlpha: 0.15,
+      arrowRenderSizePx: 27,
+      flameBoltRenderSizePx: 27,
+      // 38:三层大背景(只第一组有图);横向视差幅度/响应距离与塔楼初始布局
+      largeBackground: {
+        frontPanPct: 0.04, midPanPct: 0.03, backPanPct: 0.02,
+        responseTiles: 12,
+        towerMaxH: 0.80, towerMaxW: 0.28,
+        towerCenterX: 0.22, edgeMarginPx: 2
+      }
+    },
+
     // ===================== 界面配色 =====================
     INK: [232, 240, 252],
     INK_DIM: [168, 182, 206],
@@ -220,20 +293,21 @@
     ACCENT: [255, 205, 110],
     CHIP_BG: [18, 22, 38],
 
-    // 背景兜底渐变(天空贴图读不到时才用):越往上越亮
+    // 背景兜底渐变(历史天空图已退役,保留给旧格式/历史页面兜底)
     SKY_TOP: [86, 156, 220],
     SKY_BOTTOM: [214, 238, 250],
     DEEP_TOP: [10, 12, 26],
     DEEP_BOTTOM: [46, 34, 66],
 
     // ===================== 贴图 =====================
-    // 贴图都是 assets/ 下独立的 PNG(可以直接换;实体 / 天空 / 界面由 tools/build_assets.mjs 生成):
-    //   assets/tiles/  关卡地块(一格一种,尺寸随意 —— 现在用的是 16×16 像素画,
-    //                  画的时候缩放到一格 TS×TS,见 level.js 的 drawTile)
-    //   assets/sky/    天空背景 sky1~sky8 —— 爬塔时**按层循环**;
-    //                  关卡也能用 json 里的 sky 固定用某一张(见 level.js)
-    //   assets/ui/     界面贴图(开局界面背景 title.png)
-    SKY_COUNT: 8,             // assets/sky/ 里有几张天空贴图
+    // 贴图都是 assets/ 下独立的 PNG(可以直接换;地块由 tools/build_assets.mjs 生成):
+    //   assets/tiles/       关卡基础地块(一格一种,尺寸随意 —— 现在用的是 16×16 像素画,
+    //                       画的时候缩放到一格 TS×TS,见 level.js 的 drawTile)
+    //   assets/authored/    作者贴图(33/34:对象/轨道/技能/23 款地块,见 js/assets.js)
+    //   assets/background/level/  关卡小背景(35:静态清单 assets/background/catalog.js)
+    //   assets/background/large/  大背景占位(下一轮)
+    // 35起 assets/sky 与 entities/ui 旧图已删除;旧 sky1..8 只是历史值,按"无小背景"显示。
+    SKY_COUNT: 8,             // 历史遗留:旧 JSON/历史页面里的 sky1..8 元数据仍按这个范围解释
 
     // ===================== 音频 =====================
     MIX_GAIN: 0.5             // 总音量(0~1)

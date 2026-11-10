@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "status": "art-ready-integration-pending",
+  "file": "spritesheet.png",
+  "width": 1536,
+  "height": 1024,
+  "columns": 3,
+  "rows": 2,
+  "cellWidth": 512,
+  "cellHeight": 512,
+  "facing": "right",
+  "displayFrame": {
+    "width": 45,
+    "height": 54,
+    "feetAnchor": 53,
+    "axisX": 22.5,
+    "imageSmoothing": false
+  },
+  "collisionReference": {
+    "width": 20,
+    "height": 36,
+    "tileSize": 45,
+    "changePhysics": false
+  },
+  "sourceCropPerCell": {
+    "x": 96,
+    "y": 64,
+    "w": 320,
+    "h": 440
+  },
+  "frames": [
+    {
+      "name": "idle",
+      "used": true,
+      "cell": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "sourceRect": {
+        "x": 96,
+        "y": 64,
+        "w": 320,
+        "h": 440
+      },
+      "visibleCoreBoundsAlpha250": {
+        "x": 121,
+        "y": 70,
+        "w": 273,
+        "h": 427
+      }
+    },
+    {
+      "name": "run0",
+      "used": true,
+      "cell": {
+        "x": 512,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "sourceRect": {
+        "x": 608,
+        "y": 64,
+        "w": 320,
+        "h": 440
+      },
+      "visibleCoreBoundsAlpha250": {
+        "x": 111,
+        "y": 70,
+        "w": 282,
+        "h": 427
+      }
+    },
+    {
+      "name": "run1",
+      "used": true,
+      "cell": {
+        "x": 1024,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "sourceRect": {
+        "x": 1120,
+        "y": 64,
+        "w": 320,
+        "h": 440
+      },
+      "visibleCoreBoundsAlpha250": {
+        "x": 121,
+        "y": 70,
+        "w": 272,
+        "h": 427
+      }
+    },
+    {
+      "name": "run2",
+      "used": true,
+      "cell": {
+        "x": 0,
+        "y": 512,
+        "w": 512,
+        "h": 512
+      },
+      "sourceRect": {
+        "x": 96,
+        "y": 576,
+        "w": 320,
+        "h": 440
+      },
+      "visibleCoreBoundsAlpha250": {
+        "x": 106,
+        "y": 70,
+        "w": 291,
+        "h": 427
+      }
+    },
+    {
+      "name": "air",
+      "used": true,
+      "cell": {
+        "x": 512,
+        "y": 512,
+        "w": 512,
+        "h": 512
+      },
+      "sourceRect": {
+        "x": 608,
+        "y": 576,
+        "w": 320,
+        "h": 440
+      },
+      "visibleCoreBoundsAlpha250": {
+        "x": 108,
+        "y": 67,
+        "w": 297,
+        "h": 404
+      }
+    },
+    {
+      "name": "idle-spare",
+      "used": false,
+      "cell": {
+        "x": 1024,
+        "y": 512,
+        "w": 512,
+        "h": 512
+      },
+      "sourceRect": {
+        "x": 1120,
+        "y": 576,
+        "w": 320,
+        "h": 440
+      },
+      "visibleCoreBoundsAlpha250": {
+        "x": 120,
+        "y": 70,
+        "w": 273,
+        "h": 428
+      }
+    }
+  ],
+  "png": {
+    "bytes": 1261942,
+    "sha256": "75e2ba2592fe9c114d7be4d6a9f672656fc92f94df3fed87fce7d46b6c2f7f63",
+    "alpha": "原图alpha保留；主体接近不透明（最高254），外围含弱alpha，不宣称二值透明"
+  },
+  "notes": [
+    "共用固定裁剪框，避免每帧自动裁剪产生抖动。",
+    "45×54为最终透明帧画布，主体宽约38–42、高约52，不按原1536×1024绘制。",
+    "air弯腿姿势可见脚略抬高，脚底基准仍53；二段跳沿用同一帧中心旋转。",
+    "已交付原始图集与元数据，正式/Trial/小屋接入由40号卡编码agent实施。"
+  ]
+}

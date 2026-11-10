@@ -9,8 +9,8 @@
  *   node tools/build_android_www.mjs
  */
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { ROOT } from './loader.mjs';
+import { join, dirname, resolve, basename } from 'node:path';
+import { ROOT } from './runtime.mjs';
 
 const WWW = join(ROOT, 'www');
 const INDEX = join(ROOT, 'index.html');
@@ -18,7 +18,7 @@ const INDEX = join(ROOT, 'index.html');
 function copyIf(src, dest) {
   if (!existsSync(src)) throw new Error('缺少运行文件: ' + src);
   mkdirSync(dirname(dest), { recursive: true });
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, { recursive: true, filter: (path) => !/\.md$/i.test(path) });
 }
 
 function main() {
@@ -30,7 +30,11 @@ function main() {
   const vendorRel = 'js/vendor/capacitor-plugins.js';
   const vendorAbs = join(WWW, vendorRel);
   const vendor = existsSync(vendorAbs) ? readFileSync(vendorAbs) : null;
-  rmSync(WWW, { recursive: true, force: true });
+  const target = resolve(WWW);
+  if (dirname(target) !== resolve(ROOT) || basename(target) !== 'www') {
+    throw new Error('构建输出目录不在项目 www/ 内');
+  }
+  rmSync(target, { recursive: true, force: true });
   mkdirSync(WWW, { recursive: true });
 
   let page = html

@@ -71,6 +71,10 @@
   var KNOWN_TOP = CONTENT_KEYS.concat(['contentHash', 'certification']);
   var ID_RE = /^[A-Za-z0-9_-]+$/;
   var ASSET_RE = /^[A-Za-z0-9_][A-Za-z0-9_./-]*$/;
+  // 40:编辑器“从文件夹选图”的内嵌关卡背景(data URL);不同关卡各存一份。
+  // 只接受 PNG/JPEG/WebP,上限 9 MiB(data URL 长度,约 6 MiB 原图),避免撑爆草稿存储。
+  var INLINE_BG_RE = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+  var MAX_INLINE_BG = 9 * 1024 * 1024;
 
   /*
    * 地块字典:0 空、1 草、2 土、3 砖、4 石、5 单向梯板(云板)。
@@ -742,6 +746,24 @@
       var vis = jsonClone(raw.visuals, '/visuals');
       vis.backgroundId = typeof raw.visuals.backgroundId === 'string'
         ? raw.visuals.backgroundId.trim() : null;
+      if (raw.visuals.backgroundImage !== undefined && raw.visuals.backgroundImage !== null) {
+        if (typeof raw.visuals.backgroundImage !== 'string') {
+          throw dataError('INVALID_FIELD', '/visuals/backgroundImage', 'backgroundImage 必须是 data URL 字符串或 null');
+        }
+        var inlineBg = raw.visuals.backgroundImage;
+        if (!INLINE_BG_RE.test(inlineBg)) {
+          throw dataError('INVALID_FIELD', '/visuals/backgroundImage', 'backgroundImage 只支持 PNG/JPEG/WebP data URL');
+        }
+        if (inlineBg.length > MAX_INLINE_BG) {
+          throw dataError('LIMIT_EXCEEDED', '/visuals/backgroundImage',
+            'backgroundImage 超过上限 ' + MAX_INLINE_BG + ' 字符,请先压缩图片');
+        }
+      }
+      if (raw.visuals.backgroundName !== undefined && raw.visuals.backgroundName !== null) {
+        if (typeof raw.visuals.backgroundName !== 'string' || raw.visuals.backgroundName.length > 160) {
+          throw dataError('INVALID_FIELD', '/visuals/backgroundName', 'backgroundName 必须是不超过 160 字符的字符串或 null');
+        }
+      }
       if (raw.visuals.decorations !== undefined && raw.visuals.decorations !== null) {
         if (!Array.isArray(raw.visuals.decorations)) {
           throw dataError('INVALID_FIELD', '/visuals/decorations', 'decorations 必须是数组');
@@ -940,7 +962,7 @@
     }
 
     // ---- 视觉 ----
-    validateVisuals(data.visuals, cols, rows, purpose, registry, add, bad, need, warn);
+    validateVisuals(data.visuals, tiles, cols, rows, purpose, registry, add, bad, need, warn, needRun);
 
     // ---- extensions ----
     if (!isPlainObject(data.extensions)) {
@@ -1184,7 +1206,8 @@
             '灵魂初始方向必须是 0~3 的整数(0上1右2下3左)');
         }
       }
-      if ((type === 'soul' || type === 'sewage_pool' || type === 'coin' || type === 'archer') && o.pathId) {
+      if ((type === 'soul' || type === 'sewage_pool' || type === 'coin' ||
+        type === 'archer' || type === 'ghost_dash' || type === 'fireball_spitter') && o.pathId) {
         needRun(false, 'INVALID_FIELD', at + '/pathId',
           '"' + info.name + '" 不使用路径,pathId 必须为 null');
       }
@@ -1235,24 +1258,93 @@
     void cols;
   }
 
-  function validateVisuals(visuals, cols, rows, purpose, registry, add, bad, need, warn) {
+  /**
+   * 33:visuals.tileSkins(可选稀疏数组,{col,row,skinId})只影响显示,不参与碰撞。
+   * 只检查"数据能不能被解释/渲染":
+   *   · 结构、整数坐标、地图内、每格最多一项、skinId 已登记、贴在实心格(1–4)上;
+   *   · 不检查几何净空/可达/难度,不新增通关门槛;
+   *   · 草稿只警告,试玩/发布/正式加载按运行必需项报错(不支持的内容不能悄悄按旧石块发布)。
+   * 未知子字段原样保留(project 已保真),旧文件缺字段时不补空数组、hash 不变。
+   */
+  function validateTileSkins(visuals, tiles, cols, rows, purpose, bad, needRun) {
+    var skins = visuals.tileSkins;
+    if (skins === undefined || skins === null) return;
+    if (!Array.isArray(skins)) {
+      needRun(false, 'INVALID_FIELD', '/visuals/tileSkins', 'tileSkins 必须是数组');
+      return;
+    }
+    if (cols > 0 && rows > 0 && skins.length > cols * rows) {
+      needRun(false, 'LIMIT_EXCEEDED', '/visuals/tileSkins',
+        '地块外观数 ' + skins.length + ' 超过地图格数 ' + (cols * rows));
+      return;
+    }
+    var seenCell = dict();
+    for (var i = 0; i < skins.length; i++) {
+      var at = '/visuals/tileSkins/' + i;
+      var s = skins[i];
+      if (!isPlainObject(s)) {
+        needRun(false, 'INVALID_FIELD', at, '地块外观必须是 {col,row,skinId} 对象');
+        continue;
+      }
+      var posOk = isInt(s.col) && isInt(s.row);
+      if (!posOk) {
+        needRun(false, 'INVALID_FIELD', at, '地块外观位置必须是整数 col/row');
+      } else if (cols > 0 && rows > 0 && (s.col < 0 || s.col >= cols || s.row < 0 || s.row >= rows)) {
+        needRun(false, 'INVALID_FIELD', at, '地块外观在 (' + s.col + ',' + s.row + '),超出地图');
+      } else {
+        var key = s.row + ':' + s.col;
+        if (seenCell[key]) {
+          needRun(false, 'INVALID_FIELD', at, '同一格只能有一个地块外观');
+        }
+        seenCell[key] = true;
+        // 只能贴在普通实心格上(空气/云板不行);读不到 tiles 时跳过这一条
+        if (Array.isArray(tiles) && tiles[s.row] && isInt(tiles[s.row][s.col])) {
+          var tv = tiles[s.row][s.col];
+          if (!(tv >= 1 && tv <= 4)) {
+            needRun(false, 'INVALID_FIELD', at,
+              '地块外观只能贴在普通实心格(1–4)上,当前格是 ' + tv);
+          }
+        }
+      }
+      var skinId = typeof s.skinId === 'string' ? s.skinId.trim() : '';
+      if (!skinId) {
+        needRun(false, 'INVALID_FIELD', at + '/skinId', '地块外观必须有 skinId');
+      } else if (skinId.length > L.STR) {
+        needRun(false, 'LIMIT_EXCEEDED', at + '/skinId', 'skinId 太长');
+      } else if (RA.TileSkins && !RA.TileSkins.has(skinId)) {
+        needRun(false, 'UNKNOWN_TILE_SKIN', at + '/skinId',
+          '未登记的地块外观 "' + skinId + '"(只支持内置 15 款普通地块外观)');
+      }
+    }
+  }
+
+  function validateVisuals(visuals, tiles, cols, rows, purpose, registry, add, bad, need, warn, needRun) {
     if (!isPlainObject(visuals)) {
       bad('INVALID_FIELD', '/visuals', 'visuals 必须是对象');
       return;
     }
+    validateTileSkins(visuals, tiles, cols, rows, purpose, bad, needRun || need);
     var knownBackgrounds = registry ? registry.backgroundIds() : null;
+    var hasInlineBg = visuals.backgroundImage !== null && visuals.backgroundImage !== undefined;
+    if (hasInlineBg) {
+      if (typeof visuals.backgroundImage !== 'string' || !INLINE_BG_RE.test(visuals.backgroundImage)) {
+        bad('INVALID_FIELD', '/visuals/backgroundImage', 'backgroundImage 只支持 PNG/JPEG/WebP data URL');
+      } else if (visuals.backgroundImage.length > MAX_INLINE_BG) {
+        bad('LIMIT_EXCEEDED', '/visuals/backgroundImage', 'backgroundImage 超过上限 ' + MAX_INLINE_BG + ' 字符');
+      }
+      if (visuals.backgroundName !== null && visuals.backgroundName !== undefined &&
+        (typeof visuals.backgroundName !== 'string' || visuals.backgroundName.length > 160)) {
+        bad('INVALID_FIELD', '/visuals/backgroundName', 'backgroundName 必须是不超过 160 字符的字符串或 null');
+      }
+    }
     if (visuals.backgroundId !== null && visuals.backgroundId !== undefined) {
       if (typeof visuals.backgroundId !== 'string' || !ASSET_RE.test(visuals.backgroundId)) {
         bad('INVALID_FIELD', '/visuals/backgroundId', 'backgroundId 必须是内置资源 id 或 null');
-      } else if (knownBackgrounds && knownBackgrounds.indexOf(visuals.backgroundId) < 0) {
-        if (purpose === 'publish') {
-          bad('MISSING_ASSET', '/visuals/backgroundId',
-            '背景资源 "' + visuals.backgroundId + '" 不是首版内置资源(' +
-            knownBackgrounds.join(', ') + ' 或 null=自动)');
-        } else {
-          warn('MISSING_ASSET', '/visuals/backgroundId',
-            '背景资源 "' + visuals.backgroundId + '" 不是内置资源,会显示占位');
-        }
+      } else if (!hasInlineBg && knownBackgrounds && knownBackgrounds.indexOf(visuals.backgroundId) < 0) {
+        // 35:小背景是可选外观。未知/旧 sky1..8/图片缺失都只提示"外观缺失",
+        // 保留原值、按无背景显示,不阻断试玩/发布;结构/格式错误仍在上面报错。
+        warn('MISSING_ASSET', '/visuals/backgroundId',
+          '小背景 "' + visuals.backgroundId + '" 不在当前背景清单(旧 sky 或缺失图),按无背景显示;游玩/发布不受影响');
       }
     }
     var decos = visuals.decorations;

@@ -1,0 +1,715 @@
+{
+  "schemaVersion": 2,
+  "id": "b4_rest_house",
+  "title": "休息小屋",
+  "kind": "rest",
+  "difficulty": 1,
+  "size": {
+    "cols": 26,
+    "rows": 15
+  },
+  "terrain": {
+    "tiles": [
+      [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+      [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+    ]
+  },
+  "ports": null,
+  "spawn": null,
+  "objects": [],
+  "paths": [],
+  "visuals": {
+    "backgroundId": "levelbg-rest-house-20261110",
+    "decorations": [],
+    "tileSkins": [
+      {
+        "col": 2,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 3,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 4,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 5,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 6,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 7,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 8,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 9,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 10,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 1,
+        "row": 13,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 14,
+        "skinId": "log"
+      },
+      {
+        "col": 2,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 3,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 4,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 5,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 6,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 7,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 8,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 9,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 10,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 11,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 12,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 13,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 14,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 15,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 11,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 12,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 13,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 14,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 15,
+        "row": 13,
+        "skinId": "diamond_block"
+      },
+      {
+        "col": 16,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 17,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 18,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 19,
+        "row": 13,
+        "skinId": "diamond_block"
+      },
+      {
+        "col": 20,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 16,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 17,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 18,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 19,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 20,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 21,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 22,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 23,
+        "row": 13,
+        "skinId": "diamond_block"
+      },
+      {
+        "col": 24,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 25,
+        "row": 13,
+        "skinId": "log"
+      },
+      {
+        "col": 21,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 22,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 23,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 24,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 25,
+        "row": 14,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 10,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 9,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 8,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 7,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 6,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 5,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 4,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 3,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 2,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 1,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 12,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 11,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 10,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 9,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 8,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 7,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 6,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 5,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 4,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 3,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 2,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 1,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 0,
+        "skinId": "log"
+      },
+      {
+        "col": 25,
+        "row": 0,
+        "skinId": "log"
+      },
+      {
+        "col": 2,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 3,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 4,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 5,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 6,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 7,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 8,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 9,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 10,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 11,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 12,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 13,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 14,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 15,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 16,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 21,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 17,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 18,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 19,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 20,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 22,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 23,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 24,
+        "row": 0,
+        "skinId": "sandstone"
+      },
+      {
+        "col": 2,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 3,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 4,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 5,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 6,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 11,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 12,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 13,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 14,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 15,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 16,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 17,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 18,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 19,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 20,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 21,
+        "row": 5,
+        "skinId": "purpur_block"
+      },
+      {
+        "col": 0,
+        "row": 13,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 0,
+        "row": 14,
+        "skinId": "stone_bricks"
+      },
+      {
+        "col": 0,
+        "row": 12,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 11,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 10,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 9,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 8,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 7,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 6,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 5,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 4,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 3,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 2,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 1,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 0,
+        "skinId": "planks"
+      }
+    ]
+  },
+  "extensions": {
+    "fixedScene": {
+      "profile": "short-fixed-v1",
+      "role": "rest-house",
+      "playerSpawn": {
+        "centerCol": 1.5,
+        "feetRow": 13
+      },
+      "exitRegion": {
+        "col": 1,
+        "row": 11,
+        "cols": 1,
+        "rows": 2
+      },
+      "choices": [
+        {
+          "id": "milk",
+          "col": 15,
+          "row": 12
+        },
+        {
+          "id": "berries",
+          "col": 19,
+          "row": 12
+        },
+        {
+          "id": "carrot",
+          "col": 23,
+          "row": 12
+        }
+      ]
+    }
+  },
+  "contentHash": "sha256:e3be377d2f33da19ee1d9ab1ca1e935001f25589e0bc29fae217e80084075205",
+  "certification": null
+}

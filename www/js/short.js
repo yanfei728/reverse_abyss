@@ -38,7 +38,6 @@
     importedData: null,
     repo: null,
     poolInfo: null,
-    debugJumped: false,
     seedText: 'RA-1',
     seedValue: 1,
     savedSeeds: [],
@@ -47,34 +46,149 @@
     // 30:只读的历史最高分(独立 key,只存一个 max;不存逐局记录)
     bestScore: 0,
     bestSubmitted: 0,
-    highScoreError: ''
+    highScoreError: '',
+    // 36:游玩偏好(独立 key;失败不阻断,只提示本次未保存)
+    prefs: null,
+    prefsError: '',
+    // 38:三层大背景视差状态(页面持有;纯视觉,不进 Session/存档)
+    parallax: null,
+    parallaxDiscontinuity: true,
+    // 39:换组滑动过渡与当前显示组(只在页面;不写 Session/存档)
+    transition: null,
+    largeGroup: null,
+    largeGroupReset: false
   };
-  RA.short = { state: state };
+  RA.short = { state: state, updateHud: updateHud };
 
-  function sampleSet() { return RA.B4_SAMPLES || RA.B2_SAMPLES; }
+  /**
+   * 32:游玩镜头缩放 = C.VIEW.zoom(2/3)。状态里的 cw/ch 仍是 CSS 可见像素,
+   * 世界可见宽高要除以 zoom;相机/裁剪/居中一律用世界尺寸。
+   */
+  function viewWorld() {
+    var vz = RA.ViewZoom;
+    if (!vz) return { w: state.cw, h: state.ch, zoom: 1 };
+    return { w: vz.worldW(state.cw), h: vz.worldH(state.ch), zoom: vz.zoom() };
+  }
+  /** 让世界点 (wx, wy) 居中:相机世界坐标 */
+  function camCenterOn(wx, wy) {
+    var v = viewWorld();
+    return { x: wx - v.w / 2, y: wy - v.h / 2 };
+  }
 
-  function hasSamples() {
-    var s = sampleSet();
-    return s && s.lobby && s.normal1 && s.normal2 && s.normal3 && s.rest && s.boss;
+  // ============ 36:游玩偏好(视野档位 / 正式换层额外回血) ============
+  function prefsStore() {
+    try {
+      if (globalThis.localStorage && typeof localStorage.getItem === 'function' &&
+        typeof localStorage.setItem === 'function') return localStorage;
+    } catch (e) { /* 隐私模式等:当作没有存储 */ }
+    return null;
+  }
+  function defaultPrefs() {
+    return { version: 1, viewMode: 'wide', floorHealAmount: 0, towerMode: 'easy' };
+  }
+  function loadPlayPrefs() {
+    var res;
+    if (RA.PlayPreferences && RA.PlayPreferences.load) res = RA.PlayPreferences.load(prefsStore());
+    else res = { ok: false, value: defaultPrefs(), error: { code: 'NO_MODULE', message: '缺少游玩偏好模块' } };
+    state.prefs = res.value;
+    state.prefsError = res.ok ? '' : (res.error && res.error.message || '读取游玩偏好失败');
+    applyViewMode(state.prefs.viewMode);
+    return res;
+  }
+  /** 立即应用视野档位;当前正式局只重算相机,不改玩家坐标/HP/技能/manifest */
+  function applyViewMode(mode) {
+    if (RA.ViewZoom && RA.ViewZoom.setMode) RA.ViewZoom.setMode(mode);
+    if (state.session && state.session.player) {
+      var p = state.session.player;
+      var c = camCenterOn(p.x + p.w / 2, p.y + p.h / 2);
+      state.cam.x = c.x;
+      state.cam.y = c.y;
+    }
+  }
+  function prefsStatusText(extra) {
+    if (extra) return extra;
+    if (state.prefsError) return state.prefsError + '(使用默认广视野/0)';
+    return '';
+  }
+  function syncPlayPrefControls(keepStatus) {
+    var p = state.prefs || defaultPrefs();
+    ['set-view-mode', 'pause-view-mode'].forEach(function (id) {
+      var el = $(id); if (el) el.value = p.viewMode;
+    });
+    ['set-floor-heal', 'pause-floor-heal'].forEach(function (id) {
+      var el = $(id); if (el) el.value = String(p.floorHealAmount);
+    });
+    ['set-tower-mode', 'pause-tower-mode'].forEach(function (id) {
+      var el = $(id); if (el) el.value = p.towerMode || 'easy';
+    });
+    if (!keepStatus) {
+      ['play-prefs-status', 'pause-prefs-status'].forEach(function (id) {
+        var el = $(id); if (el) el.textContent = prefsStatusText('');
+      });
+    }
+  }
+  /** 保存偏好:成功才说已保存;失败明确"本次已生效,未保存" */
+  function savePlayPrefs(next, label) {
+    state.prefs = next;
+    var store = prefsStore();
+    var res = (RA.PlayPreferences && RA.PlayPreferences.save)
+      ? RA.PlayPreferences.save(store, next)
+      : { ok: false, error: { message: '缺少游玩偏好模块' } };
+    state.prefsError = res.ok ? '' : (res.error && res.error.message || '保存游玩偏好失败');
+    var msg = res.ok ? (label || '') : ((label || '') + '本次已生效,但未能保存(' + state.prefsError + ')');
+    ['play-prefs-status', 'pause-prefs-status'].forEach(function (id) {
+      var el = $(id); if (el) el.textContent = msg;
+    });
+    return res.ok;
+  }
+  function changeViewMode(mode) {
+    if (RA.ViewZoom && RA.ViewZoom.MODES.indexOf(mode) < 0) return false;
+    var p = Object.assign({}, state.prefs || defaultPrefs(), { viewMode: mode });
+    applyViewMode(mode);
+    savePlayPrefs(p, '视野:' + (mode === 'classic' ? '标准' : '广'));
+    return true;
+  }
+  function changeFloorHeal(v) {
+    var n = Number(v);
+    if (RA.PlayPreferences && RA.PlayPreferences.HEAL_AMOUNTS.indexOf(n) < 0) return false;
+    var p = Object.assign({}, state.prefs || defaultPrefs(), { floorHealAmount: n });
+    if (state.session && state.session.setFloorHealAmount) state.session.setFloorHealAmount(n);
+    savePlayPrefs(p, '换层额外回血:' + n + '(从下一次真实换层起)');
+    return true;
+  }
+  function changeTowerMode(v) {
+    if (RA.PlayPreferences && RA.PlayPreferences.TOWER_MODES.indexOf(v) < 0) return false;
+    var p = Object.assign({}, state.prefs || defaultPrefs(), { towerMode: v });
+    savePlayPrefs(p, v === 'easy' ? '塔模式:简单(0–20，无Boss)' : '塔模式:经典(0–40，双Boss)');
+    return true;
+  }
+  function bindPlayPrefs() {
+    var mainView = $('set-view-mode'), pauseView = $('pause-view-mode');
+    var mainHeal = $('set-floor-heal'), pauseHeal = $('pause-floor-heal');
+    if (mainView) mainView.addEventListener('change', function () { changeViewMode(mainView.value); syncPlayPrefControls(true); });
+    if (pauseView) pauseView.addEventListener('change', function () { changeViewMode(pauseView.value); syncPlayPrefControls(true); });
+    if (mainHeal) mainHeal.addEventListener('change', function () { changeFloorHeal(mainHeal.value); syncPlayPrefControls(true); });
+    if (pauseHeal) pauseHeal.addEventListener('change', function () { changeFloorHeal(pauseHeal.value); syncPlayPrefControls(true); });
+    ['set-tower-mode', 'pause-tower-mode'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.addEventListener('change', function () { changeTowerMode(el.value); syncPlayPrefControls(true); });
+    });
+    syncPlayPrefControls();
   }
 
   function fixedFloors() {
-    if (RA.FULL40 && RA.FULL40.fixed) {
-      return { lobby: clone(RA.FULL40.fixed.lobby), rest: clone(RA.FULL40.fixed.rest), boss: clone(RA.FULL40.fixed.boss) };
-    }
-    var s = sampleSet();
-    return { lobby: clone(s.lobby), rest: clone(s.rest), boss: clone(s.boss) };
-  }
-
-  function devFloors() {
-    var s = sampleSet();
-    return ['lobby', 'normal1', 'normal2', 'normal3', 'rest', 'boss'].map(function (k) {
-      return clone(s[k]);
-    });
+    var fixed = RA.FULL40.fixed;
+    return { lobby: clone(fixed.lobby), rest: clone(fixed.rest), boss: clone(fixed.boss), easyFinish: clone(RA.FULL40.easyFinish) };
   }
 
   function isFull40() {
     return !!(state.manifest && state.manifest.layout === 'full40-v1');
+  }
+  function isEasy() {
+    return !!(state.manifest && state.manifest.layout === 'easy20-v1');
+  }
+  function prefTowerMode() {
+    return (state.prefs && state.prefs.towerMode === 'classic') ? 'classic' : 'easy';
   }
 
   async function ensurePool() {
@@ -161,7 +275,11 @@
     }
     var prevSession = state.session;
     var res = RA.GameSession.create({
-      floors: floors, mode: mode, manifest: manifest || null, profile: 'run-v1', requireCloud: true
+      floors: floors, mode: mode, manifest: manifest || null, profile: 'run-v1', requireCloud: true,
+      // 36:换层额外回血只对正式完整塔生效;传五档之一,非法值由 Session 归 0
+      floorHealAmount: (state.prefs && state.prefs.floorHealAmount) || 0,
+      // 37:固定休息小屋只做正式塔的独立侧场景;由页面显式注入,核心不读文件/DOM
+      restHouseTemplate: ((mode === 'full40-formal' || mode === 'easy20-formal') && RA.FULL40 && RA.FULL40.restHouse) || null
     });
     if (!res.ok) {
       $('menu-status').textContent = '完整塔启动失败:[' + res.error.code + '] ' + res.error.message;
@@ -174,15 +292,22 @@
     state.manifest = manifest || null;
     state.mode = mode;
     state.paused = false;
-    state.debugJumped = false;
     // 30:新局从 0 分开始;已保存的最高分不动。重试同塔也是新局 0(manifest 仍是原清单)。
     state.bestSubmitted = 0;
     state.held = { left: false, right: false, jump: false };
     if (state.input) state.input.clearAll();
     clearTouchInput();
     state.lastT = 0;
-    state.cam.x = state.session.player.x - state.cw / 2;
-    state.cam.y = state.session.player.y - state.ch / 2;
+    // 38:新局重置视差参考,不把上一局的位置当真实水平移动
+    state.parallax = RA.LargeBackground ? RA.LargeBackground.createParallaxState() : null;
+    state.parallaxDiscontinuity = true;
+    state.transition = RA.LargeBackground ? RA.LargeBackground.createTransitionState() : null;
+    state.largeGroup = largeGroupOf(state.session);
+    state.largeGroupReset = false;
+    var c0 = camCenterOn(state.session.player.x + state.session.player.w / 2,
+      state.session.player.y + state.session.player.h / 2);
+    state.cam.x = c0.x;
+    state.cam.y = c0.y;
     var menu = $('menu'); if (menu) menu.style.display = 'none';
     document.body.classList.remove('menu');
     document.body.classList.add('playing');
@@ -192,24 +317,6 @@
     var result = $('result-overlay'); if (result) result.style.display = 'none';
     RA.short.lastMessage = '';
     return true;
-  }
-
-  async function startDev() {
-    if (!hasSamples()) {
-      $('menu-status').textContent = '缺少开发模板 js/b2-samples.js;运行 node tools/sync_b2_levels.mjs';
-      return false;
-    }
-    var s = RA.B2_SAMPLES;
-    var floors = devFloors();
-    var manifest = {
-      manifestId: 'dev-short-v1',
-      layout: 'short-v1',
-      profile: 'short-v2',
-      gameplayProfile: 'run-v1',
-      dev: true,
-      floors: floors.map(function (f) { return { levelId: f.id, contentHash: f.contentHash }; })
-    };
-    return start(floors, manifest, 'short-dev');
   }
 
   async function startFormal(seedArg) {
@@ -241,12 +348,13 @@
       published = eligible.value;
     }
     var candidates = collectCandidates(published);
-    var plan = RA.TowerPlanner.buildFull40({
-      seed: parsed.value,
-      candidates: candidates,
-      fixedLevels: fixedFloors(),
-      fallback: RA.FULL40.fallback,
-      poolEpoch: (RA.FULL40 && RA.FULL40.poolEpoch) || ''
+    var mode = prefTowerMode();
+    var plan = mode === 'classic' ? RA.TowerPlanner.buildFull40({
+      seed: parsed.value, candidates: candidates, fixedLevels: fixedFloors(),
+      fallback: RA.FULL40.fallback, poolEpoch: (RA.FULL40 && RA.FULL40.poolEpoch) || ''
+    }) : RA.TowerPlanner.buildEasy20({
+      seed: parsed.value, candidates: candidates, fixedLevels: fixedFloors(),
+      fallback: RA.FULL40.fallback, poolEpoch: (RA.FULL40 && RA.FULL40.poolEpoch) || ''
     });
     if (!plan.ok) {
       $('menu-status').textContent = '生成完整塔失败:[' + plan.error.code + '] ' + plan.error.message;
@@ -260,7 +368,7 @@
       perDifficulty: plan.value.perDifficulty
     };
     var floors = plan.value.floors.map(function (f) { return clone(f.data); });
-    var okStart = start(floors, plan.value, 'full40-formal');
+    var okStart = start(floors, plan.value, mode === 'classic' ? 'full40-formal' : 'easy20-formal');
     if (okStart) {
       $('menu-status').textContent = '';
       refreshPoolStatus();
@@ -274,53 +382,21 @@
     return start(state.floors, state.manifest, state.mode);
   }
 
-  /**
-   * 调试跳层:只用于定位 10/20/30/40 生命周期与验收,不是正式流程,
-   * 不产生认证、不冒充真人从 0 通关;HUD 会标“调试跳层”。
-   */
-  function debugJumpTo(n) {
-    var s = state.session;
-    if (!s || !s.world) return false;
-    var res = s.world.activateSlot(n);
-    if (!res.ok) return res;
-    var inst = res.value.inst;
-    s.boss = null;
-    s._onFloorEntered({ from: res.value.floor, to: res.value.floor });
-    var p = s.player;
-    p.level = inst.view;
-    if (inst.cloud && inst.level.startLocalX !== undefined) {
-      p.x = inst.level.startX;
-      p.y = inst.level.startFeet - p.h;
-    } else if (inst.fixedLobby) {
-      var fs = inst.data.extensions && inst.data.extensions.fixedScene;
-      var sp = fs && fs.playerSpawn;
-      if (sp) {
-        p.x = inst.origin.x + sp.centerCol * TS - p.w / 2;
-        p.y = inst.origin.y + (sp.feetRow - 1) * TS - p.h;
-      }
-    } else {
-      p.x = inst.origin.x + 2 * TS;
-      p.y = inst.origin.y + 2 * TS;
-    }
-    p.vx = 0; p.vy = 0; p.onGround = false;
-    p.coyote = 0; p.jumpBuffer = 0; p.jumpsUsed = 0;
-    state.cam.x = p.x + p.w / 2 - state.cw / 2;
-    state.cam.y = p.y + p.h / 2 - state.ch / 2;
-    state.debugJumped = true;
-    return res;
-  }
-
   function finish(kind) {
+    updateHud();
     var ov = $('result-overlay');
     if (!ov) return;
     ov.style.display = 'flex';
     var full = isFull40();
-    $('result-title').textContent = kind === 'won' ? (full ? '完整塔通过' : '短塔通过') : '死亡';
+    var easy = isEasy();
+    $('result-title').textContent = kind === 'won' ? (full ? '完整塔通过' : (easy ? '简单模式通过' : '短塔通过')) : '死亡';
     $('result-text').textContent = kind === 'won'
       ? (full ? '0–40 完整塔已通关(20 层后按 F 进入 21,40 层 BOSS 击败)。本次为本地运行结果,不生成作者认证。'
-        : '调试短塔已通关;这不是完整塔胜利,也不生成认证。')
+        : (easy ? '0–20 简单模式已通关(真实进入 20 层即胜利,无 Boss)。本次为本地运行结果,不生成作者认证。'
+          : '调试短塔已通关;这不是完整塔胜利,也不生成认证。'))
       : (full ? '已回到 0 层状态。可以重试同一座塔(同一份 41 槽清单),不会重新抽选。'
-        : '已回到大厅状态。可以重试同一座塔,不会重新抽选。');
+        : (easy ? '已回到大厅状态。可以重试同一座塔(同一份 21 槽清单),不会重新抽选。'
+          : '已回到大厅状态。可以重试同一座塔,不会重新抽选。'));
     $('btn-retry').style.display = kind === 'dead' ? 'inline-block' : 'none';
     // 30:死亡/胜利界面显示本次得分(与被冻结的会话 score 一致);试玩/调试短塔没有分数
     var scoreEl = $('result-score');
@@ -406,6 +482,8 @@
     var ov = $('pause-overlay');
     if (ov) ov.style.display = paused ? 'flex' : 'none';
     var r = $('pause-reason'); if (r && reason) r.textContent = reason;
+    // 36:暂停面板显示当前档位/回血设置,可当场改(从下一次换层起生效)
+    if (paused) syncPlayPrefControls();
   }
 
   function togglePause() {
@@ -767,35 +845,90 @@
   }
 
   // 对象绘制与单图试玩共用同一份(位置/存活状态一致,不在页面里各写一套)
-  function drawObject(ctx, inst, o, cam) { return RA.drawFloorObject(ctx, inst, o, cam); }
+  function drawObject(ctx, inst, o, cam) {
+    return RA.drawFloorObject(ctx, inst, o, cam, state.assets);
+  }
+
+  /** 38:当前活动场景对应的大背景组(正式按真实槽号;小屋/10/30 都第一组) */
+  function largeGroupOf(s) {
+    if (!RA.LargeBackground || !s) return null;
+    if (s.sceneKind === 'rest-house') return RA.LargeBackground.groupForTower({ sceneKind: 'rest-house' });
+    if (!s.world) return null;
+    return RA.LargeBackground.groupForTower({ floorNumber: s.world.current });
+  }
 
   function render() {
     var ctx = state.ctx;
     if (!ctx || !state.session) return;
     var cam = state.cam;
+    var view = viewWorld();
     var g = ctx.createLinearGradient(0, 0, 0, state.ch);
     g.addColorStop(0, '#0a0f1e'); g.addColorStop(1, '#05060c');
     ctx.fillStyle = g; ctx.fillRect(0, 0, state.cw, state.ch);
+    // 38:三层大背景在 CSS 屏幕空间、ViewZoom 之前;缺组/缺图保留渐变
+    if (RA.LargeBackground && state.parallax) {
+      if (state.transition && state.transition.active) {
+        RA.LargeBackground.drawTransition(ctx, {
+          state: state.transition, width: state.cw, height: state.ch, u: state.parallax.u
+        }, state.assets);
+      } else {
+        RA.LargeBackground.draw(ctx, {
+          groupId: largeGroupOf(state.session), width: state.cw, height: state.ch, u: state.parallax.u
+        }, state.assets);
+      }
+    }
+    // 32:背景按屏幕画;世界层统一缩放 zoom(DPR 已由 resize 的 setTransform 处理,不重复)
+    ctx.save();
+    if (RA.ViewZoom) RA.ViewZoom.apply(ctx);
+    // 37:休息小屋只画本图(底色/背景/地形/固定道具/光环/玩家),不叠整座塔
+    var scene = state.session.activeSceneView ? state.session.activeSceneView() : null;
+    if (scene && scene.kind === 'rest-house') {
+      if (scene.level) {
+        scene.level.draw(ctx, { ox: cam.x, oy: cam.y, vw: view.w, vh: view.h }, state.assets);
+      }
+      // 38:门只保留真实交互区,不再画黄色框/常驻 F 文字
+      var props = state.session.restHouse ? state.session.restHouse.renderData() : [];
+      props.forEach(function (prop) {
+        if (!prop.visible) return;
+        var img = state.assets.image(prop.asset);
+        var x = prop.col * TS - cam.x;
+        var y = (prop.row + 1) * TS - cam.y - TS;
+        if (img) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(img, x, y, TS, TS);
+        } else {
+          ctx.fillStyle = prop.id === 'milk' ? '#e8eefb' : (prop.id === 'berries' ? '#c0507a' : '#e08a3c');
+          ctx.fillRect(x + 6, y + 6, TS - 12, TS - 12);
+        }
+      });
+      var hp = state.session.player;
+      if (RA.drawPlayerHalo) RA.drawPlayerHalo(ctx, hp, state.session.run, cam, state.assets);
+      if (Object.keys(hp.frames || {}).length) hp.draw(ctx, { ox: cam.x, oy: cam.y }, state.assets);
+      else { ctx.fillStyle = '#ffcd6e'; ctx.fillRect(hp.x - cam.x, hp.y - cam.y, hp.w, hp.h); }
+      ctx.restore();
+      return;
+    }
     var insts = state.session.world.instances;
     Array.from(insts.keys()).sort(function (a, b) { return a - b; }).forEach(function (i) {
       var inst = insts.get(i);
       if (inst.state === 'snapshot') {
-        inst.level.draw(ctx, { ox: cam.x - inst.origin.x, oy: cam.y - inst.origin.y, vw: state.cw, vh: state.ch }, state.assets);
+        inst.level.draw(ctx, { ox: cam.x - inst.origin.x, oy: cam.y - inst.origin.y, vw: view.w, vh: view.h }, state.assets);
         return;
       }
-      inst.level.draw(ctx, { ox: cam.x - inst.origin.x, oy: cam.y - inst.origin.y, vw: state.cw, vh: state.ch }, state.assets);
+      inst.level.draw(ctx, { ox: cam.x - inst.origin.x, oy: cam.y - inst.origin.y, vw: view.w, vh: view.h }, state.assets);
+      // 33:齿轮轨道用作者图(共享 path 只画一遍);移动火球游玩中仍不显示路径
+      if (RA.drawGearTracks) RA.drawGearTracks(ctx, inst, cam, state.assets);
       inst.objects.forEach(function (o) {
         if (o.type !== 'sewage_pool') return;
-        if (RA.drawObjectTrack) RA.drawObjectTrack(ctx, inst, o, cam);
         drawObject(ctx, inst, o, cam);
       });
       inst.objects.forEach(function (o) {
         if (o.type === 'sewage_pool') return;
-        if (RA.drawObjectTrack) RA.drawObjectTrack(ctx, inst, o, cam);
         drawObject(ctx, inst, o, cam);
       });
-      // 30:箭只属于当前 active 实例,朝发射方向画细长占位图
-      if (RA.drawFloorArrows) RA.drawFloorArrows(ctx, inst, cam);
+      // 30/32:箭与火焰弹只属于当前 active 实例
+      if (RA.drawFloorArrows) RA.drawFloorArrows(ctx, inst, cam, state.assets);
+      if (RA.drawFloorBolts) RA.drawFloorBolts(ctx, inst, cam, state.assets);
       var openL = inst.origin.x + inst.exitCol * TS - cam.x;
       var openR = openL + RA.LevelData.PORT.openingCols * TS;
       ctx.strokeStyle = inst.exitOpen === false ? 'rgba(255,120,100,.7)' : 'rgba(255,205,110,.45)';
@@ -805,16 +938,32 @@
     // 云板石管:只画“两端实例都已实存”的运行几何;规划链接不是加载状态
     (state.session.world.liveStoneLinks ? state.session.world.liveStoneLinks() : []).forEach(function (link) {
       if (!link || link.kind !== 'stone-pipe' || !link.walls) return;
-      ctx.fillStyle = 'rgba(8,10,16,.9)';
-      ctx.fillRect(link.inner.x - cam.x, link.inner.y - cam.y, link.inner.w, link.inner.h);
-      var stone = state.assets && RA.TILE_IMAGES['='] ? state.assets.image(RA.TILE_IMAGES['='][0]) : null;
+      // 39:管底作者图(64×48)按外4×3贴,clip到真实内2×3;两侧换现有 stone_bricks
+      var pipeImg = state.assets ? state.assets.image('background/pipe-bricks') : null;
+      var ix = link.inner.x - cam.x, iy = link.inner.y - cam.y;
+      if (pipeImg) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(ix, iy, link.inner.w, link.inner.h);
+        ctx.clip();
+        var pipeTinted = (RA.tintLevelBackgroundImage && RA.C.VISUAL.pipeBackgroundDarkenAlpha)
+          ? (RA.tintLevelBackgroundImage(pipeImg, RA.C.VISUAL.pipeBackgroundDarkenAlpha) || pipeImg) : pipeImg;
+        ctx.drawImage(pipeTinted, ix - TS, iy, 4 * TS, 3 * TS);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = 'rgba(8,10,16,.9)';
+        ctx.fillRect(ix, iy, link.inner.w, link.inner.h);
+      }
+      var skin = RA.TileSkins && RA.TileSkins.get ? RA.TileSkins.get('stone_bricks') : null;
+      var stone = skin && state.assets ? state.assets.image(skin.asset) : null;
       link.walls.forEach(function (w) {
         for (var row = 0; row < 3; row++) {
-          if (stone) RA.drawTile(ctx, '=', stone, w.x - cam.x, w.y - cam.y + row * TS, TS);
+          if (stone) RA.drawTile(ctx, '=', stone, w.x - cam.x, w.y - cam.y + row * TS, TS, { nearest: true });
           else { ctx.fillStyle = '#8a6a4a'; ctx.fillRect(w.x - cam.x, w.y - cam.y + row * TS, TS, TS); }
         }
       });
     });
+    // 38:休息区小屋门不画黄框/文字;只保留核心 prompt/action 与 F
     // boss + hazards
     var boss = state.session.boss;
     if (boss && !boss.defeated) {
@@ -835,8 +984,13 @@
       });
     }
     var p = state.session.player;
+    // 33:正式塔原来漏画活动光环 —— 与独立试玩共用 RA.drawPlayerHalo(只读真实活动状态)
+    if (RA.drawPlayerHalo) {
+      RA.drawPlayerHalo(ctx, p, state.session.run, cam, state.assets);
+    }
     if (Object.keys(p.frames || {}).length) p.draw(ctx, { ox: cam.x, oy: cam.y }, state.assets);
     else { ctx.fillStyle = '#ffcd6e'; ctx.fillRect(p.x - cam.x, p.y - cam.y, p.w, p.h); }
+    ctx.restore();
   }
 
   function updateHud() {
@@ -853,21 +1007,26 @@
     var fl = $('floor-text');
     if (fl) {
       var fi = snap.floorNumber !== undefined ? snap.floorNumber : snap.floorIndex;
-      var total = (state.manifest && state.manifest.layout === 'full40-v1') ? 40 : (snap.floorCount - 1);
+      var total = isFull40() ? 40 : (isEasy() ? 20 : (snap.floorCount - 1));
       var kind = snap.floor ? snap.floor.kind : 'normal';
       var label;
+      var easyFinish = !!(snap.floor && snap.floor.easyFinish);
       if (kind === 'lobby') label = '大厅（0层）';
+      else if (easyFinish) label = '第 ' + fi + '/' + total + ' 层 · 终点';
       else if (kind === 'rest') label = '第 ' + fi + '/' + total + ' 层 · 休整';
       else if (kind === 'boss') label = '第 ' + fi + '/' + total + ' 层 · BOSS';
       else label = '第 ' + fi + '/' + total + ' 层 · 普通';
-      if (state.debugJumped) label += ' · 调试跳层';
+      if (snap.sceneKind === 'rest-house') label += ' · 休息小屋';
       fl.textContent = label;
     }
     var prompt = $('interact-prompt');
     if (prompt) {
       var ip = (!s.paused && s.status === 'running' && s.interactionPrompt) ? s.interactionPrompt() : null;
-      prompt.style.display = ip ? 'block' : 'none';
-      if (ip) prompt.textContent = ip.text;
+      // 38:门交互仍走 prompt/action/F,但不显示 HUD 文字;道具/大厅/Boss 提示保留
+      var doorHidden = ip && (ip.kind === 'enter-rest-house' || ip.kind === 'leave-rest-house' ||
+        ip.action === 'enter-rest-house' || ip.action === 'leave-rest-house');
+      prompt.style.display = (ip && !doorHidden) ? 'block' : 'none';
+      if (ip && !doorHidden) prompt.textContent = ip.text;
     }
     var bs = $('boss-text');
     if (bs) {
@@ -905,18 +1064,73 @@
         s.setActions({ left: act.held.left, right: act.held.right, jumpHeld: act.held.jumpHeld });
         s.update(dt);
         var p = s.player;
-        var tx = p.x + p.w / 2 - state.cw / 2;
-        var ty = p.y + p.h / 2 - state.ch / 2;
+        var cw2 = camCenterOn(p.x + p.w / 2, p.y + p.h / 2);
         var k = Math.min(1, dt * 7);
-        state.cam.x += (tx - state.cam.x) * k;
-        state.cam.y += (ty - state.cam.y) * k;
+        state.cam.x += (cw2.x - state.cam.x) * k;
+        state.cam.y += (cw2.y - state.cam.y) * k;
+        // 39:先步进已有过渡;新组在事件处理里 begin,首帧进度 0。
+        if (RA.LargeBackground && state.transition && state.transition.active) {
+          RA.LargeBackground.stepTransition(state.transition, dt);
+        }
+        // 38:只有未暂停的真实步进才更新视差;只读 player.x,只水平
+        if (RA.LargeBackground && state.parallax) {
+          RA.LargeBackground.update(state.parallax, {
+            playerX: p.x, groupId: largeGroupOf(s), discontinuity: state.parallaxDiscontinuity
+          });
+          state.parallaxDiscontinuity = false;
+        }
       }
-      s.drainEvents().forEach(function (ev) {
+      var stepEvents = s.drainEvents();
+      // 39:视觉换组只由真实石管接缝触发;F/小屋/调试/新局直接切组。
+      var groupNow = largeGroupOf(s);
+      var pipeChange = false;
+      stepEvents.forEach(function (ev) {
+        if (ev.type === 'sceneChanged' || (ev.type === 'floorEntered' && ev.transfer)) {
+          if (RA.LargeBackground && state.transition) RA.LargeBackground.resetTransition(state.transition);
+          state.largeGroup = groupNow;
+          state.largeGroupReset = false;
+          state.parallaxDiscontinuity = true;
+        } else if (ev.type === 'floorEntered' && !ev.transfer) {
+          pipeChange = true;
+        }
+      });
+      if (state.largeGroupReset) {
+        if (RA.LargeBackground && state.transition) RA.LargeBackground.resetTransition(state.transition);
+        state.largeGroup = groupNow;
+        state.largeGroupReset = false;
+        state.parallaxDiscontinuity = true;
+      } else if (pipeChange && state.largeGroup !== groupNow) {
+        if (RA.LargeBackground && state.transition) {
+          RA.LargeBackground.beginTransition(state.transition, {
+            fromGroup: state.largeGroup, toGroup: groupNow,
+            fromU: state.parallax ? state.parallax.u : 0, duration: (RA.C.VISUAL.largeBackground.transitionDuration || 0.5)
+          });
+        }
+        state.largeGroup = groupNow;
+      }
+      stepEvents.forEach(function (ev) {
         if (ev.type === 'floorEntered' && ev.transfer) {
           // 传送后相机立即对准目标层,不缓慢穿过两段地图之间的空白
+          // 38:传送重置视差参考;普通接缝不重置(组变才归0)
+          state.parallaxDiscontinuity = true;
           var tp = s.player;
-          state.cam.x = tp.x + tp.w / 2 - state.cw / 2;
-          state.cam.y = tp.y + tp.h / 2 - state.ch / 2;
+          var ct = camCenterOn(tp.x + tp.w / 2, tp.y + tp.h / 2);
+          state.cam.x = ct.x;
+          state.cam.y = ct.y;
+        }
+        if (ev.type === 'sceneChanged') {
+          // 37:进门/出门立即按当前活动场景居中,并清掉仍按住的旧方向/交互
+          // 38:场景切换后重置视差参考,避免把局部/世界坐标切换当水平移动
+          state.parallaxDiscontinuity = true;
+          var sp = s.player;
+          var cs = camCenterOn(sp.x + sp.w / 2, sp.y + sp.h / 2);
+          state.cam.x = cs.x;
+          state.cam.y = cs.y;
+          state.held = { left: false, right: false, jump: false };
+          if (state.input) state.input.clearAll();
+        }
+        if (ev.type === 'dead' || ev.type === 'won') {
+          if (RA.LargeBackground && state.transition) RA.LargeBackground.resetTransition(state.transition);
         }
         if (ev.type === 'dead') finish('dead');
         if (ev.type === 'won') finish('won');
@@ -975,17 +1189,18 @@
   function previewSeed() {
     if (!RA.TowerPlanner || !RA.FULL40 || !RA.FULL40.fallback) return;
     refreshPoolStatus().then(function (all) {
-      var plan = RA.TowerPlanner.buildFull40({
-        seed: state.seedValue,
-        candidates: all || [],
-        fixedLevels: fixedFloors(),
-        fallback: RA.FULL40.fallback,
-        poolEpoch: (RA.FULL40 && RA.FULL40.poolEpoch) || ''
+      var mode = prefTowerMode();
+      var plan = mode === 'classic' ? RA.TowerPlanner.buildFull40({
+        seed: state.seedValue, candidates: all || [], fixedLevels: fixedFloors(),
+        fallback: RA.FULL40.fallback, poolEpoch: (RA.FULL40 && RA.FULL40.poolEpoch) || ''
+      }) : RA.TowerPlanner.buildEasy20({
+        seed: state.seedValue, candidates: all || [], fixedLevels: fixedFloors(),
+        fallback: RA.FULL40.fallback, poolEpoch: (RA.FULL40 && RA.FULL40.poolEpoch) || ''
       });
       if (!plan.ok) { seedStatus('重构失败:[' + plan.error.code + '] ' + plan.error.message); return; }
       state.pendingPlan = plan.value;
       var by = plan.value.perDifficulty || {};
-      seedStatus('已重构 41 槽(种子 ' + state.seedText + ';每档 ' + JSON.stringify(by) + ');开始游戏时用当前池生成。');
+      seedStatus('已重构 ' + (mode === 'classic' ? 41 : 21) + ' 槽(种子 ' + state.seedText + ';每档 ' + JSON.stringify(by) + ');开始游戏时用当前池生成。');
     }).catch(function () { seedStatus('重构失败:正式池读取异常'); });
   }
   function randomSeed() {
@@ -1092,6 +1307,7 @@
   }
   function openMainSettings() {
     var ov = $('main-settings'); if (ov) ov.style.display = 'flex';
+    syncPlayPrefControls();
     // 30:设置只显示只读历史最高分;打开时读回可信值并给一次显式重试机会
     state.bestScore = readHighScore();
     retryHighScore();
@@ -1150,15 +1366,14 @@
     globalThis.addEventListener('orientationchange', layoutViewport);
     if (globalThis.visualViewport) globalThis.visualViewport.addEventListener('resize', layoutViewport);
     layoutViewport();
+    // 36:先读游玩偏好(视野档位/换层回血),再建会话;失败按默认值并提示
+    loadPlayPrefs();
     state.assets.loadAll(function () { if (state.session) state.session.player.loadSprites(state.assets); });
     setupLifecycle();
     RA.short.repo = RA.ContentRepository ? RA.ContentRepository.create() : null;
     state.repo = RA.short.repo;
-    RA.short.debugJumpTo = debugJumpTo;
     RA.short.startFormal = startFormal;
     RA.short.retrySame = retrySame;
-    var startDevBtn = $('btn-dev');
-    if (startDevBtn) startDevBtn.addEventListener('click', function () { startDev(); });
     var startFormalBtn = $('btn-formal');
     if (startFormalBtn) startFormalBtn.addEventListener('click', function () { startFormal(); });
     var retryBtn = $('btn-retry');
@@ -1175,6 +1390,7 @@
     if (restartBtn) restartBtn.addEventListener('click', function () { retrySame(); });
     var settingsBtn = $('btn-settings');
     if (settingsBtn) settingsBtn.addEventListener('click', function () { openSettings(); });
+    bindPlayPrefs();
     var closeBtn = $('btn-layout-close');
     if (closeBtn) closeBtn.addEventListener('click', function () { closeSettings(); });
     var saveBtn = $('btn-layout-save');

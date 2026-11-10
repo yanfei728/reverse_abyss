@@ -2,7 +2,7 @@
   "name": "reverse-abyss-android",
   "version": "0.3.2",
   "private": true,
-  "description": "reverse_abyss PC/Android short tower shell (Capacitor 7)",
+  "description": "Reverse Abyss game and level editor",
   "scripts": {
     "build:web": "node tools/build_android_www.mjs",
     "build:bridge": "esbuild js/platform/capacitor-bridge-src.js --bundle --format=iife --global-name=RA_CAP_BRIDGE --outfile=www/js/vendor/capacitor-plugins.js --platform=browser",

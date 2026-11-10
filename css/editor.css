@@ -58,6 +58,16 @@ code {
 .pitem .picon { width: 38px; height: 38px; border-radius: 4px; }
 .pitem span { font-size: 10px; color: #9fb0cc; }
 
+/* 33:「地块」子面板标题与容器(容器 display:contents 时子按钮仍按网格排列) */
+.phead {
+  grid-column: 1 / -1;
+  margin-top: 4px; padding: 5px 8px;
+  background: #141a28; border: 1px solid #263049; border-radius: 7px;
+  color: #cfd8ea; cursor: pointer; font: inherit; font-size: 11px; text-align: left;
+}
+.phead:hover { border-color: #4a5f8f; }
+.pskins { display: contents; }
+
 /* ---------- 工具 ---------- */
 .tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 .titem {
@@ -202,6 +212,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ed-accent-s
 .pitem:hover { border-color: var(--ed-accent) !important; background: var(--ed-surface-2) !important; }
 .pitem.on { border-color: var(--ed-accent) !important; background: var(--ed-accent-soft) !important; box-shadow: none !important; }
 .pitem span { color: var(--ed-muted) !important; }
+.phead { background: var(--ed-surface) !important; border: 1px solid var(--ed-border) !important; color: var(--ed-text) !important; }
+.phead:hover { border-color: var(--ed-accent) !important; }
+body[data-theme="light"] .phead .picon, body[data-theme="light"] .pskins .picon { image-rendering: pixelated; }
 .titem { background: var(--ed-surface) !important; border: 1px solid var(--ed-border) !important; border-radius: 8px !important; color: var(--ed-text) !important; }
 .titem.on { background: var(--ed-accent-soft) !important; border-color: var(--ed-accent) !important; color: var(--ed-text) !important; }
 .badge { border-radius: 999px; }

@@ -1,0 +1,428 @@
+{
+  "schemaVersion": 2,
+  "id": "level_mw9958km_4k",
+  "title": "新楼层 1",
+  "kind": "normal",
+  "difficulty": 1,
+  "size": {
+    "cols": 22,
+    "rows": 24
+  },
+  "terrain": {
+    "tiles": [
+      [4, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 4, 4, 0, 0, 0, 4, 4, 4, 0, 0, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 4, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+      [4, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+    ]
+  },
+  "ports": {
+    "start": {
+      "col": 1,
+      "row": 23
+    },
+    "finish": {
+      "col": 1,
+      "row": 0
+    },
+    "profile": "cloud-pipe-v2"
+  },
+  "spawn": null,
+  "objects": [
+    {
+      "id": "spike_1",
+      "type": "spike",
+      "col": 3,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_2",
+      "type": "spike",
+      "col": 4,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_3",
+      "type": "spike",
+      "col": 5,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "flail_1",
+      "type": "flail",
+      "col": 8,
+      "row": 15,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_1",
+      "type": "blink_platform",
+      "col": 11,
+      "row": 19,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_2",
+      "type": "blink_platform",
+      "col": 12,
+      "row": 19,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_3",
+      "type": "blink_platform",
+      "col": 13,
+      "row": 19,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_4",
+      "type": "blink_platform",
+      "col": 14,
+      "row": 17,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_5",
+      "type": "blink_platform",
+      "col": 15,
+      "row": 17,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_6",
+      "type": "blink_platform",
+      "col": 16,
+      "row": 17,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "fireball_moving_1",
+      "type": "fireball_moving",
+      "col": 20,
+      "row": 12,
+      "params": {
+        "radiusTiles": 0.5,
+        "damage": 20
+      },
+      "pathId": "path_1"
+    },
+    {
+      "id": "blink_platform_7",
+      "type": "blink_platform",
+      "col": 9,
+      "row": 11,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_8",
+      "type": "blink_platform",
+      "col": 11,
+      "row": 11,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_9",
+      "type": "blink_platform",
+      "col": 10,
+      "row": 11,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_10",
+      "type": "blink_platform",
+      "col": 3,
+      "row": 11,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_11",
+      "type": "blink_platform",
+      "col": 5,
+      "row": 11,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_12",
+      "type": "blink_platform",
+      "col": 4,
+      "row": 11,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_4",
+      "type": "spike",
+      "col": 11,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_5",
+      "type": "spike",
+      "col": 12,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_6",
+      "type": "spike",
+      "col": 13,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_11",
+      "type": "spike",
+      "col": 16,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_12",
+      "type": "spike",
+      "col": 15,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "spike_7",
+      "type": "spike",
+      "col": 14,
+      "row": 22,
+      "params": {
+        "warningSeconds": 0.5,
+        "activeSeconds": 0.8,
+        "cooldownSeconds": 1,
+        "damage": 20
+      },
+      "pathId": null
+    },
+    {
+      "id": "sewage_pool_1",
+      "type": "sewage_pool",
+      "col": 11,
+      "row": 7,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "sewage_pool_2",
+      "type": "sewage_pool",
+      "col": 10,
+      "row": 7,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "sewage_pool_3",
+      "type": "sewage_pool",
+      "col": 9,
+      "row": 7,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "sewage_pool_4",
+      "type": "sewage_pool",
+      "col": 8,
+      "row": 7,
+      "params": {},
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_13",
+      "type": "blink_platform",
+      "col": 2,
+      "row": 5,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_14",
+      "type": "blink_platform",
+      "col": 3,
+      "row": 5,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_15",
+      "type": "blink_platform",
+      "col": 4,
+      "row": 5,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    }
+  ],
+  "paths": [
+    {
+      "id": "path_1",
+      "mode": "pingpong",
+      "points": [
+        {
+          "col": 20,
+          "row": 12
+        },
+        {
+          "col": 16,
+          "row": 12
+        },
+        {
+          "col": 16,
+          "row": 16
+        },
+        {
+          "col": 20,
+          "row": 16
+        }
+      ]
+    }
+  ],
+  "visuals": {
+    "backgroundId": null,
+    "decorations": []
+  },
+  "extensions": {},
+  "contentHash": "sha256:e29b427ee85be633781a1bf1a58b0e0d91f042b75ab23e152afd5323d3df5b9c",
+  "certification": {
+    "contentHash": "sha256:e29b427ee85be633781a1bf1a58b0e0d91f042b75ab23e152afd5323d3df5b9c",
+    "rulesVersion": "b4-10",
+    "rulesFingerprint": "rules=b4-10|ts=45|gravity=2300|jump=-830|hp=100|halo=14/20|radius=1.5|boss=12/8|objects=archer,blink_platform,coin,crumble_door,fireball_moving,fireball_static,flail,gear,sewage_pool,soul,spike,spring|interface=cloud-pipe-v2/2x3/gap4|fixed=short-fixed-v1|collision=world-v3|path=orth-v1|trial=manual-single-map-v3|profile=run-v1|tower=full40-v1/4-buckets/test3-fallback|poolEpoch=full40-pool-reset-2026-11-09|monsters=gear340/fireball170/flail4t-2v3|soul=170/contour/dynamic-fly-reattach;sewage=20|coins=collect/body-only/0.25r;archer=static/2s/170px/20-20/arrow-clip-floor|score=formal-only/floor20/enemy5/coin10/boss-final-once",
+    "profileId": "run-v1",
+    "status": "passed",
+    "completedAt": "2026-11-09T12:48:01.825Z",
+    "source": "local-playtest"
+  }
+}

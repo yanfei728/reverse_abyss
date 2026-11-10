@@ -1,65 +1,582 @@
 {
   "schemaVersion": 2,
   "id": "b4_rest",
-  "title": "休整（作者 rest_level）",
+  "title": "固定休息区",
   "kind": "rest",
-  "difficulty": null,
+  "difficulty": 1,
   "size": {
-    "cols": 19,
-    "rows": 24
+    "cols": 30,
+    "rows": 21
   },
   "terrain": {
     "tiles": [
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [4, 5, 5, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [4, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4],
-      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4],
-      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4],
-      [4, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4],
-      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4],
-      [4, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4],
-      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4],
-      [4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1, 1, 4, 4],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      [4, 5, 5, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 5, 5, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4],
+      [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 4]
     ]
   },
   "ports": {
-    "profile": "cloud-pipe-v2",
     "start": {
-      "col": 13,
-      "row": 18
+      "col": 27,
+      "row": 20
     },
     "finish": {
       "col": 1,
-      "row": 8
-    }
+      "row": 0
+    },
+    "profile": "cloud-pipe-v2"
   },
   "spawn": null,
-  "objects": [],
+  "objects": [
+    {
+      "id": "blink_platform_1",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 18,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_2",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 17,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_3",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 16,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_4",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 15,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_5",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 14,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_6",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 13,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_7",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 12,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_8",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 11,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_9",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 10,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    },
+    {
+      "id": "blink_platform_10",
+      "type": "blink_platform",
+      "col": 29,
+      "row": 9,
+      "params": {
+        "warningSeconds": 0.5,
+        "goneSeconds": 1.6
+      },
+      "pathId": null
+    }
+  ],
   "paths": [],
   "visuals": {
-    "backgroundId": null,
-    "decorations": []
+    "backgroundId": "levelbg-rest-area-20261110",
+    "decorations": [],
+    "tileSkins": [
+      {
+        "col": 0,
+        "row": 19,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 2,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 3,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 4,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 5,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 6,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 7,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 8,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 9,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 10,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 11,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 12,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 13,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 14,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 15,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 16,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 17,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 20,
+        "skinId": "log"
+      },
+      {
+        "col": 1,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 2,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 3,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 4,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 5,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 6,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 7,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 8,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 9,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 10,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 11,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 12,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 13,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 14,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 15,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 16,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 17,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 18,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 19,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 18,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 19,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 0,
+        "row": 18,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 17,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 16,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 15,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 14,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 13,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 12,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 11,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 10,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 9,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 8,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 7,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 6,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 5,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 4,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 3,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 2,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 1,
+        "skinId": "log"
+      },
+      {
+        "col": 0,
+        "row": 0,
+        "skinId": "log"
+      },
+      {
+        "col": 3,
+        "row": 0,
+        "skinId": "log"
+      },
+      {
+        "col": 3,
+        "row": 1,
+        "skinId": "log"
+      },
+      {
+        "col": 3,
+        "row": 2,
+        "skinId": "log"
+      },
+      {
+        "col": 3,
+        "row": 3,
+        "skinId": "log"
+      },
+      {
+        "col": 20,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 21,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 22,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 23,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 24,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 20,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 21,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 22,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 23,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 24,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 25,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 25,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 26,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 26,
+        "row": 20,
+        "skinId": "planks"
+      },
+      {
+        "col": 29,
+        "row": 19,
+        "skinId": "planks"
+      },
+      {
+        "col": 29,
+        "row": 20,
+        "skinId": "planks"
+      }
+    ]
   },
   "extensions": {
     "fixedScene": {
-      "profile": "short-fixed-v1"
+      "profile": "short-fixed-v1",
+      "role": "rest-area",
+      "houseEntrance": {
+        "region": {
+          "col": 14,
+          "row": 17,
+          "cols": 2,
+          "rows": 2
+        },
+        "returnPose": {
+          "centerCol": 15,
+          "feetRow": 19
+        }
+      }
     }
   },
-  "contentHash": "sha256:4f61d67736195f51cda642fdbb5fa43631b3c95360c10b03501999466daa6067",
+  "contentHash": "sha256:67c279b51c1d552887d01c367437b6133b035487e26c483045fb6aec2fb9bade",
   "certification": null
 }
-

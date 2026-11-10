@@ -1,7 +1,34 @@
+# 本地依赖、构建缓存和私有配置
 node_modules/
+.local-dev-backup/
+.env
+.env.*
+*.log
+/log.txt
+*.apk
+*.aab
+*.jks
+*.keystore
 android/.gradle/
 android/app/build/
 android/build/
-*.apk
-*.aab
-!docs/checks/B3-*.apk
+android/local.properties
+
+# 开发记录、测试与历史源件保留在本地，不进入发布仓库
+/docs/
+/tests/
+/开发示例关卡/
+/levels/archive/
+*.md
+!/README.md
+/www/build-meta.json
+
+# 只发布游戏构建、关卡导入与资源清单工具
+/tools/*
+!/tools/runtime.mjs
+!/tools/sync_levels.mjs
+!/tools/import_level_bundle.mjs
+!/tools/sync_backgrounds.mjs
+!/tools/sync_large_backgrounds.mjs
+!/tools/sync_full40_levels.mjs
+!/tools/build_android_www.mjs

@@ -12,7 +12,7 @@
  *   · 'S' → spring 对象,'x' → crumble_door,'y' → blink_platform(与新注册表同名);
  *   · json 里的 objects[] 原样保留:类型映射(fireball → fireball_static)、
  *     必填参数按注册默认补全、未知类型/参数保留并警告;
- *   · sky → visuals.backgroundId('sky3'),0/缺失 → null(按层循环);
+ *   · sky → 35起天空贴图已退役:迁移成无小背景(null)并提示;新背景用 visuals.backgroundId;
  *   · difficulty / verified 等原值记进 extensions.legacy,可见但不冒充认证;
  *   · ports 一律 null:旧图的出入口没有按 vertical-v1 的开口与安全带绘制,
  *     不能自动贴一个"合格"标签。修复和端口可视化在 T04。
@@ -245,7 +245,8 @@
     if (!isNaN(sky) && sky > 0) {
       backgroundId = 'sky' + sky;
       if (skyIds.length && skyIds.indexOf(backgroundId) < 0) {
-        warnings.push('旧图 sky:' + sky + ' 超出内置天空数量,改成"按层循环"(null)');
+        // 35:天空贴图已退役;旧图迁移成"无小背景",只提示、不改原文件
+        warnings.push('旧图 sky:' + sky + ' 的天空贴图已停用,迁移成"无小背景"(null)');
         backgroundId = null;
       }
     }

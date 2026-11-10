@@ -200,9 +200,68 @@
     };
   }
 
+  /** 41:简单 0–20:1–9档1、11–19档2、10休息、20独立终点(无Boss)。 */
+  function buildEasy20(opts) {
+    opts = opts || {};
+    var fixed = opts.fixedLevels || {};
+    var fallback = opts.fallback;
+    if (!fixed.lobby || !fixed.rest || !fixed.easyFinish) {
+      return { ok: false, error: { code: 'NO_FIXED', message: '缺少大厅/休息/简单终点固定场景' } };
+    }
+    if (!fallback) return { ok: false, error: { code: 'NO_FALLBACK', message: '缺少 test3 内置补位模板' } };
+    var seed = Number(opts.seed) || 1;
+    var poolEpoch = String(opts.poolEpoch || (RA.FULL40 && RA.FULL40.poolEpoch) || '');
+    var candidates = (opts.candidates || []).slice();
+    var buckets = { 1: pickBucket(candidates, 1, seed), 2: pickBucket(candidates, 2, seed) };
+    var used = { 1: 0, 2: 0 }, fallbackHash = hashOf(fallback), floors = [], normalCount = 0, fallbackCount = 0;
+    var slots = [];
+    for (var f = 1; f <= 19; f++) { if (f !== 10) slots.push(f); }
+    slots.forEach(function (n) {
+      var d = n <= 9 ? 1 : 2;
+      var picked = buckets[d][used[d]];
+      normalCount++;
+      if (picked) {
+        used[d]++;
+        floors.push({ floorNumber: n, kind: 'normal', source: 'published', requiredDifficulty: d,
+          levelId: picked.levelId, contentHash: picked.contentHash, data: clone(picked.data), exitAction: 'pipe' });
+      } else {
+        fallbackCount++;
+        floors.push({ floorNumber: n, kind: 'normal', source: 'fallback', requiredDifficulty: d,
+          levelId: fallback.id, contentHash: fallbackHash, data: clone(fallback), exitAction: 'pipe' });
+      }
+    });
+    floors.push({ floorNumber: 0, kind: 'lobby', source: 'fixed', requiredDifficulty: null,
+      levelId: fixed.lobby.id, contentHash: hashOf(fixed.lobby), data: clone(fixed.lobby), exitAction: 'lobby-transfer' });
+    floors.push({ floorNumber: 10, kind: 'rest', source: 'fixed', requiredDifficulty: null,
+      levelId: fixed.rest.id, contentHash: hashOf(fixed.rest), data: clone(fixed.rest), exitAction: 'pipe' });
+    floors.push({ floorNumber: 20, kind: 'rest', source: 'fixed', requiredDifficulty: null,
+      levelId: fixed.easyFinish.id, contentHash: hashOf(fixed.easyFinish), data: clone(fixed.easyFinish), exitAction: 'victory' });
+    floors.sort(function (a, b) { return a.floorNumber - b.floorNumber; });
+    var manifestId = 'easy20-' + hashString([
+      'easy20-v1', seed, poolEpoch,
+      floors.map(function (e) {
+        return e.floorNumber + ':' + e.levelId + ':' + e.contentHash + ':' + e.source + ':' + e.exitAction;
+      }).join(',')
+    ].join('|'));
+    return {
+      ok: true,
+      value: {
+        manifestId: manifestId, layout: 'easy20-v1', profile: 'easy20-v1', gameplayProfile: 'run-v1',
+        seed: seed, poolEpoch: poolEpoch,
+        rulesVersion: (RA.RULES && RA.RULES.rulesVersion) || '',
+        rulesFingerprint: (RA.RULES && RA.RULES.rulesFingerprint) || '',
+        slotCount: floors.length, normalCount: normalCount, fallbackCount: fallbackCount,
+        perDifficulty: { 1: { picked: used[1], fallback: 9 - used[1] }, 2: { picked: used[2], fallback: 9 - used[2] } },
+        completion: { type: 'enter-floor', floorNumber: 20 },
+        floors: floors
+      }
+    };
+  }
+
   RA.TowerPlanner = {
     build: build,
     buildFull40: buildFull40,
+    buildEasy20: buildEasy20,
     hashString: hashString,
     DIFF_SLOTS: DIFF_SLOTS
   };

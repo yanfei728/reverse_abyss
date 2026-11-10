@@ -156,7 +156,31 @@
       implemented: 'legacy',
       category: 'hostile',             // 30:固定敌人,可被光环一击消灭
       requiresPath: false,
-      interact: '静止不移动、无实体阻挡;入层2秒后每2秒朝玩家直线射170px/s箭;本体接触与箭各20',
+      interact: '静止不移动、无实体阻挡;入层4秒后每4秒朝玩家直线射170px/s箭;本体接触与箭各20',
+      params: []
+    },
+    {
+      type: 'ghost_dash',
+      name: '幽灵',
+      letter: null,
+      scene: 'normal',
+      implemented: 'legacy',
+      category: 'hostile',             // 32:敌对单位,可被光环一击消灭
+      requiresPath: false,
+      interact: '漂浮不移动寻路;每3秒锁定玩家当刻方向直冲2格(0.2秒),穿墙;' +
+        '接触20,真正扣血后才自消失;可被光环消灭',
+      params: []
+    },
+    {
+      type: 'fireball_spitter',
+      name: '喷火火球',
+      letter: null,
+      scene: 'normal',
+      implemented: 'legacy',
+      category: 'hostile',             // 32:敌对单位,可被光环一击消灭
+      requiresPath: false,
+      interact: '静止、始终左右朝玩家;每4秒水平发射一枚170px/s/20火焰弹;' +
+        '弹不穿实体墙、不跨楼层、不可被光环清;本体接触20、可被光环消灭',
       params: []
     },
     {
@@ -205,12 +229,13 @@
 
   /*
    * 30:对象类别只用于编辑器/运行时的最小分流(不能把金币当怪物):
-   *   hostile      = 敌对单位,可被击败(静止/移动火球、灵魂、弓箭手)
+   *   hostile      = 敌对单位,可被击败(静止/移动火球、灵魂、弓箭手、幽灵、喷火火球)
    *   hazard       = 伤害机关/轨迹物,不可击败,不算击杀、不能拾取
    *   collectible  = 拾取物(金币)
    *   mechanism    = 可交互机关(弹簧/门/浮石)
    */
-  var HOSTILE = { fireball_static: 1, fireball_moving: 1, soul: 1, archer: 1 };
+  var HOSTILE = { fireball_static: 1, fireball_moving: 1, soul: 1, archer: 1,
+    ghost_dash: 1, fireball_spitter: 1 };
   var HAZARD = { spike: 1, gear: 1, flail: 1, sewage_pool: 1 };
   function categoryOf(def) {
     if (def.category) return def.category;
@@ -275,12 +300,14 @@
     return null;
   }
 
-  /** 背景资源 id:首版只有内置的 sky1~skyN(null = 按层数循环) */
+  /**
+   * 关卡小背景资源 id(35):来自 assets/background/catalog.js 的静态清单。
+   * null = 无小背景(照常可玩)。旧 sky1..8 不再注册:值原样保留,但按无背景显示。
+   */
   function backgroundIds() {
-    var n = C.SKY_COUNT || 8;
-    var out = [];
-    for (var i = 1; i <= n; i++) out.push('sky' + i);
-    return out;
+    var cat = RA.LevelBackgroundCatalog;
+    if (!cat || !Array.isArray(cat.entries)) return [];
+    return cat.entries.map(function (e) { return e.id; });
   }
 
   RA.EntityRegistry = {

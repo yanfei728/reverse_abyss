@@ -67,11 +67,13 @@
       <span id="size-label" class="dim">15 × 24 格</span>
       <span id="check-badge" class="badge ok">✔ 检查通过</span>
       <span class="grow"></span>
-      <button id="btn-export" class="primary" title="导出完整 LevelData JSON(Ctrl+S)。只发起浏览器下载,不写 levels/">导出 JSON (Ctrl+S)</button>
+      <button id="btn-export" class="primary" title="备份当前草稿 JSON(Ctrl+S);不是游戏导出,不写 levels/">备份草稿 JSON (Ctrl+S)</button>
       <button id="btn-copy" title="把导出的 JSON 放进剪贴板">复制 JSON</button>
       <button id="btn-view-json" title="把导出的 JSON 摊开看 / 手动复制">查看 JSON</button>
       <button id="btn-play" class="primary" title="先保存草稿,再用当前图启动单图试玩:start 出生、完整上穿 finish 结束;满血、技能开局可用">▶ 试玩</button>
-      <button id="btn-publish" title="发布已试玩通过且内容未变的草稿到本地正式池(普通图要先选 1–4 档)">发布</button>
+      <button id="btn-export-browser" title="把已试玩通过且内容未变的当前草稿写入浏览器正式池">导出到浏览器</button>
+      <button id="btn-export-local" title="把当前已通过内容写入项目 levels(需选择 levels 目录)">导出到本地</button>
+      <button id="btn-export-batch" title="预览并导出全部有效已发布版本+已通过草稿到 levels">批量导出到本地…</button>
       <a class="back" id="back-link" href="index.html" title="回主界面:有未导出的改动会先问一句">← 回主界面</a>
     </div>
     <div id="board-wrap">
@@ -99,15 +101,6 @@
     <input type="file" id="file-json" accept=".json,application/json" style="display:none">
     <input type="file" id="file-legacy" accept=".txt,.json,text/plain,application/json" style="display:none">
 
-    <h2>内置关卡(只读副本)</h2>
-    <div class="row">
-      <select id="pool-select" title="打开旧内置关卡的迁移副本,不会写回 levels/"></select>
-    </div>
-    <div class="row">
-      <button id="btn-open-pool">打开内置副本</button>
-    </div>
-    <p class="dim small" id="pool-label">内置关卡:…</p>
-
     <h2>尺寸</h2>
     <div class="row">
       <span class="lab">宽</span>
@@ -133,12 +126,22 @@
     </div>
     <p class="dim small">正式塔按四档分桶抽选(1 档 1–9、2 档 11–19、3 档 21–29、4 档 31–39);发布普通图前必须先选档,改难度属于内容变更,需要重新试玩。</p>
     <div class="row">
-      <span class="lab">背景</span>
-      <select id="sky-select" title="这一层用哪张天空贴图"></select>
+      <span class="lab">关卡背景（小背景）</span>
+      <select id="bg-select" title="内置小背景:整图铺满地图框并压暗;无背景照常可玩"></select>
     </div>
+    <div class="row">
+      <button id="bg-choose" title="从电脑文件夹选择一张图片作为本关背景;不同关卡可各选一张">从文件夹选择图片…</button>
+      <button id="bg-clear" title="清除本关背景,恢复无背景">清除背景</button>
+      <input type="file" id="bg-file" accept="image/png,image/jpeg,image/webp" style="display:none">
+    </div>
+    <div id="bg-file-status" class="dim small"></div>
     <p class="dim small">
-      背景写进 <code>visuals.backgroundId</code>(<code>sky1~sky8</code>);
-      「自动」= null,爬塔时随层数循环。贴图在 <code>assets/sky/</code>。
+      内置图写进 <code>visuals.backgroundId</code>;从文件夹选的图写进
+      <code>visuals.backgroundImage</code>(每关独立,随关卡 JSON 保存和导出,自定义优先)。
+      「无背景」= null。可选内置图来自 <code>assets/background/level/</code>(清单由
+      <code>node tools/sync_backgrounds.mjs</code> 生成);自定义图片支持 PNG/JPEG/WebP、≤6 MiB,
+      整图铺满地图框并压暗,透明/半透明 alpha 原样。旧 <code>sky1~8</code> 已停用,保留原值但按无背景显示;
+      背景只影响外观,不参与碰撞/裁空白。
     </p>
 
     <h2>浏览器草稿</h2>
@@ -205,6 +208,9 @@
 <script src="js/text.js"></script>
 <script src="js/seed-text.js"></script>
 <script src="js/high-score-store.js"></script>
+<script src="js/play-preferences.js"></script>
+<script src="assets/background/catalog.js"></script>
+<script src="assets/background/large/catalog.js"></script>
 <script src="js/level.js"></script>
 <script src="js/entity-registry.js"></script>
 <script src="js/level-data.js"></script>
@@ -215,6 +221,7 @@
 <script src="js/legacy-import.js"></script>
 <script src="js/entities/base.js"></script>
 <script src="js/entities/player.js"></script>
+<script src="js/player-art.js"></script>
 <script src="js/entities/goal.js"></script>
 <script src="js/entities/spring.js"></script>
 <script src="js/entities/ghost.js"></script>
@@ -222,25 +229,20 @@
 <script src="js/monsters.js"></script>
 <script src="js/soul-motion.js"></script>
 <script src="js/camera.js"></script>
+<script src="js/large-background.js"></script>
 <script src="js/assets.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/input.js"></script>
-<script src="js/tower.js"></script>
-<script src="js/levelpack.js"></script>
 <script src="js/content-repository.js"></script>
 <script src="js/rules.js"></script>
+<script src="js/normal-catalog.js"></script>
+<script src="js/level-export.js"></script>
 <script src="js/world.js"></script>
+<script src="js/rest-house.js"></script>
 <script src="js/session.js"></script>
 <script src="js/boss.js"></script>
 <script src="js/tower-planner.js"></script>
-<script src="js/reach.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/game.js"></script>
-<script src="js/smoke.js"></script>
 <script src="levels/levels.js"></script>
-<script src="js/dev-samples.js"></script>
-<script src="js/b2-samples.js"></script>
-<script src="js/b4-samples.js"></script>
 <script src="js/full40-samples.js"></script>
 <!-- 编辑器本体 -->
 <script src="js/editor.js"></script>

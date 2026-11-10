@@ -74,15 +74,34 @@
     var saveState = { phase: 'idle', reason: '', pendingBack: false };
     var input = new RA.ActionInput();
 
+    // 36:试玩继承已保存的视野档位(只显示);没有跨层回血/计分.
+    var prefs = RA.PlayPreferences ? RA.PlayPreferences.load(globalThis.localStorage) : null;
+    var viewMode = (prefs && prefs.value && prefs.value.viewMode) === 'classic' ? 'classic' : 'wide';
+    if (RA.ViewZoom && RA.ViewZoom.setMode) RA.ViewZoom.setMode(viewMode);
+
     function resize() {
       cw = canvas.clientWidth || W; ch = canvas.clientHeight || H; dpr = devicePixelRatio || 1;
       canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
+    /** 32:试玩与正式共用同一个游玩镜头缩放(2/3);世界可见宽高 = CSS 尺寸 / zoom */
+    function viewWorld() {
+      var vz = RA.ViewZoom;
+      if (!vz) return { w: cw, h: ch, zoom: 1 };
+      return { w: vz.worldW(cw), h: vz.worldH(ch), zoom: vz.zoom() };
+    }
+    function camCenterOn(wx, wy) {
+      var v = viewWorld();
+      return { x: wx - v.w / 2, y: wy - v.h / 2 };
+    }
     addEventListener('resize', resize); resize();
 
-    cam.x = s.player.x + s.player.w / 2 - cw / 2;
-    cam.y = s.player.y + s.player.h / 2 - ch / 2;
+    var cam0 = camCenterOn(s.player.x + s.player.w / 2, s.player.y + s.player.h / 2);
+    cam.x = cam0.x;
+    cam.y = cam0.y;
+    // 38:试玩按本图 difficulty 选用同一套大背景;纯视觉,不写模板/分数
+    var parallax = RA.LargeBackground ? RA.LargeBackground.createParallaxState() : null;
+    var parallaxGroup = RA.LargeBackground ? RA.LargeBackground.groupForTrial((s.data && s.data.difficulty) || 1) : null;
 
     function showPauseOverlay(on, reason) {
       var ov = $('pause-overlay');
@@ -108,23 +127,36 @@
       var g = ctx.createLinearGradient(0, 0, 0, ch);
       g.addColorStop(0, '#0a0f1e'); g.addColorStop(1, '#05060c');
       ctx.fillStyle = g; ctx.fillRect(0, 0, cw, ch);
+      // 38:大背景在 CSS 屏幕空间、ViewZoom 之前;缺组保留渐变
+      if (RA.LargeBackground && parallax) {
+        RA.LargeBackground.draw(ctx, {
+          groupId: parallaxGroup, width: cw, height: ch, u: parallax.u
+        }, assets);
+      }
       var inst = s.inst;
-      inst.level.draw(ctx, { ox: cam.x, oy: cam.y, vw: cw, vh: ch }, assets);
+      var view = viewWorld();
+      // 32:背景按屏幕画;世界层统一缩放 zoom(DPR 已在 resize 里设好,不重复)
+      ctx.save();
+      if (RA.ViewZoom) RA.ViewZoom.apply(ctx);
+      inst.level.draw(ctx, { ox: cam.x, oy: cam.y, vw: view.w, vh: view.h }, assets);
+      // 33:齿轮轨道用作者图;移动火球游玩中仍不显示路径
+      if (RA.drawGearTracks) RA.drawGearTracks(ctx, inst, cam, assets);
       inst.objects.forEach(function (o) {
         if (o.type !== 'sewage_pool') return;
-        if (RA.drawObjectTrack) RA.drawObjectTrack(ctx, inst, o, cam);
-        RA.drawFloorObject(ctx, inst, o, cam);
+        RA.drawFloorObject(ctx, inst, o, cam, assets);
       });
       inst.objects.forEach(function (o) {
         if (o.type === 'sewage_pool') return;
-        if (RA.drawObjectTrack) RA.drawObjectTrack(ctx, inst, o, cam);
-        RA.drawFloorObject(ctx, inst, o, cam);
+        RA.drawFloorObject(ctx, inst, o, cam, assets);
       });
-      // 30:试玩与正式共用同一份箭绘制;试玩仍然不计分、不写最高分
-      if (RA.drawFloorArrows) RA.drawFloorArrows(ctx, inst, cam);
+      // 30/32:试玩与正式共用同一份箭/火焰弹绘制;试玩仍然不计分、不写最高分
+      if (RA.drawFloorArrows) RA.drawFloorArrows(ctx, inst, cam, assets);
+      if (RA.drawFloorBolts) RA.drawFloorBolts(ctx, inst, cam, assets);
       var p = s.player;
-      if (s.run.haloActiveRemaining > 0) {
-        var rr = (RA.RULES.tuning.haloRadiusTiles || 1.5) * C.TS;
+      // 33:正式与试玩共用 RA.drawPlayerHalo(R=2.25格、作者光环图、只读真实活动状态)
+      if (RA.drawPlayerHalo) RA.drawPlayerHalo(ctx, p, s.run, cam, assets);
+      else if (s.run.haloActiveRemaining > 0) {
+        var rr = (RA.RULES.tuning.haloRadiusTiles || 2.25) * C.TS;
         ctx.strokeStyle = 'rgba(126,224,168,.8)'; ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(p.x + p.w / 2 - cam.x, p.y + p.h / 2 - cam.y, rr, 0, Math.PI * 2);
@@ -132,6 +164,7 @@
       }
       if (Object.keys(p.frames || {}).length) p.draw(ctx, { ox: cam.x, oy: cam.y }, assets);
       else { ctx.fillStyle = '#ffcd6e'; ctx.fillRect(p.x - cam.x, p.y - cam.y, p.w, p.h); }
+      ctx.restore();
     }
 
     /** 试玩返回原草稿:只在明确点"返回编辑器"时把草稿身份带回编辑器 */
@@ -254,9 +287,13 @@
           s.setActions({ left: a.held.left, right: a.held.right, jumpHeld: a.held.jumpHeld });
           if (a.pressed.skill) s.pressSkill();
           s.update(dt);
-          var p = s.player, tx = p.x + p.w / 2 - cw / 2, ty = p.y + p.h / 2 - ch / 2;
-          cam.x += (tx - cam.x) * Math.min(1, dt * 7);
-          cam.y += (ty - cam.y) * Math.min(1, dt * 7);
+          var p = s.player;
+          var focus = camCenterOn(p.x + p.w / 2, p.y + p.h / 2);
+          cam.x += (focus.x - cam.x) * Math.min(1, dt * 7);
+          cam.y += (focus.y - cam.y) * Math.min(1, dt * 7);
+          if (RA.LargeBackground && parallax) {
+            RA.LargeBackground.update(parallax, { playerX: p.x, groupId: parallaxGroup, discontinuity: false });
+          }
         }
         s.drainEvents().forEach(function (ev) {
           if (ev.type === 'trialPassed' && !done) { showDone('passed'); savePass(); }
@@ -328,7 +365,14 @@
     RA.trial = {
       session: s, plan: plan, input: input, togglePause: togglePause,
       paused: function () { return s.status === 'paused'; },
-      saveState: saveState, backHref: draftBackHref
+      saveState: saveState, backHref: draftBackHref,
+      // 32:验收/诊断读镜头与可见世界尺寸(与正式状态里的 cam/cw/ch 对应)
+      cam: cam,
+      viewWorld: viewWorld,
+      // 33:验收/诊断读本次页面真实加载的素材(hasFile 证明 PNG 已从仓库读到)
+      assets: assets,
+      // 36:验收/诊断读继承到的视野档位(试玩没有跨层回血)
+      viewMode: viewMode
     };
   }
 

@@ -89,6 +89,267 @@
     return { x: dx / len, y: dy / len };
   }
 
+  // ===================== 32:幽灵 / 喷火火球 / 火焰弹 =====================
+  function ghostConf() { return RA.C.GHOST || {}; }
+  function spitterConf() { return RA.C.SPITTER || {}; }
+
+  /** 三类主动索敌怪共用的世界距离(与镜头缩放无关) */
+  function seekRangePx() {
+    return (RA.MonsterRules && RA.MonsterRules.seekRangePx)
+      ? RA.MonsterRules.seekRangePx()
+      : (((RA.C.SEEK && RA.C.SEEK.rangeTiles) || 10) * TS);
+  }
+  /** 玩家身体中心(实例局部坐标) */
+  function playerLocalCenter(player, inst) {
+    return {
+      x: player.x - inst.origin.x + player.w / 2,
+      y: player.y - inst.origin.y + player.h / 2
+    };
+  }
+  function localPlayerBox(player, inst) {
+    return { x: player.x - inst.origin.x, y: player.y - inst.origin.y, w: player.w, h: player.h };
+  }
+  /** 身体中心欧氏距离 ≤ 10 格(边界含等号);世界/局部先统一再比较 */
+  function inSeekRange(o, player, inst) {
+    var pc = playerLocalCenter(player, inst);
+    var dx = pc.x - o.rx, dy = pc.y - o.ry;
+    var r = seekRangePx();
+    return dx * dx + dy * dy <= r * r + 1e-9;
+  }
+  function expandBox(b, pad) {
+    return { x: b.x - pad, y: b.y - pad, w: b.w + pad * 2, h: b.h + pad * 2 };
+  }
+
+  /** 幽灵/喷火的实例运行状态(只进实例副本,不写回模板/LevelData/hash) */
+  function initGhostRuntime(o) {
+    o.attackElapsed = 0;
+    o._dash = { active: false, x: 1, y: 0, remainingPx: 0 };
+    o._lastDir = { x: 1, y: 0 };
+  }
+  function initSpitterRuntime(o) {
+    o.attackElapsed = 0;
+    o.facing = 1;                      // 编辑器/静态预览朝右;运行每步再按玩家水平位置翻面
+  }
+  function ghostDashSpeedPx() {
+    var conf = ghostConf();
+    var tiles = conf.dashTiles || 2;
+    var secs = conf.dashSeconds || 0.2;
+    return (tiles * TS) / (secs > 0 ? secs : 0.2);
+  }
+
+  /**
+   * 32:火焰弹用的"真实当前几何"只读查询(实例局部格)。
+   * 实体墙 = 本层/已实存邻层地形 1–4、实存管壁、未消失的门/浮石、弹簧实体。
+   * 云板是单向平台,不凭空变成水平墙;怪物/池/金币/轨道/链/箭/其它弹都不挡。
+   */
+  function flameSolidAtLocal(inst, row, col) {
+    if (!inst || row < 0 || col < 0 || row >= inst.rows || col >= inst.cols) return false;
+    var lv = inst.level;
+    if (lv && lv.solidTileAt && lv.solidTileAt(row, col)) return true;
+    if (inst.wallCells && inst.wallCells[row + ':' + col]) return true;
+    var objs = inst.objects || [];
+    for (var i = 0; i < objs.length; i++) {
+      var o = objs[i];
+      if (o.col !== col || o.row !== row) continue;
+      if (o.type === 'crumble_door' && !o.broken) return true;
+      if (o.type === 'blink_platform' && o.state !== 'gone') return true;
+      if (o.type === 'spring') return true;
+    }
+    return false;
+  }
+  /** 一个圆形弹占位是否已压在实体墙上(出弹点/贴墙检查) */
+  function flameBlockedAt(inst, x, y, radius) {
+    var r0 = Math.floor((y - radius) / TS), r1 = Math.floor((y + radius) / TS);
+    var c0 = Math.floor((x - radius) / TS), c1 = Math.floor((x + radius) / TS);
+    for (var rr = r0; rr <= r1; rr++) {
+      for (var cc = c0; cc <= c1; cc++) {
+        if (flameSolidAtLocal(inst, rr, cc)) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 从弹心沿水平方向到最近实体墙的距离(px);没有墙返回 null。
+   * 按"弹半径贴墙"计算,所以薄墙也不会被大 dt 穿过去。
+   */
+  function flameWallDistance(inst, x, y, dir, limit, radius) {
+    if (!(limit > 0)) {
+      // 这一步不动:仍在墙内就算 0,否则 null
+      return flameBlockedAt(inst, x, y, radius) ? 0 : null;
+    }
+    var endX = x + dir * limit;
+    var c0 = Math.floor(Math.min(x, endX) / TS), c1 = Math.floor(Math.max(x, endX) / TS);
+    var row0 = Math.floor((y - radius) / TS), row1 = Math.floor((y + radius) / TS);
+    var best = null;
+    for (var k = 0; k <= c1 - c0; k++) {
+      var col = dir > 0 ? c0 + k : c1 - k;
+      for (var rr = row0; rr <= row1; rr++) {
+        if (!flameSolidAtLocal(inst, rr, col)) continue;
+        var d;
+        if (dir > 0) {
+          if (x >= (col + 1) * TS) continue;            // 墙在身后
+          d = Math.max(0, col * TS - radius - x);
+        } else {
+          if (x <= col * TS) continue;                  // 墙在身后
+          d = Math.max(0, x - ((col + 1) * TS + radius));
+        }
+        if (best === null || d < best) best = d;
+      }
+      if (best !== null) break;                         // 运动方向上第一列有墙就是最近的
+    }
+    return best;
+  }
+
+  /** 弹沿水平方向进入玩家(已按弹半径扩张)命中盒的距离;不重叠返回 null */
+  function flamePlayerDistance(hitBox, x, y, dir, limit) {
+    if (y < hitBox.y - 1e-9 || y > hitBox.y + hitBox.h + 1e-9) return null;
+    if (x >= hitBox.x && x <= hitBox.x + hitBox.w) return 0;
+    var d;
+    if (dir > 0) d = hitBox.x - x;
+    else d = x - (hitBox.x + hitBox.w);
+    if (d < 0) return null;
+    return d <= limit + 1e-9 ? d : null;
+  }
+
+  /** 喷火火球从正面出弹;出弹点已在实体墙内则立即被挡住(不挖墙、不穿墙) */
+  function fireFlameBolt(inst, o) {
+    var conf = spitterConf();
+    var bodyR = objectRadius(o) * TS;
+    var br = conf.boltRadiusPx || 9;
+    var dir = o.facing >= 0 ? 1 : -1;
+    var y = o.ry;
+    var x0 = o.rx + dir * (bodyR + br * 0.5);
+    if (flameBlockedAt(inst, x0, y, br)) return false;
+    inst.boltSeq = (inst.boltSeq || 0) + 1;
+    inst.bolts.push({
+      id: inst.instanceId + ':flame_' + inst.boltSeq,
+      ownerInstanceId: inst.instanceId,
+      sourceObjectId: o.id,
+      x: x0, y: y, prevX: x0, prevY: y,
+      vx: dir, vy: 0, alive: true, age: 0
+    });
+    return true;
+  }
+
+  /**
+   * 32:幽灵冲刺。
+   *   · 待机:原地不动,身体接触按 20 与其它怪物一致;
+   *   · 每 3 秒(从入层/上次开始算)准备一次,且在索敌范围内才发起;
+   *   · 锁向:发起时取玩家当刻方向,直线穿墙冲 2 格(0.2 秒),不追踪转弯;
+   *   · 只有 session.damage(...) 真的返回成功才自消失;无敌被挡住时保留并走完剩余行程。
+   */
+  function stepGhost(inst, o, dt, session, pr, pc) {
+    var conf = ghostConf();
+    var dmg = conf.contactDamage || 20;
+    var interval = conf.dashIntervalSeconds || 3;
+    if (!o._dash) initGhostRuntime(o);
+    var dash = o._dash;
+    o.attackElapsed = Math.min(interval, (o.attackElapsed || 0) + dt);
+
+    var r = objectRadius(o) * TS;
+    if (!dash.active) {
+      // 待机接触:同样 20;真的扣血才消失(不能把"碰到"当"成功伤害")
+      if (overlap(pr, { x: o.rx - r, y: o.ry - r, w: r * 2, h: r * 2 })) {
+        if (session.damage(dmg, 'ghost-dash')) { o.alive = false; return; }
+      }
+      if (o.attackElapsed >= interval - 1e-9 && inSeekRange(o, session.player, inst)) {
+        var dx = pc.x - o.rx, dy = pc.y - o.ry;
+        var len = Math.sqrt(dx * dx + dy * dy);
+        var dir = (len > 1e-6 && isFinite(len))
+          ? { x: dx / len, y: dy / len }
+          : (o._lastDir || { x: 1, y: 0 });
+        dash.active = true;
+        dash.x = dir.x; dash.y = dir.y;
+        dash.remainingPx = (conf.dashTiles || 2) * TS;
+        o._lastDir = { x: dash.x, y: dash.y };
+        o.attackElapsed = 0;                       // 周期从攻击开始算,0.2 秒冲刺也不额外等
+      }
+    }
+    if (!dash.active) return;
+    var speed = ghostDashSpeedPx();
+    var move = Math.min(dash.remainingPx, speed * dt);
+    var nx = o.rx + dash.x * move;
+    var ny = o.ry + dash.y * move;
+    // 只夹在本层地图矩形内(穿墙成立,但不飞出地图)
+    nx = Math.max(0, Math.min(inst.cols * TS, nx));
+    ny = Math.max(0, Math.min(inst.rows * TS, ny));
+    var seg = { x0: o.rx, y0: o.ry, x1: nx, y1: ny };
+    if (segmentHitsRect(seg, expandBox(pr, r))) {
+      // 扫过玩家身体:大 dt 也不会因为"跳过整段"漏伤
+      if (session.damage(dmg, 'ghost-dash')) {
+        o.rx = nx; o.ry = ny;
+        o.alive = false;
+        dash.active = false; dash.remainingPx = 0;
+        return;
+      }
+    }
+    o.rx = nx; o.ry = ny;
+    dash.remainingPx -= move;
+    if (dash.remainingPx <= 1e-9) { dash.active = false; dash.remainingPx = 0; }
+  }
+
+  /**
+   * 32:喷火火球。
+   *   · 朝向:每步按玩家水平位置翻面(忽略高度、也不受 10 格限制);
+   *   · 发射:静止、存活、周期就绪(首次等完整 4 秒)且在 10 格内才射;
+   *   · 弹:vy 恒为 0、vx=±V/2,不追踪、不拐弯;周期就绪最多保留一次,不补连发。
+   */
+  function stepSpitter(inst, o, dt, session, pc) {
+    var conf = spitterConf();
+    var interval = conf.fireIntervalSeconds || 4;
+    if (o.facing === undefined) initSpitterRuntime(o);
+    o.attackElapsed = Math.min(interval, (o.attackElapsed || 0) + dt);
+    var dx = pc.x - o.rx;
+    if (dx > 1e-9) o.facing = 1;
+    else if (dx < -1e-9) o.facing = -1;               // 水平位置恰好相同:保持上次朝向
+    if (o.attackElapsed < interval - 1e-9) return;
+    if (!inSeekRange(o, session.player, inst)) return;
+    o.attackElapsed = 0;
+    fireFlameBolt(inst, o);
+  }
+
+  /**
+   * 32:火焰弹推进。
+   * 先把这一步的线段裁到"所属楼层域"(与箭同一份域),再沿线段比较最近的实体墙与玩家:
+   * 墙更近或同位置就先挡住并销毁弹(不能隔墙扣血);命中玩家消耗该弹(玩家无敌也消耗)。
+   */
+  function stepFlameBolts(inst, dt, session) {
+    if (!inst.bolts || !inst.bolts.length) return;
+    var conf = spitterConf();
+    var speed = conf.boltSpeedPx || 170;
+    var dmg = conf.boltDamage || 20;
+    var br = conf.boltRadiusPx || 9;
+    var maxAge = conf.boltMaxAgeSeconds || 30;
+    var domain = inst.boltDomain || (inst.boltDomain = arrowDomainRect(inst));
+    var pb = expandBox(localPlayerBox(session.player, inst), br);
+    var keep = [];
+    inst.bolts.forEach(function (b) {
+      if (!b || b.alive === false) return;
+      b.age = (b.age || 0) + dt;
+      b.prevX = b.x; b.prevY = b.y;
+      var dir = b.vx >= 0 ? 1 : -1;
+      var travel = speed * dt;
+      if (!(travel > 0)) travel = 0;
+      // 先裁所属域:域外那一段既不判墙也不判伤,更不会命中邻层
+      var seg = clipSegmentToRect(b.x, b.y, b.x + dir * travel, b.y, domain);
+      if (!seg) return;                                 // 已在域外/越界:销毁
+      var limit = Math.abs(seg.x1 - b.x);
+      var trimmed = seg.t1 < 1 - 1e-9;
+      var wall = flameWallDistance(inst, b.x, b.y, dir, limit, br);
+      var playerHit = flamePlayerDistance(pb, b.x, b.y, dir, limit);
+      if (playerHit !== null && (wall === null || playerHit <= wall)) {
+        session.damage(dmg, 'flame-bolt');              // 命中即消费;无敌时也消费
+        return;
+      }
+      if (wall !== null) return;                        // 墙更近或同位置:先挡住并销毁
+      b.x = b.x + dir * limit;
+      if (trimmed || b.age > maxAge) return;
+      keep.push(b);
+    });
+    inst.bolts = keep;
+  }
+
   /**
    * 箭的所属域(实例局部坐标):左右 = 本图;上 = 本层 finish 顶面;下 = 本层 start 云板底面;
    * 再与实际地图矩形取交集。连接管道不延长箭的飞行区域,固定场景/单图试玩按地图边界。
@@ -176,15 +437,183 @@
       py >= Math.min(ay, by) - 1e-9 && py <= Math.max(ay, by) + 1e-9;
   }
 
-  /** 箭的绘制:细长占位图,朝向与实际速度一致(短塔与单图试玩共用) */
-  function drawFloorArrows(ctx, inst, cam) {
+  // ===================== 33:作者贴图的共用绘制 =====================
+  function artImg(assets, key) {
+    return (RA.ArtCatalog && RA.ArtCatalog.image) ? RA.ArtCatalog.image(assets, key) : null;
+  }
+  /** 像素图绘制:以 (cx,cy) 为中心,size 为世界像素边长,rot 为屏幕弧度 */
+  function drawArt(ctx, img, cx, cy, size, rot, flipX) {
+    if (!img) return false;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(cx, cy);
+    if (rot) ctx.rotate(rot);
+    if (flipX) ctx.scale(-1, 1);
+    ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    return true;
+  }
+  /**
+   * 34:把源图按"可见外接框"裁出来铺到目标矩形(最近邻)。
+   * 用于弹簧板/地刺这种需要按包络对齐判定区的图;bbox 缺省时用整张图。
+   */
+  function drawSpriteBBox(ctx, img, bbox, dx, dy, dw, dh) {
+    if (!img) return false;
+    var sx = bbox && isFinite(bbox.x) ? bbox.x : 0;
+    var sy = bbox && isFinite(bbox.y) ? bbox.y : 0;
+    var sw = bbox && bbox.w > 0 ? bbox.w : (img.width || 1);
+    var sh = bbox && bbox.h > 0 ? bbox.h : (img.height || 1);
+    if (!(sw > 0 && sh > 0 && dw > 0 && dh > 0)) return false;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+    ctx.restore();
+    return true;
+  }
+  /** 框类尺寸:本体框直径(radiusTiles×2×TS,默认 45px) */
+  function bodySizePx(o) { return Math.max(4, objectRadius(o) * TS * 2); }
+
+  /**
+   * 33:齿轮轨道显示(只换显示,不改路径/模式/节点/运动)。
+   * 返回是否成功画了作者轨道;失败(无图/旧非法路径)时调用方回退旧矢量线。
+   * pieces 的坐标是"格中心"的小数格坐标(c/r 都带 0.5),旋角为屏幕弧度。
+   */
+  function trackPieces(path) {
+    if (!RA.PathGeometry || !path) return null;
+    var c = RA.PathGeometry.compile(path);
+    if (!c || !c.ok) return null;
+    var segs = c.value.segments;
+    if (!segs.length) return null;                       // 单点:不需要轨道
+    var out = [], seen = {};
+    function add(kind, gc, gr, rot, key) {
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push({ kind: kind, c: gc, r: gr, rot: rot });
+    }
+    segs.forEach(function (s) {
+      var dc = s.b.col - s.a.col, dr = s.b.row - s.a.row;
+      var n = Math.abs(dc) + Math.abs(dr);
+      var sx = dc ? (dc > 0 ? 1 : -1) : 0;
+      var sy = dr ? (dr > 0 ? 1 : -1) : 0;
+      var rot = dc ? Math.PI / 2 : 0;                    // 源图直线是竖的
+      for (var i = 0; i <= n; i++) {
+        var col = s.a.col + sx * i, row = s.a.row + sy * i;
+        add('straight', col + 0.5, row + 0.5, rot, 's:' + col + ':' + row);
+      }
+    });
+    function rotArm(v, k) {
+      var x = v[0], y = v[1];
+      for (var i = 0; i < k; i++) { var t = x; x = -y; y = t; }
+      return [x, y];
+    }
+    function cornerRotation(a, b) {
+      var base = [[0, -1], [1, 0]];                      // 源图折线连接"上 + 右"
+      for (var k = 0; k < 4; k++) {
+        var r0 = rotArm(base[0], k), r1 = rotArm(base[1], k);
+        var ok1 = (r0[0] === a[0] && r0[1] === a[1] && r1[0] === b[0] && r1[1] === b[1]);
+        var ok2 = (r0[0] === b[0] && r0[1] === b[1] && r1[0] === a[0] && r1[1] === a[1]);
+        if (ok1 || ok2) return k;
+      }
+      return -1;
+    }
+    for (var i = 0; i < segs.length; i++) {
+      var cur = segs[i];
+      var next = (i + 1 < segs.length) ? segs[i + 1] : (path.mode === 'loop' ? segs[0] : null);
+      if (!next) continue;
+      var node = cur.b;
+      if (node.col !== next.a.col || node.row !== next.a.row) continue;
+      var armIn = [Math.sign(cur.a.col - node.col), Math.sign(cur.a.row - node.row)];
+      var armOut = [Math.sign(next.b.col - node.col), Math.sign(next.b.row - node.row)];
+      if (armIn[0] === -armOut[0] && armIn[1] === -armOut[1]) continue;   // 直行,不算转角
+      var k = cornerRotation(armIn, armOut);
+      if (k < 0) continue;
+      add('corner', node.col + 0.5, node.row + 0.5, k * Math.PI / 2, 'k:' + node.col + ':' + node.row);
+    }
+    return out;
+  }
+
+  /** 只给 gear 画轨道:共享同一条 path 只画一遍;画不了返回 false */
+  function drawGearTracks(ctx, inst, cam, assets) {
+    if (!inst) return false;
+    var straight = artImg(assets, 'authored/objects/track_straight');
+    var corner = artImg(assets, 'authored/objects/track_corner');
+    if (!straight && !corner) return false;
+    var paths = inst.paths || {};
+    var seen = {}, drew = false;
+    (inst.objects || []).forEach(function (o) {
+      if (!o || o.type !== 'gear' || !o.pathId || o.alive === false) return;
+      if (seen[o.pathId]) return;
+      seen[o.pathId] = true;
+      var pieces = trackPieces(paths[o.pathId]);
+      if (!pieces) return;
+      pieces.forEach(function (p) {
+        var img = p.kind === 'corner' ? corner : straight;
+        if (!img) return;
+        drawArt(ctx, img, inst.origin.x + p.c * TS - cam.x, inst.origin.y + p.r * TS - cam.y, TS, p.rot);
+        drew = true;
+      });
+    });
+    return drew;
+  }
+
+  /**
+   * 33:玩家光环(正式与独立试玩共用一份)。
+   * 判据只读真实技能状态 haloActiveRemaining>0;R 来自 rules.tuning.haloRadiusTiles(2.25格=101.25px)。
+   * 作者光环图按"可见最远像素到图心"等比缩放到 R,攻击圆心=玩家身体中心。
+   * 返回是否画了活动光环(缺图时画同 R 的轻量边界,不让技能完全不可见)。
+   */
+  function drawPlayerHalo(ctx, player, run, cam, assets) {
+    if (!player || !run) return false;
+    var left = Number(run.haloActiveRemaining);
+    if (!(left > 0)) return false;
+    var t = (RA.RULES && RA.RULES.tuning) || {};
+    var R = (t.haloRadiusTiles || 2.25) * TS;
+    var cx = player.x + player.w / 2 - cam.x;
+    var cy = player.y + player.h / 2 - cam.y;
+    // 34:施法期间按模拟时间顺时针旋转(用户指定1圈/秒)。已用时间直接由本次施法推导
+    // (haloSeconds - 剩余),不另开计时器/渲染帧累加 → 暂停冻结、跨层/F 连续、重复绘制不推进。
+    var used = Math.max(0, (t.haloSeconds || 14) - left);
+    var spinRps = (RA.C.VISUAL && RA.C.VISUAL.haloSpinRps) || 1;
+    var ang = (Math.PI * 2 * spinRps * used) % (Math.PI * 2);
+    var img = artImg(assets, 'authored/objects/halo');
+    if (img) {
+      var outer = (RA.ArtCatalog && RA.ArtCatalog.haloOuterRadiusPx) || Math.max(img.width || 1, img.height || 1) / 2;
+      var scale = R / outer;
+      var w = (img.width || 50) * scale, h = (img.height || 50) * scale;
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.translate(cx, cy);
+      ctx.rotate(ang);
+      // 以身体中心旋转:可见最远像素到中心的距离仍是 R(方形图的四角是透明的)
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
+      ctx.restore();
+      return true;
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(126,224,168,.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return true;
+  }
+
+  /** 箭的绘制:作者箭头按速度方向旋转(源图朝右上 45°);缺图用原来的细箭占位 */
+  function drawFloorArrows(ctx, inst, cam, assets) {
     if (!inst || !inst.arrows || !inst.arrows.length) return;
-    var conf = archerConf();
-    var len = conf.arrowLengthPx || 18;
+    // 36:只放大可见图案(18→27 世界px);命中半宽仍 3、伤害/速度/穿墙规则不变
+    var len = (RA.C.VISUAL && RA.C.VISUAL.arrowRenderSizePx) || 27;
+    var img = artImg(assets, 'authored/objects/arrow');
+    var sourceAngle = (RA.ArtCatalog && RA.ArtCatalog.arrowSourceAngle) || 0;
     inst.arrows.forEach(function (a) {
       if (!a || a.alive === false) return;
       var sx = inst.origin.x + a.x - cam.x;
       var sy = inst.origin.y + a.y - cam.y;
+      if (img) {
+        drawArt(ctx, img, sx, sy, len, Math.atan2(a.vy, a.vx) - sourceAngle);
+        return;
+      }
       ctx.save();
       ctx.translate(sx, sy);
       ctx.rotate(Math.atan2(a.vy, a.vx));
@@ -197,20 +626,48 @@
     });
   }
 
+  /** 32:火焰弹绘制;33 换成作者火焰弹图;36 显示放大到 27px,判定半径仍 boltRadiusPx=9 */
+  function drawFloorBolts(ctx, inst, cam, assets) {
+    if (!inst || !inst.bolts || !inst.bolts.length) return;
+    var br = spitterConf().boltRadiusPx || 9;            // 只用于兜底判定半径的旧占位比例
+    var size = (RA.C.VISUAL && RA.C.VISUAL.flameBoltRenderSizePx) || 27;
+    var renderR = size / 2;
+    var img = artImg(assets, 'authored/objects/flame_bolt');
+    inst.bolts.forEach(function (b) {
+      if (!b || b.alive === false) return;
+      var sx = inst.origin.x + b.x - cam.x;
+      var sy = inst.origin.y + b.y - cam.y;
+      if (img) {
+        drawArt(ctx, img, sx, sy, size);
+        return;
+      }
+      ctx.fillStyle = '#ff7a1a';
+      ctx.beginPath(); ctx.arc(sx, sy, renderR, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath();
+      ctx.arc(sx + (b.vx >= 0 ? -br * 0.35 : br * 0.35), sy, br * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
   /** 单层运行时:模板只读,运动状态放在实例副本里 */
   /**
-   * 场景对象绘制(短塔与单图试玩共用同一份):位置用实例局部坐标 rx/ry + 实例原点,
-   * 再减相机。未存活/已消失的对象不能继续画成活物(光环清掉的火球、碎掉的门等)。
+   * 场景对象绘制(短塔/单图试玩/编辑器静态预览共用同一份):位置用实例局部坐标 rx/ry +
+   * 实例原点,再减相机。未存活/已消失的对象不能继续画成活物。
+   * assets 由调用页面显式传入;作者图没加载到(或旧调用没传 assets)时逐类退回原有矢量占位。
    */
-  function drawFloorObject(ctx, inst, o, cam) {
+  function drawFloorObject(ctx, inst, o, cam, assets) {
     var x = o.rx !== undefined ? o.rx : o.col * TS + TS / 2;
     var y = o.ry !== undefined ? o.ry : o.row * TS + TS / 2;
     var sx = inst.origin.x + x - cam.x;
     var sy = inst.origin.y + y - cam.y;
+    var img;
     if (o.type === 'coin') {
       // 已被玩家拾取的金币不再画成活物;金币只被身体拾取,光环不代捡
       if (o.collected || o.alive === false) return;
       var cr = coinRadiusTiles() * TS;
+      img = artImg(assets, 'authored/objects/coin');
+      if (img) { drawArt(ctx, img, sx, sy, cr * 2); return; }
       ctx.fillStyle = '#ffd166';
       ctx.beginPath(); ctx.arc(sx, sy, cr, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 2; ctx.stroke();
@@ -218,23 +675,28 @@
       ctx.beginPath(); ctx.arc(sx, sy, cr * 0.5, 0, Math.PI * 2); ctx.stroke();
     } else if (o.type === 'archer') {
       if (!o.alive) return;
-      // 本体:静止的人形占位;弓与瞄准方向随当前玩家位置(发射方向在发射瞬间另存)
-      var bodyR = Math.max(6, TS * 0.3);
-      ctx.fillStyle = '#8ef0c0';
-      ctx.beginPath(); ctx.arc(sx, sy, bodyR, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#1f7a5a'; ctx.lineWidth = 2; ctx.stroke();
       var f = o._facing || { x: 1, y: 0 };
       var fl = Math.sqrt(f.x * f.x + f.y * f.y) || 1;
       var ux = f.x / fl, uy = f.y / fl;
-      ctx.strokeStyle = '#f4f7ff'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + ux * TS * 0.7, sy + uy * TS * 0.7); ctx.stroke();
-      ctx.fillStyle = '#c9f7e4';
-      ctx.beginPath();
-      ctx.moveTo(sx + ux * TS * 0.85, sy + uy * TS * 0.85);
-      ctx.lineTo(sx + ux * TS * 0.55 - uy * 5, sy + uy * TS * 0.55 + ux * 5);
-      ctx.lineTo(sx + ux * TS * 0.55 + uy * 5, sy + uy * TS * 0.55 - ux * 5);
-      ctx.closePath(); ctx.fill();
-      // 瞄准辅助虚线(短,只表示朝向)
+      img = artImg(assets, 'authored/objects/archer');
+      if (img) {
+        drawArt(ctx, img, sx, sy, bodySizePx(o), 0, (o.facing || (f.x < 0 ? -1 : 1)) < 0);
+      } else {
+        // 本体:静止的人形占位;弓与瞄准方向随当前玩家位置(发射方向在发射瞬间另存)
+        var bodyR = Math.max(6, TS * 0.3);
+        ctx.fillStyle = '#8ef0c0';
+        ctx.beginPath(); ctx.arc(sx, sy, bodyR, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1f7a5a'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = '#f4f7ff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + ux * TS * 0.7, sy + uy * TS * 0.7); ctx.stroke();
+        ctx.fillStyle = '#c9f7e4';
+        ctx.beginPath();
+        ctx.moveTo(sx + ux * TS * 0.85, sy + uy * TS * 0.85);
+        ctx.lineTo(sx + ux * TS * 0.55 - uy * 5, sy + uy * TS * 0.55 + ux * 5);
+        ctx.lineTo(sx + ux * TS * 0.55 + uy * 5, sy + uy * TS * 0.55 - ux * 5);
+        ctx.closePath(); ctx.fill();
+      }
+      // 瞄准辅助虚线(短,只表示朝向;有无作者图都保留,便于辨认发射方向)
       ctx.save();
       if (ctx.setLineDash) ctx.setLineDash([4, 4]);
       ctx.strokeStyle = 'rgba(201,247,228,.45)';
@@ -245,26 +707,89 @@
       ctx.restore();
     } else if (o.type === 'fireball_static' || o.type === 'fireball_moving') {
       if (!o.alive) return;
+      img = artImg(assets, 'authored/objects/fireball');
+      if (img) { drawArt(ctx, img, sx, sy, bodySizePx(o)); return; }
       ctx.fillStyle = o.type === 'fireball_moving' ? '#ff5e3a' : '#ff7043';
       ctx.beginPath(); ctx.arc(sx, sy, objectRadius(o) * TS, 0, Math.PI * 2); ctx.fill();
       if (o.type === 'fireball_moving') {
         ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2; ctx.stroke();
       }
+    } else if (o.type === 'ghost_dash') {
+      // 32:漂浮幽灵。冲刺时按锁定方向画一条尾迹;待机时只画本体
+      if (!o.alive) return;
+      var gr = objectRadius(o) * TS;
+      var dash = o._dash;
+      if (dash && dash.active) {
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = '#c9b6ff'; ctx.lineWidth = Math.max(2, TS * 0.08);
+        ctx.beginPath();
+        ctx.moveTo(sx - dash.x * gr * 1.6, sy - dash.y * gr * 1.6);
+        ctx.lineTo(sx, sy);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      img = artImg(assets, 'authored/objects/ghost');
+      if (img) { drawArt(ctx, img, sx, sy, bodySizePx(o)); return; }
+      ctx.globalAlpha = 0.88;
+      ctx.fillStyle = '#d9ccff';
+      ctx.beginPath(); ctx.arc(sx, sy, gr, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#f3edff'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#4b3f78';
+      ctx.beginPath(); ctx.arc(sx - gr * 0.32, sy - gr * 0.12, Math.max(1.5, gr * 0.16), 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + gr * 0.32, sy - gr * 0.12, Math.max(1.5, gr * 0.16), 0, Math.PI * 2); ctx.fill();
+    } else if (o.type === 'fireball_spitter') {
+      // 32:静止喷火火球;本体沿用普通火球尺寸,朝玩家的一侧画炮口
+      if (!o.alive) return;
+      var sr = objectRadius(o) * TS;
+      var fdir = o.facing >= 0 ? 1 : -1;
+      img = artImg(assets, 'authored/objects/fireball');
+      if (img) drawArt(ctx, img, sx, sy, bodySizePx(o));
+      else {
+        ctx.fillStyle = '#ff8f3a';
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2; ctx.stroke();
+      }
+      // 左右前向标识:作者火球图本身不含方向,保留一个小炮口标出当前朝向
+      if (img) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(90,43,18,.85)';
+        ctx.beginPath();
+        ctx.moveTo(sx + fdir * sr * 0.52, sy - sr * 0.26);
+        ctx.lineTo(sx + fdir * sr * 0.98, sy);
+        ctx.lineTo(sx + fdir * sr * 0.52, sy + sr * 0.26);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#5a2b12';
+        ctx.beginPath();
+        ctx.moveTo(sx + fdir * sr * 0.55, sy - sr * 0.34);
+        ctx.lineTo(sx + fdir * sr * 1.25, sy);
+        ctx.lineTo(sx + fdir * sr * 0.55, sy + sr * 0.34);
+        ctx.closePath(); ctx.fill();
+      }
     } else if (o.type === 'soul') {
       if (!o.alive) return;
       var srad = objectRadius(o) * TS;
-      ctx.globalAlpha = 0.82;
-      ctx.fillStyle = '#9fd8ff';
-      ctx.beginPath(); ctx.arc(sx, sy, srad, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(sx, sy, srad * 0.55, 0, Math.PI * 2); ctx.stroke();
+      img = artImg(assets, 'authored/objects/soul');
+      if (img) drawArt(ctx, img, sx, sy, bodySizePx(o));
+      else {
+        ctx.globalAlpha = 0.82;
+        ctx.fillStyle = '#9fd8ff';
+        ctx.beginPath(); ctx.arc(sx, sy, srad, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx, sy, srad * 0.55, 0, Math.PI * 2); ctx.stroke();
+      }
+      // 贴边方向标(不参与判定)
       var sdir = (o._soul && o._soul.dir) || 0;
       var sdv = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }][sdir] || { x: 0, y: -1 };
-      ctx.strokeStyle = '#d8f1ff'; ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(216,241,255,.75)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sdv.x * srad * 0.8, sy + sdv.y * srad * 0.8); ctx.stroke();
     } else if (o.type === 'sewage_pool') {
-      // 单格池画在怪物下方(short/trial 会先画池);半透明保留底层地形轮廓
+      // 单格池画在怪物下方(short/trial 会先画池)
+      img = artImg(assets, 'authored/objects/sewage');
+      if (img) { drawArt(ctx, img, sx, sy, TS); return; }
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = '#4f8f45';
       ctx.fillRect(sx - TS / 2 + 1, sy - TS / 2 + 1, TS - 2, TS - 2);
@@ -272,34 +797,104 @@
       ctx.strokeStyle = '#9dd47a'; ctx.lineWidth = 2;
       ctx.strokeRect(sx - TS / 2 + 1, sy - TS / 2 + 1, TS - 2, TS - 2);
     } else if (o.type === 'gear') {
+      // 34:绕自身真实中心顺时针自转(默认1圈/秒),独立于轨道 phase/速度;
+      // 单点齿轮也转;角度只来自实例模拟时间(preview→active 连续、暂停冻结)。
+      var spinRps = (RA.C.VISUAL && RA.C.VISUAL.gearSpinRps) || 1;
+      var spinAng = (Math.PI * 2 * spinRps * (Number(inst.visualTime) || 0)) % (Math.PI * 2);
+      img = artImg(assets, 'authored/objects/gear');
+      if (img) { drawArt(ctx, img, sx, sy, bodySizePx(o), spinAng); return; }
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(spinAng);
       ctx.fillStyle = '#ffd166';
-      ctx.beginPath(); ctx.arc(sx, sy, objectRadius(o) * TS, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, objectRadius(o) * TS, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#6b4f00'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = '#6b4f00'; ctx.lineWidth = Math.max(1.5, TS * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(-objectRadius(o) * TS * 0.8, 0); ctx.lineTo(objectRadius(o) * TS * 0.8, 0);
+      ctx.moveTo(0, -objectRadius(o) * TS * 0.8); ctx.lineTo(0, objectRadius(o) * TS * 0.8);
+      ctx.stroke();
+      ctx.restore();
     } else if (o.type === 'flail') {
       if (!o.alive) return;
-      var f = flailHead(o);
-      var ax = inst.origin.x + f.anchor.x - cam.x;
-      var ay = inst.origin.y + f.anchor.y - cam.y;
-      var hx = inst.origin.x + f.x - cam.x;
-      var hy = inst.origin.y + f.y - cam.y;
+      var fh = flailHead(o);
+      var ax = inst.origin.x + fh.anchor.x - cam.x;
+      var ay = inst.origin.y + fh.anchor.y - cam.y;
+      var hx = inst.origin.x + fh.x - cam.x;
+      var hy = inst.origin.y + fh.y - cam.y;
+      var chainImg = artImg(assets, 'authored/objects/flail_chain');
+      var headImg = artImg(assets, 'authored/objects/flail_head');
+      if (chainImg) {
+        // 沿端点→锤头重复铺锁链贴图(源图竖向),不拉伸成粗带;链不参与伤害
+        var dx = hx - ax, dy = hy - ay, len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+        var unit = TS * 0.42, step = unit * 0.62;
+        ctx.save();
+        ctx.translate(ax, ay);
+        ctx.rotate(ang - Math.PI / 2);
+        var pos = unit * 0.5;
+        while (pos < len - unit * 0.35) {
+          ctx.drawImage(chainImg, -unit / 2, pos - unit / 2, unit, unit);
+          pos += step;
+        }
+        ctx.restore();
+      } else {
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = Math.max(2, TS * 0.06);
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(hx, hy); ctx.stroke();
+      }
       // 端点
       ctx.fillStyle = '#c7d2fe';
       ctx.beginPath(); ctx.arc(ax, ay, Math.max(3, TS * 0.12), 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 2; ctx.stroke();
-      // 锁链(端点到当前锤头;无伤害)
-      ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = Math.max(2, TS * 0.06);
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(hx, hy); ctx.stroke();
-      // 锤头
-      ctx.fillStyle = '#f97316';
-      ctx.beginPath(); ctx.arc(hx, hy, f.radius, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#7c2d12'; ctx.lineWidth = 2; ctx.stroke();
+      // 锤头:判定直径=原规则(radiusTiles×2×TS)
+      if (headImg) drawArt(ctx, headImg, hx, hy, fh.radius * 2);
+      else {
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath(); ctx.arc(hx, hy, fh.radius, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#7c2d12'; ctx.lineWidth = 2; ctx.stroke();
+      }
     } else if (o.type === 'spring') {
+      // 34:作者弹簧板整图铺进这一格(源图上方透明→底部弹板),底部锚点=格子底边;
+      // 触发面/弹力/实体查询都不变,透明区域不是新碰撞体。
+      img = artImg(assets, 'authored/objects/spring');
+      if (img) { drawArt(ctx, img, sx, sy, TS); return; }
       ctx.fillStyle = '#7ee0a8';
       ctx.fillRect(sx - TS / 2 + 4, sy + TS / 2 - 10, TS - 8, 8);
     } else if (o.type === 'spike') {
       var sg = spikeGeom(o);
+      var M = RA.C.MONSTER || {};
+      var baseH = M.spikeBaseHeight || 12;
+      var spikeH = M.spikeHeight || 16;
+      var spikeKey = o.state === 'active' ? 'authored/objects/spike_active' : 'authored/objects/spike_idle';
+      var spikeImg = artImg(assets, spikeKey);
+      if (spikeImg) {
+        // 34:底座左缘/底边与 spikeGeom 一致;探出帧按可见包络铺满"底座+真实尖刺区",
+        // 未探出帧只铺底座高度。图片只对齐包络,不改变判定盒(伤害仍只看 spike)。
+        var meta = RA.ArtCatalog && RA.ArtCatalog.get ? RA.ArtCatalog.get(spikeKey) : null;
+        var bbox = meta && meta.bbox;
+        var bx = inst.origin.x + o.col * TS + 2 - cam.x;
+        var bw = TS - 4;
+        var bottom = inst.origin.y + (o.row + 1) * TS - cam.y;
+        if (o.state === 'active') {
+          drawSpriteBBox(ctx, spikeImg, bbox, bx, bottom - baseH - spikeH, bw, baseH + spikeH);
+        } else {
+          drawSpriteBBox(ctx, spikeImg, bbox, bx, bottom - baseH, bw, baseH);
+        }
+        if (o.state === 'warning') {
+          // 轻量预警:底座一条琥珀细线,不提前显示成已造成伤害
+          ctx.save();
+          ctx.fillStyle = 'rgba(255,209,102,.9)';
+          ctx.fillRect(bx + 2, bottom - 2, bw - 4, 2);
+          ctx.restore();
+        }
+        return;
+      }
       ctx.fillStyle = '#9aa8c7';
       ctx.fillRect(inst.origin.x + sg.base.x - cam.x, inst.origin.y + sg.base.y - cam.y, sg.base.w, sg.base.h);
+      if (o.state === 'warning') {
+        ctx.fillStyle = 'rgba(255,209,102,.9)';
+        ctx.fillRect(inst.origin.x + sg.base.x - cam.x + 2,
+          inst.origin.y + sg.base.y - cam.y + sg.base.h - 2, sg.base.w - 4, 2);
+      }
       if (o.state === 'active') {
         ctx.fillStyle = '#ff8a65';
         var bx = inst.origin.x + sg.base.x - cam.x;
@@ -314,10 +909,14 @@
       }
     } else if (o.type === 'crumble_door') {
       if (o.broken) return;
+      img = artImg(assets, 'authored/objects/door');
+      if (img) { drawArt(ctx, img, sx, sy, TS); return; }
       ctx.fillStyle = '#9c7bd8';
       ctx.fillRect(sx - TS / 2 + 2, sy - TS / 2 + 2, TS - 4, TS - 4);
     } else if (o.type === 'blink_platform') {
       if (o.state === 'gone') return;
+      img = artImg(assets, o.state === 'warning' ? 'authored/objects/blink_warning' : 'authored/objects/blink_idle');
+      if (img) { drawArt(ctx, img, sx, sy, TS); return; }
       ctx.fillStyle = o.state === 'warning' ? '#ffd166' : '#7fb3ff';
       ctx.fillRect(sx - TS / 2 + 2, sy - TS / 2 + 2, TS - 4, TS - 4);
     }
@@ -373,6 +972,9 @@
       this.state = 'preview';
       this.activeTime = 0;
       this.previewTime = 0;
+      // 34:实例级"模拟视觉时间"(秒)。preview 与 active 都推进、暂停不推进、
+      // 激活不重置;只给齿轮自转/光环旋转这类纯显示用,不进模板/hash/存档。
+      this.visualTime = 0;
       this.entered = false;
       this.hasNext = !!opts.hasNext;
       this.exitOpen = data.kind !== 'boss';
@@ -381,6 +983,8 @@
         rec._phase = 0;
         rec.alive = true;
         rec.broken = false;
+        rec.breakStarted = false;
+        rec.breakRemaining = 0;
         rec.state = 'idle';
         rec.timer = 0;
         rec.cycle = 0;
@@ -405,7 +1009,9 @@
       var level = RA.Level.fromData({
         id: data.id + '_runtime',
         asc: tilesToAsc(data.terrain.tiles),
-        size: { cols: this.cols, rows: this.rows }
+        size: { cols: this.cols, rows: this.rows },
+        // 35:把 visuals 带进运行时 Level,小背景才能在地形前绘制(不参与碰撞/物理)
+        visuals: data.visuals || null
       }, { id: data.id + '_runtime' });
       var inst = this;
       // 静态碰撞的邻层部分:按世界坐标向 World 查询“已实存实例 + 已实存石管”的几何。
@@ -436,7 +1042,21 @@
       }
       var self = this;
       level.solidEntityAt = function (r, c) { return self.solidAt(r, c); };
+      // 36:只认"纯对象"(门/浮石)提供的实心,用来区分对象与管壁/底板/派生墙;
+      // Level.move 只在纯对象顶头时不再人为嵌入 1px,管壁/接缝保持旧规则。
+      level.pureObjectSolidAt = function (r, c) { return self.pureObjectSolidAt(r, c); };
       this.level = level;
+      // 33:地块外观只影响显示;碰撞/灵魂几何/挡弹仍只读 terrain。
+      this.tileSkinMap = {};
+      var skins = data.visuals && data.visuals.tileSkins;
+      if (Array.isArray(skins)) {
+        skins.forEach(function (s) {
+          if (s && typeof s.skinId === 'string' && isInt(s.row) && isInt(s.col)) {
+            self.tileSkinMap[s.row + ':' + s.col] = s.skinId;
+          }
+        });
+      }
+      level.tileSkins = function (r, c) { return self.tileSkinMap[r + ':' + c] || null; };
       this.blockRevision = 0;
       this.blockGeometry = RA.BlockGeometry ? RA.BlockGeometry.create({
         cols: this.cols, rows: this.rows,
@@ -448,6 +1068,15 @@
       this.arrows = [];
       this.arrowSeq = 0;
       this.arrowDomain = arrowDomainRect(this);
+      // 32:火焰弹同样是实例运行弹;不进模板/路径/hash,离层/死亡/胜利/试玩结束清理。
+      this.bolts = [];
+      this.boltSeq = 0;
+      this.boltDomain = arrowDomainRect(this);
+      // 32:幽灵/喷火的计时、朝向、冲刺相位只放在实例副本里
+      this.objects.forEach(function (o) {
+        if (o.type === 'ghost_dash') initGhostRuntime(o);
+        else if (o.type === 'fireball_spitter') initSpitterRuntime(o);
+      });
       this.view = new FloorView(this);
     }
 
@@ -523,6 +1152,9 @@
 
     /** 路径对象运动;preview 只动不打人 */
     moveObjects(dt) {
+      // 34:这里是正式(active+preview)与独立试玩共用的每步对象推进点,
+      // 视觉时钟只在这里累计 → 与模拟时间同源,暂停/不步进就不转。
+      this.visualTime = (this.visualTime || 0) + dt;
       this.objects.forEach(function (o) {
         if (o.type === 'soul' && o.alive) {
           if (!o._soul) {
@@ -588,6 +1220,22 @@
       return !!this.world.staticAtWorld(wx, wy, this).solid;
     }
 
+    /** 36:这一格是不是"纯对象"提供的实心(门/浮石),不含管壁/已实存地形/派生墙 */
+    pureObjectSolidAt(localRow, localCol) {
+      if (this.wallCells && this.wallCells[localRow + ':' + localCol]) return false;
+      var wx = this.origin.x + localCol * TS + TS / 2;
+      var wy = this.origin.y + localRow * TS + TS / 2;
+      if (this.world && this.world.wallAtWorld(wx, wy)) return false;
+      if (this.otherStaticAt(localRow, localCol)) return false;
+      for (var i = 0; i < this.objects.length; i++) {
+        var o = this.objects[i];
+        if (o.col !== localCol || o.row !== localRow) continue;
+        if (o.type === 'crumble_door' && !o.broken) return true;
+        if (o.type === 'blink_platform' && o.state !== 'gone') return true;
+      }
+      return false;
+    }
+
     /** 对象/派生墙是否提供实心碰撞(门/浮石/地刺底座) */
     solidAt(localRow, localCol) {
       if (this.wallCells && this.wallCells[localRow + ':' + localCol]) return true;
@@ -635,7 +1283,6 @@
           }
         }
       });
-      if (geomChanged) this.blockRevision++;
       // 30:金币拾取、弓箭手计时/发射、箭推进(只在这里 = 只有 active 层)
       this.updateAmmoAndPickups(dt, session);
       // 接触/伤害:同一模拟步最多一次受伤由 session 保证
@@ -660,10 +1307,24 @@
             session.events.push({ type: 'springBounce', simTime: session.time });
           }
         } else if (o.type === 'crumble_door') {
-          if (!o.broken && near) {
-            o.broken = true;
-            self.blockRevision++;
-            session.events.push({ type: 'doorBroken', simTime: session.time });
+          // 40:首触 near 后保持可见/实体 0.10 秒;持续接触不重置、离开继续,
+          // 计时只在 running 的同一模拟时钟推进(暂停不调用本函数)。
+          if (!o.broken) {
+            var delay = Number(RA.RULES && RA.RULES.tuning && RA.RULES.tuning.doorDisappearDelaySeconds);
+            if (!isFinite(delay) || delay < 0) delay = 0.10;
+            if (o.breakStarted) {
+              o.breakRemaining = (typeof o.breakRemaining === 'number' ? o.breakRemaining : delay) - dt;
+              if (o.breakRemaining <= 1e-9) {
+                o.broken = true;
+                o.breakStarted = false;
+                o.breakRemaining = 0;
+                geomChanged = true;
+                session.events.push({ type: 'doorBroken', simTime: session.time });
+              }
+            } else if (near) {
+              o.breakStarted = true;
+              o.breakRemaining = delay;
+            }
           }
         } else if (o.type === 'blink_platform') {
           if (o.state === 'idle' && feetOnTop) {
@@ -686,12 +1347,18 @@
         } else if (o.type === 'archer') {
           // 本体接触 20;箭命中在 updateAmmoAndPickups 里单独结算
           if (hit) session.damage((RA.C.ARCHER && RA.C.ARCHER.contactDamage) || 20, 'archer');
+        } else if (o.type === 'fireball_spitter') {
+          // 32:本体接触 20;水平弹的命中在 updateAmmoAndPickups 里单独结算
+          if (hit) session.damage((RA.C.SPITTER && RA.C.SPITTER.contactDamage) || 20, 'spitter');
         } else if (o.type === 'sewage_pool') {
           if (overlap(pr, { x: o.col * TS, y: o.row * TS, w: TS, h: TS })) {
             session.damage((RA.C.MONSTER && RA.C.MONSTER.sewageDamage) || 20, 'sewage');
           }
         }
       });
+      // 40:门真正 broken 与 blink 几何变化在同一步统一递增 revision;
+      // doorBroken 事件已在上面同一步发出,保证渲染/碰撞/灵魂同步。
+      if (geomChanged) this.blockRevision++;
     }
 
     objectBox(o) {
@@ -700,9 +1367,11 @@
     }
 
     /**
-     * 30:金币拾取 + 弓箭手计时/发射 + 箭推进。
-     * 只在 active 层的 updateActiveObjects 里调用:preview 不累计射击时间/不射/不伤害。
+     * 30/32:金币拾取 + 弓箭手/幽灵/喷火的计时与攻击 + 箭/火焰弹推进。
+     * 只在 active 层的 updateActiveObjects 里调用:preview 不累计攻击时间/不攻击/不伤害。
      * 所有比较先统一到实例局部坐标;Player 是世界坐标,只能经 origin 转换。
+     * 三类主动索敌怪(弓/幽灵/喷火)共用"中心直线 ≤10 格"的限制,但只限制新攻击:
+     * 已发出的箭/火焰弹、已开始的幽灵冲刺继续走完原有生命周期。
      */
     updateAmmoAndPickups(dt, session) {
       var player = session && session.player;
@@ -710,8 +1379,9 @@
       var px = player.x - this.origin.x;
       var py = player.y - this.origin.y;
       var pr = { x: px, y: py, w: player.w, h: player.h };
+      var pc = playerLocalCenter(player, this);
       var conf = archerConf();
-      var interval = conf.fireIntervalSeconds || 2;
+      var interval = conf.fireIntervalSeconds || 4;
       var speed = conf.arrowSpeedPx || 170;
       var domain = this.arrowDomain || (this.arrowDomain = arrowDomainRect(this));
       var self = this;
@@ -725,13 +1395,24 @@
           if (typeof session.onCoinCollected === 'function') session.onCoinCollected(o);
           return;
         }
+        if (o.type === 'ghost_dash') {
+          if (!o.alive) return;
+          stepGhost(self, o, dt, session, pr, pc);
+          return;
+        }
+        if (o.type === 'fireball_spitter') {
+          if (!o.alive) return;
+          stepSpitter(self, o, dt, session, pc);
+          return;
+        }
         if (o.type !== 'archer' || !o.alive) return;
         // 瞄准只用于显示;发射方向在发射瞬间按玩家位置另取
         o._facing = archerAim(o, player, self);
-        o.shotElapsed = (isFinite(o.shotElapsed) ? o.shotElapsed : 0) + dt;
+        // 32:周期改 4 秒,且只累积到"一次就绪";超距不新射但不丢就绪
+        o.shotElapsed = Math.min(interval, (isFinite(o.shotElapsed) ? o.shotElapsed : 0) + dt);
         if (o.shotElapsed < interval) return;
-        o.shotElapsed -= interval;
-        if (o.shotElapsed < 0) o.shotElapsed = 0;     // 不补发一串
+        if (!inSeekRange(o, player, self)) return;     // 10 格外不发起新攻击
+        o.shotElapsed = 0;                             // 不补发一串
         self.arrowSeq = (self.arrowSeq || 0) + 1;
         var aim = archerAim(o, player, self);
         self.arrows.push({
@@ -766,13 +1447,22 @@
         keep.push(a);
       });
       this.arrows = keep;
+
+      // 32:火焰弹(水平、不穿实体墙、不跨楼层;不可被光环清)
+      stepFlameBolts(this, dt, session);
     }
 
-    /** 清掉本层所有箭与发射计时(离层/死亡/胜利/重试);已发箭不跨层 */
+    /**
+     * 清掉本层所有箭/火焰弹与攻击计时(离层/F/死亡/胜利/重试/试玩结束)。
+     * 已发出的弹不跨层;本体死亡时不清旧弹(那是 clearArrows 之外的路径)。
+     */
     clearArrows() {
       this.arrows = [];
+      this.bolts = [];
       this.objects.forEach(function (o) {
         if (o.type === 'archer') o.shotElapsed = 0;
+        else if (o.type === 'ghost_dash') initGhostRuntime(o);
+        else if (o.type === 'fireball_spitter') initSpitterRuntime(o);
       });
     }
 
@@ -1000,7 +1690,7 @@
 
     clearPendingEntry() { this.pendingEntry = null; }
 
-    /** 30:会话死亡/胜利/重开/回主菜单/退出时释放所有箭与射击计时 */
+    /** 30/32:会话死亡/胜利/重开/回主菜单/退出时释放所有箭、火焰弹与攻击计时 */
     clearArrows() {
       this.instances.forEach(function (inst) {
         if (inst && typeof inst.clearArrows === 'function') inst.clearArrows();
@@ -1012,6 +1702,15 @@
       var out = [];
       this.instances.forEach(function (inst, i) {
         if (inst.state === 'active' && inst.arrows) inst.arrows.forEach(function (a) { out.push({ floor: i, arrow: a }); });
+      });
+      return out;
+    }
+
+    /** 当前 active 层正在飞的火焰弹(只给验收/诊断读) */
+    liveBolts() {
+      var out = [];
+      this.instances.forEach(function (inst, i) {
+        if (inst.state === 'active' && inst.bolts) inst.bolts.forEach(function (b) { out.push({ floor: i, bolt: b }); });
       });
       return out;
     }
@@ -1243,7 +1942,13 @@
   RA.FloorView = FloorView;
   RA.World = World;
   RA.drawFloorObject = drawFloorObject;
+  RA.drawSpriteBBox = drawSpriteBBox;
   RA.drawFloorArrows = drawFloorArrows;
+  RA.drawFloorBolts = drawFloorBolts;
+  RA.drawGearTracks = drawGearTracks;
+  RA.drawPlayerHalo = drawPlayerHalo;
+  RA.trackPieces = trackPieces;
+  RA.flameSolidAtLocal = flameSolidAtLocal;
   RA.drawObjectTrack = drawObjectTrack;
   RA.flailHead = flailHead;
   RA.spikeGeom = spikeGeom;
