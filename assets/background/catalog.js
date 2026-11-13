@@ -153,6 +153,13 @@
         "file": "assets/background/level/white_stained_glass_27x25.png",
         "width": 432,
         "height": 400
+      },
+      {
+        "id": "levelbg-white-wool-34x24",
+        "label": "white_wool_34x24",
+        "file": "assets/background/level/white_wool_34x24.png",
+        "width": 544,
+        "height": 384
       }
     ]
   };

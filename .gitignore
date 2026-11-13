@@ -13,9 +13,12 @@ android/.gradle/
 android/app/build/
 android/build/
 android/local.properties
+/.vscode/launch.json
+/reverse_abyss-*.zip
 
 # 开发记录、测试与历史源件保留在本地，不进入发布仓库
-/docs/
+/docs/*
+!/docs/Reverse Abyss 课程设计报告.docx
 /tests/
 /开发示例关卡/
 /levels/archive/
